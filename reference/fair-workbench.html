@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FAIR risk workbench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F2; --panel:#FFFFFF; --field:#F7F9FA; --ink:#17202A; --muted:#5B6773; --line:#CBD3DA;
+  --accent:#0E5A66; --on-accent:#FFFFFF; --accent-soft:#DCEBEE;
+  --amber:#A86A00; --amber-soft:#FBF0DA; --red:#A3332B; --red-soft:#F8E2DF; --green:#2F6B3A;
+  --s1:#0E5A66; --s2:#B87A0A; --s3:#6D4FA3; --s4:#2F7A45;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F151B; --panel:#17202A; --field:#1D2833; --ink:#E3E8EC; --muted:#98A4AF; --line:#2D3A46;
+    --accent:#5DB6C3; --on-accent:#08262B; --accent-soft:#163339;
+    --amber:#E3A94A; --amber-soft:#382C15; --red:#E8857B; --red-soft:#3A1F1C; --green:#7CC08A;
+    --s1:#5DB6C3; --s2:#E3A94A; --s3:#AD93E0; --s4:#7CC08A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F151B; --panel:#17202A; --field:#1D2833; --ink:#E3E8EC; --muted:#98A4AF; --line:#2D3A46;
+  --accent:#5DB6C3; --on-accent:#08262B; --accent-soft:#163339;
+  --amber:#E3A94A; --amber-soft:#382C15; --red:#E8857B; --red-soft:#3A1F1C; --green:#7CC08A;
+  --s1:#5DB6C3; --s2:#E3A94A; --s3:#AD93E0; --s4:#7CC08A;
+  color-scheme:dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums;padding-bottom:88px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+p{margin:.4em 0}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+
+/* Header */
+.top{padding:18px 0 8px}
+.top .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between}
+.brand{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:2px}
+.title{font-size:24px;font-weight:800;letter-spacing:-.01em;border:0;border-bottom:2px solid transparent;background:transparent;padding:2px 0;width:100%;max-width:640px}
+.title:hover{border-bottom-color:var(--line)}
+.title:focus{outline:none;border-bottom-color:var(--accent)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.savestate{font-size:12.5px;color:var(--muted);min-height:1.2em}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:8px 12px;font-weight:600;font-size:14px;cursor:pointer;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:disabled{opacity:.6;cursor:progress}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px}
+.btn.quiet:hover{color:var(--ink);border-color:var(--line)}
+.btn.danger{color:var(--red)}
+.intro{max-width:74ch;color:var(--muted);font-size:14px}
+.intro summary{cursor:pointer;color:var(--ink);font-weight:600}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:1080px){.layout{grid-template-columns:310px minmax(0,1fr)} .side{position:sticky;top:calc(12px + env(safe-area-inset-top,0px));max-height:calc(100vh - 110px);overflow:auto}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.sec{margin:0 0 16px}
+.sec h2{font-size:19px;margin:0 0 4px;display:flex;gap:10px;align-items:baseline;letter-spacing:-.005em}
+.sec h2 .n{flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--on-accent);font-size:13px;font-weight:800;transform:translateY(-2px)}
+.lede{color:var(--muted);font-size:14px;max-width:72ch;margin:0 0 10px}
+h3{font-size:15px;margin:18px 0 6px}
+
+/* Tree */
+.side h2{font-size:15px;margin:0 0 2px}
+.side .lede{font-size:13px}
+.tree,.tree ul{list-style:none;margin:0;padding:0}
+.tree ul{margin-left:9px;padding-left:12px;border-left:1px solid var(--line)}
+.node{display:flex;width:100%;justify-content:space-between;gap:8px;align-items:baseline;text-align:left;background:none;border:0;border-radius:6px;padding:5px 7px;margin:1px 0;cursor:pointer;font-size:13.5px}
+.node:hover{background:var(--field)}
+.node .nl{font-weight:600;display:flex;gap:7px;align-items:baseline}
+.node .nl::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;border:2px solid var(--muted);transform:translateY(-1px)}
+.node.est .nl::before{background:var(--accent);border-color:var(--accent)}
+.node.der .nl::before{background:transparent;border-color:var(--accent)}
+.node.off{opacity:.45}
+.node.off .nl::before{border-style:dashed}
+.node .nv{font-size:12.5px;color:var(--muted);text-align:right;white-space:nowrap}
+.node.root .nl{font-size:14.5px}
+.node.root .nv{color:var(--ink);font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:8px;height:8px;border-radius:50%;border:2px solid var(--accent);display:inline-block}
+.legend i.f{background:var(--accent)}
+.legend i.o{border-color:var(--muted);border-style:dashed;opacity:.6}
+
+/* Tabs */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.tab{border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:999px;font-weight:600;font-size:13.5px;cursor:pointer}
+.tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab.add{border-style:dashed;color:var(--muted)}
+.statebar{border-left:4px solid var(--accent)}
+
+/* Fields */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld>span{font-size:12.5px;font-weight:600;color:var(--muted)}
+.fld input,.fld select,.fld textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--field);min-width:0}
+.fld textarea{resize:vertical;min-height:42px}
+.fld input[aria-invalid="true"]{border-color:var(--red);background:var(--red-soft)}
+.fld .hint{font-size:12px;color:var(--muted);font-weight:400}
+.choice{display:grid;gap:8px;margin:6px 0 12px}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer;background:var(--field)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.opt input{margin-top:4px;accent-color:var(--accent)}
+.opt b{display:block;font-size:14px}
+.opt small{color:var(--muted);font-size:12.5px}
+
+.dist{border-top:1px solid var(--line);padding:14px 0 6px}
+.dist:first-of-type{border-top:0}
+.dname{font-weight:700;font-size:15px}
+.unit{color:var(--muted);font-size:12.5px;margin-left:6px}
+.dgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.05fr);gap:8px;margin-top:8px}
+@media (max-width:520px){.dgrid{grid-template-columns:repeat(3,minmax(0,1fr))} .dgrid .conf{grid-column:1/-1}}
+.dmsg{font-size:12.5px;color:var(--red);min-height:0;margin-top:4px}
+.dmsg:empty{display:none}
+details.more{margin:8px 0 4px}
+details.more summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:600}
+details.more .body{font-size:13.5px;color:var(--ink);background:var(--field);border-radius:7px;padding:10px 12px;margin-top:6px;max-width:74ch}
+.src{margin-top:6px}
+
+/* Results */
+.banner{border-radius:8px;padding:10px 12px;font-size:13.5px;margin:0 0 12px;background:var(--amber-soft);color:var(--ink);border-left:4px solid var(--amber)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin:12px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--field)}
+.stat .k{font-size:12.5px;font-weight:600;color:var(--muted)}
+.stat .v{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.25;margin:2px 0}
+.stat .ex{font-size:12px;color:var(--muted);line-height:1.4}
+.stat.key{border-color:var(--accent);background:var(--accent-soft)}
+.narr{font-size:15px;max-width:74ch;line-height:1.6;border-left:3px solid var(--accent);padding:2px 0 2px 12px;margin:8px 0 4px}
+.checks{display:grid;gap:8px;margin:10px 0}
+.check{font-size:13.5px;border-radius:7px;padding:9px 12px;border-left:4px solid var(--muted);background:var(--field)}
+.check b{font-weight:700}
+.check.error{border-color:var(--red);background:var(--red-soft)}
+.check.warn{border-color:var(--amber);background:var(--amber-soft)}
+.check.info{border-color:var(--accent)}
+.check.ok{border-color:var(--green)}
+.chart{margin:8px 0 4px}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px;font-family:inherit}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.chart .ax{stroke:var(--muted);stroke-width:1}
+.cap{font-size:12.5px;color:var(--muted);max-width:74ch}
+.bars{display:grid;gap:6px;margin:8px 0}
+.bar{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr) 86px;gap:10px;align-items:center;font-size:13px}
+.bar .track{height:12px;background:var(--field);border-radius:3px;overflow:hidden;border:1px solid var(--line)}
+.bar .fill{height:100%;background:var(--accent)}
+.bar .fill.sec{background:var(--s2)}
+.bar .amt{text-align:right;font-weight:600}
+.tblwrap{overflow-x:auto;margin:10px 0;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:720px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;color:var(--muted);font-weight:700;background:var(--field)}
+tr:last-child td{border-bottom:0}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:7px;vertical-align:middle}
+.muted{color:var(--muted)}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:6px 0}
+
+/* Run bar */
+.runbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.runbar .in{max-width:1180px;margin:0 auto;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.runbar .msg{font-size:13px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.runbar .btn{padding:10px 18px;font-size:15px;flex:none}
+
+/* Modal */
+.modal{position:fixed;inset:0;z-index:40;background:rgba(10,15,20,.5);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+@media (min-width:640px){.modal{align-items:center}}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:100%;max-width:560px;max-height:80vh;overflow:auto;padding:18px;margin-bottom:env(safe-area-inset-bottom,0px)}
+.modal h2{margin:0 0 8px;font-size:18px}
+.item{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}
+.item .t{font-weight:700}
+.item .d{font-size:12.5px;color:var(--muted)}
+.modal textarea{width:100%;min-height:220px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--field);border:1px solid var(--line);border-radius:7px;padding:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <div class="brand">FAIR risk workbench</div>
+  <div class="row">
+    <div style="flex:1 1 320px;min-width:0">
+      <label class="sr" for="title">Analysis name</label>
+      <input id="title" class="title" data-a="title" value="Untitled analysis" autocomplete="off">
+      <div class="savestate" id="savestate" aria-live="polite"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" data-act="new">New</button>
+      <button class="btn" data-act="open">Open</button>
+      <button class="btn" data-act="export">Export</button>
+      <button class="btn" data-act="import">Import</button>
+      <input type="file" id="importfile" accept=".json,application/json" hidden>
+    </div>
+  </div>
+  <details class="intro" style="margin-top:10px">
+    <summary>How this tool works</summary>
+    <p>This follows the Open FAIR risk taxonomy (O-RT) and analysis approach (O-RA). Risk is the probable frequency and probable magnitude of future loss. You estimate each factor as a range (minimum, most likely, maximum) and a confidence level. The tool turns each range into a PERT distribution and runs a Monte Carlo simulation: it simulates thousands of years, drawing a random value for every factor in each year, and reports the spread of outcomes.</p>
+    <p>Work top to bottom: scope the scenario, estimate how often the loss event happens, estimate what one event costs, then run the simulation and read the results and checks. Add treatment options to compare the current state against proposed changes. The taxonomy tree shows which factors you are estimating and which are calculated.</p>
+    <p>It is a learning and prototyping tool. The math follows the Open FAIR structure, but it is not a certified Open FAIR product.</p>
+  </details>
+</header>
+
+<div class="wrap layout">
+  <aside class="side panel" id="side" aria-label="FAIR taxonomy"></aside>
+  <main id="app"></main>
+</div>
+
+<div class="runbar">
+  <div class="in">
+    <div class="msg" id="runmsg">Enter your estimates, then run the simulation.</div>
+    <button class="btn primary" id="runbtn" data-act="run">Run simulation</button>
+  </div>
+</div>
+<div id="modalroot"></div>
+
+<script>
+(function(){
+'use strict';
+const hasDOM = typeof document !== 'undefined';
+const $ = (s,el)=>(el||document).querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const newId = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const clone = o => JSON.parse(JSON.stringify(o));
+
+/* ---------- Model ---------- */
+const CONF = {low:{label:'Low',lam:2}, med:{label:'Medium',lam:4}, high:{label:'High',lam:6}};
+const FORMS = {
+  primary:[['productivity','Productivity'],['response','Response'],['replacement','Replacement']],
+  secondary:[['response','Response'],['fines','Fines and judgments'],['competitive','Competitive advantage'],['reputation','Reputation']]
+};
+const F = {
+  lef:{path:'lef.lef',label:'Loss event frequency',unit:'loss events per year',kind:'freq',
+    help:'How many times per year you expect this loss event to actually happen, meaning an event where the organization loses something. 0.2 means about once every five years. Estimate it directly only when you have loss history for this scenario or very similar ones.',
+    data:'Your issue or incident register (events that caused real loss), insurance claims, industry loss data such as Cyentia IRIS or Advisen, and peer organizations.'},
+  tef:{path:'lef.tef',label:'Threat event frequency',unit:'threat events per year',kind:'freq',
+    help:'How many times per year the threat community acts against the asset in a way that could cause loss. These are attempts, not successes. A threat event that fails is not a loss event.',
+    data:'Firewall, WAF, IDS and SIEM logs, SOC alert history, threat intelligence, vendor telemetry, and industry reports such as the Verizon DBIR. For non-malicious threats: change failure rates, vendor notices, outage history.'},
+  cf:{path:'lef.cf',label:'Contact frequency',unit:'contacts per year',kind:'freq',
+    help:'How often threat agents come into contact with the asset per year: scans, sessions, users with access, or exposure windows. Only a fraction of contacts become attempts.',
+    data:'Perimeter and access logs, number of users or systems with access, scan telemetry, exposure time.'},
+  poa:{path:'lef.poa',label:'Probability of action',unit:'% of contacts that become attempts',kind:'pct',
+    help:'The chance that a contact turns into an attempt against the asset. It rises with the value of the asset to the attacker and falls with the effort and the chance of being caught.',
+    data:'Threat intelligence on targeting, the attractiveness of the data or system, and attacker cost and risk.'},
+  vuln:{path:'lef.vuln',label:'Vulnerability',unit:'% of threat events that become loss events',kind:'pct',
+    help:'The chance that a threat event becomes a loss event, meaning the attempt succeeds. This is where your controls show up. In FAIR, vulnerability is a probability, not a CVE or a scanner finding.',
+    data:'Pen test and red team results, control test results and audit findings, exploit availability (CISA KEV, EPSS), configuration reviews, and how well the controls actually cover this path.'},
+  tcap:{path:'lef.tcap',label:'Threat capability',unit:'percentile, 0 to 100',kind:'score',
+    help:'How capable this threat community is, as a percentile of the whole threat population. 0 is the least capable attacker and 100 the most. Commodity criminals often sit around 40 to 70, organized crime around 70 to 90, nation-states in the high 90s.',
+    data:'Threat intelligence on the relevant actors, the skill and resources the attack needs, and observed tactics.'},
+  rs:{path:'lef.rs',label:'Resistance strength',unit:'percentile, 0 to 100',kind:'score',
+    help:'How strong your controls are, on the same percentile scale as threat capability. If your controls would stop 80% of the threat population, resistance strength is 80. Vulnerability is calculated as the chance that threat capability exceeds resistance strength.',
+    data:'Control testing, pen test results, the security architecture of this path, and compensating controls.'},
+  'primary.productivity':{path:'primary.productivity',label:'Productivity',unit:'$ per loss event',kind:'money',
+    help:'Lost ability to deliver value: revenue lost or delayed, and staff who cannot work while the event is handled.',
+    data:'Finance, revenue per hour of the product or feature, the business owner, and outage duration history.'},
+  'primary.response':{path:'primary.response',label:'Response',unit:'$ per loss event',kind:'money',
+    help:'The cost of managing the event itself: incident response time, forensics, outside counsel, crisis communications, overtime.',
+    data:'IR team rates and hours from past incidents, retainer contracts, insurance panel rates.'},
+  'primary.replacement':{path:'primary.replacement',label:'Replacement',unit:'$ per loss event',kind:'money',
+    help:'The cost to replace or repair what was lost: rebuilding systems, emergency engineering, new hardware, rotating keys and credentials.',
+    data:'Engineering estimates, asset values, and past remediation costs.'},
+  slef:{path:'slef',label:'Secondary loss event frequency',unit:'% of loss events',kind:'pct',
+    help:'The chance that a loss event also triggers reactions from secondary stakeholders: customers, regulators, partners, the media. For example, a breach of personal data usually triggers notification; a short internal outage may not.',
+    data:'Legal and privacy (notification triggers by data type and jurisdiction), customer contracts, data volume and sensitivity.'},
+  'secondary.response':{path:'secondary.response',label:'Response',unit:'$ per secondary loss event',kind:'money',
+    help:'The cost of dealing with secondary stakeholders: customer notification, credit monitoring, call centers, legal defense, regulator engagement.',
+    data:'Legal and privacy, breach cost vendors, notification and monitoring rates times the number of records.'},
+  'secondary.fines':{path:'secondary.fines',label:'Fines and judgments',unit:'$ per secondary loss event',kind:'money',
+    help:'Regulatory fines, legal settlements, contractual penalties and SLA credits.',
+    data:'Legal, the privacy office, contract terms, and regulator enforcement history.'},
+  'secondary.competitive':{path:'secondary.competitive',label:'Competitive advantage',unit:'$ per secondary loss event',kind:'money',
+    help:'Loss of trade secrets, intellectual property, or market position.',
+    data:'Product and strategy leaders, and the value of the IP involved.'},
+  'secondary.reputation':{path:'secondary.reputation',label:'Reputation',unit:'$ per secondary loss event',kind:'money',
+    help:'The financial effects of damaged reputation: customer churn, lost or delayed deals, higher cost of capital.',
+    data:'Sales and customer success (revenue per customer, churn after past incidents), finance.'}
+};
+const PHOLD = {freq:['0.5','2','6'],pct:['2','8','20'],score:['40','60','80'],money:['50k','150k','400k']};
+
+function blankDist(){ return {min:null,ml:null,max:null,conf:'med',src:''}; }
+function blankState(name){
+  return {id:newId(),name:name,notes:'',cost:null,
+    lef:{mode:'tef_vuln',vulnMode:'direct',lef:blankDist(),tef:blankDist(),cf:blankDist(),poa:blankDist(),vuln:blankDist(),tcap:blankDist(),rs:blankDist()},
+    primary:{productivity:blankDist(),response:blankDist(),replacement:blankDist()},
+    slef:blankDist(),
+    secondary:{response:blankDist(),fines:blankDist(),competitive:blankDist(),reputation:blankDist()}};
+}
+function blankAnalysis(){
+  const t=new Date().toISOString();
+  return {format:'fair-workbench',version:1,id:newId(),title:'Untitled analysis',createdAt:t,updatedAt:t,
+    scope:{asset:'',threatCommunity:'',threatType:'Malicious, external',effect:'Confidentiality',condition:'',controls:'',notes:''},
+    settings:{iterations:10000,seed:20260930,threshold:null},
+    states:[blankState('Current state')],active:0};
+}
+function mergeDefaults(def,src){
+  if(src==null||typeof src!=='object'||Array.isArray(def)) return src==null?def:src;
+  const out={};
+  for(const k of Object.keys(def)) out[k]= (k in src)? (def[k]&&typeof def[k]==='object'&&!Array.isArray(def[k])? mergeDefaults(def[k],src[k]) : src[k]) : def[k];
+  for(const k of Object.keys(src)) if(!(k in out)) out[k]=src[k];
+  return out;
+}
+function normalize(a){
+  const base=blankAnalysis();
+  const out=mergeDefaults(base,a||{});
+  const sts=Array.isArray(a&&a.states)&&a.states.length? a.states : [blankState('Current state')];
+  out.states=sts.map((s,i)=>{ const m=mergeDefaults(blankState(i?'Treatment option '+i:'Current state'),s); if(!m.id) m.id=newId(); return m; });
+  out.active=Math.min(Math.max(0,out.active|0),out.states.length-1);
+  return out;
+}
+const get=(o,p)=>p.split('.').reduce((x,k)=>x==null?x:x[k],o);
+function set(o,p,v){ const ks=p.split('.'); let x=o; for(let i=0;i<ks.length-1;i++){ if(x[ks[i]]==null) x[ks[i]]={}; x=x[ks[i]]; } x[ks[ks.length-1]]=v; }
+
+function parseNum(s){
+  if(s==null) return null;
+  s=String(s).trim().toLowerCase().replace(/[$,\s%]/g,'');
+  if(s==='') return null;
+  let m=1; const last=s.slice(-1);
+  if(last==='k'){m=1e3;s=s.slice(0,-1);} else if(last==='m'){m=1e6;s=s.slice(0,-1);} else if(last==='b'){m=1e9;s=s.slice(0,-1);}
+  if(!/^-?\d*\.?\d+$/.test(s)) return NaN;
+  return parseFloat(s)*m;
+}
+function distStatus(d,kind){
+  if(!d) return {state:'empty'};
+  const v=[d.min,d.ml,d.max];
+  if(v.every(x=>x==null)) return {state:'empty'};
+  if(v.some(x=>x==null||!isFinite(x))) return {state:'error',msg:'Enter all three values: minimum, most likely and maximum.'};
+  if(v.some(x=>x<0)) return {state:'error',msg:'Values can’t be negative.'};
+  if((kind==='pct'||kind==='score')&&d.max>100) return {state:'error',msg:'Use values between 0 and 100.'};
+  if(!(d.min<=d.ml&&d.ml<=d.max)) return {state:'error',msg:'Keep minimum ≤ most likely ≤ maximum.'};
+  return {state:'ok'};
+}
+const okD=(d,kind)=>distStatus(d,kind).state==='ok';
+
+/* ---------- Simulation ---------- */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function simulate(st,N,seed){
+  const rng=mulberry32(seed>>>0);
+  const nrm=()=>{ let u=0; while(u===0) u=rng(); const v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+  const gam=k=>{ if(k<1) return gam(k+1)*Math.pow(rng(),1/k); const d=k-1/3,c=1/Math.sqrt(9*d); for(;;){ let x,v; do{ x=nrm(); v=1+c*x; }while(v<=0); v=v*v*v; const u=rng(); if(u<1-0.0331*x*x*x*x) return d*v; if(Math.log(u)<0.5*x*x+d*(1-v+Math.log(v))) return d*v; } };
+  const mk=(d,scale)=>{ scale=scale||1; const lam=(CONF[d.conf]||CONF.med).lam; const a=d.min*scale,b=d.max*scale,m=d.ml*scale; if(b-a<=0) return ()=>m; const al=1+lam*(m-a)/(b-a), be=1+lam*(b-m)/(b-a); return ()=>{ const x=gam(al),y=gam(be); return a+(x/(x+y))*(b-a); }; };
+  const pois=l=>{ if(!(l>0)) return 0; if(l<30){ const L=Math.exp(-l); let k=0,p=1; do{ k++; p*=rng(); }while(p>L); return k-1; } return Math.max(0,Math.round(l+Math.sqrt(l)*nrm())); };
+  const L=st.lef; let freq, vulnDerived=null;
+  if(L.mode==='lef'){ const s=mk(L.lef); freq=s; }
+  else{
+    let tef;
+    if(L.mode==='cf_poa'){ const c=mk(L.cf),p=mk(L.poa,0.01); tef=()=>c()*p(); } else tef=mk(L.tef);
+    let vul;
+    if(L.vulnMode==='tcap_rs'){ const tc=mk(L.tcap),rs=mk(L.rs); let hit=0; const M=20000; for(let i=0;i<M;i++) if(tc()>rs()) hit++; vulnDerived=hit/M; vul=()=>vulnDerived; }
+    else vul=mk(L.vuln,0.01);
+    freq=()=>tef()*vul();
+  }
+  const prim=FORMS.primary.filter(([k])=>okD(st.primary[k],'money')).map(([k])=>['primary.'+k,mk(st.primary[k])]);
+  const sec=FORMS.secondary.filter(([k])=>okD(st.secondary[k],'money')).map(([k])=>['secondary.'+k,mk(st.secondary[k])]);
+  const slef=(sec.length&&okD(st.slef,'pct'))? mk(st.slef,0.01) : ()=>0;
+  const ale=new Float64Array(N), lefs=new Float64Array(N), single=[]; const CAP=200000;
+  const tot={}; prim.concat(sec).forEach(([k])=>tot[k]=0);
+  let ev=0, secEv=0, primSum=0, secSum=0;
+  for(let i=0;i<N;i++){
+    const f=freq(); lefs[i]=f; const n=pois(f); if(n===0) continue;
+    const sp=slef(); let t=0;
+    for(let e=0;e<n;e++){
+      let loss=0;
+      for(const [k,s] of prim){ const v=s(); tot[k]+=v; loss+=v; primSum+=v; }
+      if(sec.length&&rng()<sp){ secEv++; for(const [k,s] of sec){ const v=s(); tot[k]+=v; loss+=v; secSum+=v; } }
+      t+=loss; ev++; if(single.length<CAP) single.push(loss);
+    }
+    ale[i]=t;
+  }
+  const sorted=Float64Array.from(ale).sort();
+  const lefSorted=Float64Array.from(lefs).sort();
+  const sl=Float64Array.from(single).sort();
+  const mean=sum(ale)/N;
+  let any=0; for(let i=0;i<N;i++) if(ale[i]>0) any++;
+  const breakdown={}; for(const k in tot) breakdown[k]=tot[k]/N;
+  return {N,seed,mean,sorted,p10:q(sorted,.1),p50:q(sorted,.5),p90:q(sorted,.9),p95:q(sorted,.95),p99:q(sorted,.99),max:sorted[N-1],
+    pAny:any/N,lefMean:sum(lefs)/N,lefP10:q(lefSorted,.1),lefP90:q(lefSorted,.9),
+    sle:{mean:sl.length?sum(sl)/sl.length:0,p10:q(sl,.1),p50:q(sl,.5),p90:q(sl,.9)},slSorted:sl,
+    breakdown,events:ev,secShareEvents:ev?secEv/ev:0,secShareLoss:(primSum+secSum)?secSum/(primSum+secSum):0,vulnDerived,runAt:new Date().toISOString()};
+}
+function sum(a){ let s=0; for(let i=0;i<a.length;i++) s+=a[i]; return s; }
+function q(a,p){ if(!a.length) return 0; const i=p*(a.length-1), lo=Math.floor(i), hi=Math.ceil(i); return a[lo]+(a[hi]-a[lo])*(i-lo); }
+function exceed(sorted,x){ let lo=0,hi=sorted.length; while(lo<hi){ const m=(lo+hi)>>1; if(sorted[m]<=x) lo=m+1; else hi=m; } return (sorted.length-lo)/sorted.length; }
+
+/* ---------- Formatting ---------- */
+function trim(x){ const s= x>=100? x.toFixed(0) : x>=10? x.toFixed(1) : x.toFixed(2); return s.replace(/\.0+$/,'').replace(/(\.\d*[1-9])0+$/,'$1'); }
+function money(v){ if(v==null||!isFinite(v)) return '—'; const a=Math.abs(v); if(a>=1e9) return '$'+trim(v/1e9)+'B'; if(a>=1e6) return '$'+trim(v/1e6)+'M'; if(a>=1e3) return '$'+trim(v/1e3)+'K'; return '$'+Math.round(v); }
+function pct(p){ if(p==null||!isFinite(p)) return '—'; if(p>0&&p<0.001) return '<0.1%'; const x=p*100; return (x<10? x.toFixed(1).replace(/\.0$/,'') : x.toFixed(0))+'%'; }
+function freq(f){ if(!isFinite(f)) return '—'; if(f>=10) return f.toFixed(0); if(f>=1) return f.toFixed(1).replace(/\.0$/,''); if(f>=0.1) return f.toFixed(2); return f.toPrecision(2); }
+function every(f){ if(!(f>0)) return 'never in the simulation'; if(f>=1) return 'about '+freq(f)+' times a year'; const y=1/f; return 'about once every '+(y<10? y.toFixed(1).replace(/\.0$/,'') : Math.round(y))+' years'; }
+function fmtVal(kind,v){ if(v==null) return ''; if(kind==='money') return money(v); if(kind==='pct') return trim(v)+'%'; if(kind==='score') return trim(v); return freq(v)+'/yr'; }
+function withCommas(v){ if(v==null||!isFinite(v)) return ''; return Math.abs(v)>=1000? Math.round(v).toLocaleString('en-US') : String(v); }
+
+if(!hasDOM){ (typeof globalThis!=='undefined'?globalThis:this).__fair={simulate,blankState,blankAnalysis,normalize,distStatus,parseNum,money,exceed}; return; }
+
+/* ---------- App state ---------- */
+let A=blankAnalysis();
+let results={}; let stale=false; let dirty=false;
+let db=null, uid=null, downloads=null, capsReady=false;
+const app=$('#app'), side=$('#side');
+const cur=()=>A.states[A.active];
+
+/* ---------- Rendering ---------- */
+function renderAll(){ $('#title').value=A.title; renderSide(); renderMain(); updateRunMsg(); }
+
+function renderMain(){
+  app.innerHTML=scopeHTML()+`<div id="statearea"></div><div id="results"></div><div id="compare"></div>`;
+  renderStateArea(); renderResults(); renderCompare();
+}
+
+function scopeHTML(){
+  const s=A.scope;
+  const tt=['Malicious, external','Malicious, internal','Error (accidental)','Failure (system or vendor)','Natural'];
+  const ef=['Confidentiality','Integrity','Availability'];
+  return `<section class="panel sec" id="sec-scope">
+  <h2><span class="n">1</span>Scope the scenario</h2>
+  <p class="lede">A loss event scenario names a specific asset, a specific threat community, and the effect on the asset. If you can’t name all three, the scenario isn’t ready to quantify. The scope applies to every option you compare.</p>
+  <div class="grid2">
+    <label class="fld"><span>Asset at risk</span><input data-a="scope.asset" value="${esc(s.asset)}" placeholder="What is lost or harmed, e.g. customer PII in the payroll integration"></label>
+    <label class="fld"><span>Threat community</span><input data-a="scope.threatCommunity" value="${esc(s.threatCommunity)}" placeholder="Who or what acts, e.g. external cybercriminals"></label>
+    <label class="fld"><span>Threat type</span><select data-a="scope.threatType">${tt.map(o=>`<option ${o===s.threatType?'selected':''}>${o}</option>`).join('')}</select></label>
+    <label class="fld"><span>Effect</span><select data-a="scope.effect">${ef.map(o=>`<option ${o===s.effect?'selected':''}>${o}</option>`).join('')}</select></label>
+  </div>
+  <div class="grid2" style="margin-top:12px">
+    <label class="fld"><span>Condition or issue behind this risk</span><textarea data-a="scope.condition" rows="2" placeholder="The weakness or change that prompted the analysis">${esc(s.condition)}</textarea></label>
+    <label class="fld"><span>Existing controls</span><textarea data-a="scope.controls" rows="2" placeholder="Controls in place today, and which part of the scenario each one affects">${esc(s.controls)}</textarea></label>
+  </div>
+  <label class="fld" style="margin-top:12px"><span>Analyst notes and assumptions</span><textarea data-a="scope.notes" rows="2" placeholder="Assumptions, people consulted, open questions">${esc(s.notes)}</textarea></label>
+  <details class="more"><summary>What makes a good scenario</summary><div class="body">
+    <p>Write it as a sentence: “<i>Threat community</i> causes <i>effect</i> to <i>asset</i> through <i>method</i>.” For example: “External criminals exfiltrate customer PII from the payroll integration by exploiting weak transport security.”</p>
+    <p>Keep the condition (the weakness) separate from the risk. A missing control is not a risk by itself; it changes the frequency or magnitude of a loss scenario. Split scenarios that have different threat communities or effects, because their frequencies and losses behave differently.</p>
+  </div></details>
+</section>`;
+}
+
+function tabsHTML(){
+  return `<div class="tabs" role="tablist" aria-label="Options to compare">${A.states.map((s,i)=>`<button class="tab ${i===A.active?'on':''}" role="tab" aria-selected="${i===A.active}" data-act="tab" data-i="${i}">${esc(s.name||('Option '+(i+1)))}</button>`).join('')}${A.states.length<4?`<button class="tab add" data-act="add-state">Add treatment option</button>`:''}</div>`;
+}
+
+function renderStateArea(){
+  const st=cur(), i=A.active, L=st.lef;
+  const modeOpt=(v,t,d)=>`<label class="opt"><input type="radio" name="lefmode" data-s="lef.mode" value="${v}" ${L.mode===v?'checked':''}><span><b>${t}</b><small>${d}</small></span></label>`;
+  const vOpt=(v,t,d)=>`<label class="opt"><input type="radio" name="vulnmode" data-s="lef.vulnMode" value="${v}" ${L.vulnMode===v?'checked':''}><span><b>${t}</b><small>${d}</small></span></label>`;
+  let lefRows='';
+  if(L.mode==='lef') lefRows=distRow('lef');
+  else{
+    lefRows+= L.mode==='cf_poa'? distRow('cf')+distRow('poa') : distRow('tef');
+    lefRows+=`<h3>Vulnerability</h3><div class="choice">${vOpt('direct','Estimate vulnerability as a percentage','The usual choice. Base it on how well the controls cover this attack path.')}${vOpt('tcap_rs','Derive it from threat capability and resistance strength','Compare how capable the attackers are with how strong the controls are, on a 0 to 100 scale.')}</div>`;
+    lefRows+= L.vulnMode==='tcap_rs'? distRow('tcap')+distRow('rs') : distRow('vuln');
+  }
+  $('#statearea').innerHTML=`
+  <section class="panel sec statebar" id="sec-state">
+    ${tabsHTML()}
+    <p class="lede">Each option is a complete set of estimates for the same scenario. Start with the current state. To compare a fix, add a treatment option: it copies the option you’re viewing, and you change only the factors the fix affects.</p>
+    <div class="grid2">
+      <label class="fld"><span>Option name</span><input data-s="name" value="${esc(st.name)}"></label>
+      ${i>0?`<label class="fld"><span>Annual cost of this option <span class="hint">one-time cost ÷ years of use, plus yearly running cost</span></span><input data-s="cost" data-num="money" inputmode="decimal" value="${esc(withCommas(st.cost))}" placeholder="e.g. 80k"></label>`:''}
+    </div>
+    <label class="fld" style="margin-top:12px"><span>${i===0?'Notes on the current state':'What this option changes, and which factors it affects'}</span><textarea data-s="notes" rows="2">${esc(st.notes)}</textarea></label>
+    ${i>0?`<div style="margin-top:10px"><button class="btn quiet danger" data-act="del-state">Delete this option</button></div>`:''}
+  </section>
+  <section class="panel sec" id="sec-lef">
+    <h2><span class="n">2</span>Loss event frequency</h2>
+    <p class="lede">How often the loss event is expected to happen in a year. You can estimate it directly or build it up from how often the threat acts and how often it succeeds.</p>
+    <div class="choice">
+      ${modeOpt('tef_vuln','Threat event frequency × vulnerability','The usual choice: how often the threat acts, times the chance it succeeds.')}
+      ${modeOpt('cf_poa','Contact frequency × probability of action × vulnerability','Use when contacts (scans, sessions, access) are easier to count than attempts.')}
+      ${modeOpt('lef','Loss event frequency directly','Use when you have loss history for this scenario.')}
+    </div>
+    ${lefRows}
+  </section>
+  <section class="panel sec" id="sec-primary">
+    <h2><span class="n">3</span>Primary loss</h2>
+    <p class="lede">What one loss event costs the organization directly. Estimate per event, not per year. Leave a form blank if it doesn’t apply; enter at least one.</p>
+    ${FORMS.primary.map(([k])=>distRow('primary.'+k)).join('')}
+  </section>
+  <section class="panel sec" id="sec-secondary">
+    <h2><span class="n">4</span>Secondary loss</h2>
+    <p class="lede">Losses that come from other stakeholders reacting to the event: customers, regulators, partners. First estimate how often they react, then what it costs when they do. Leave this section blank if secondary stakeholders wouldn’t be involved.</p>
+    ${distRow('slef')}
+    <h3>Secondary loss magnitude</h3>
+    ${FORMS.secondary.map(([k])=>distRow('secondary.'+k)).join('')}
+  </section>`;
+  $('#statearea').querySelectorAll('.dist').forEach(updateRowMsg);
+}
+
+function distRow(key){
+  const f=F[key], d=get(cur(),f.path)||blankDist(), ph=PHOLD[f.kind];
+  const val=x=> x==null? '' : (f.kind==='money'? withCommas(x) : String(x));
+  const lab={min:'Minimum',ml:'Most likely',max:'Maximum'};
+  return `<div class="dist" id="f-${key.replace('.','-')}" data-key="${key}">
+    <div><span class="dname">${f.label}</span><span class="unit">${f.unit}</span></div>
+    <div class="dgrid">
+      ${['min','ml','max'].map((k,j)=>`<label class="fld"><span>${lab[k]}</span><input type="text" inputmode="decimal" autocomplete="off" data-s="${f.path}.${k}" data-num="${f.kind}" value="${esc(val(d[k]))}" placeholder="${ph[j]}"></label>`).join('')}
+      <label class="fld conf"><span>Confidence</span><select data-s="${f.path}.conf">${Object.keys(CONF).map(c=>`<option value="${c}" ${d.conf===c?'selected':''}>${CONF[c].label}</option>`).join('')}</select></label>
+    </div>
+    <div class="dmsg" role="status"></div>
+    <details class="more"><summary>What this means and where to get it</summary><div class="body"><p>${f.help}</p><p><b>Where the data comes from:</b> ${f.data}</p><p class="muted">Confidence sets how tightly values cluster around your most likely value. Choose low when you know the range but not where in it the answer falls.</p></div></details>
+    <label class="fld src"><span>Rationale and sources</span><textarea rows="1" data-s="${f.path}.src" placeholder="How you got these numbers and who you asked">${esc(d.src)}</textarea></label>
+  </div>`;
+}
+
+function updateRowMsg(row){
+  if(!row) return;
+  const key=row.dataset.key, f=F[key], d=get(cur(),f.path);
+  const bad=[...row.querySelectorAll('input[aria-invalid="true"]')].length;
+  const s=distStatus(d,f.kind);
+  row.querySelector('.dmsg').textContent= bad? 'Enter numbers only. You can use k, m or b for thousands, millions or billions.' : (s.state==='error'? s.msg : '');
+}
+
+/* Taxonomy tree */
+function renderSide(){
+  const st=cur(), L=st.lef, r=(!stale&&results[st.id])||null;
+  const est=key=>{ const f=F[key], d=get(st,f.path), s=distStatus(d,f.kind); return s.state==='ok'? 'most likely '+fmtVal(f.kind,d.ml) : s.state==='error'? 'check inputs' : 'not entered'; };
+  const n=(label,cls,val,target,kids,root)=>`<li><button class="node ${cls}${root?' root':''}" data-act="goto" data-target="${target||''}"><span class="nl">${label}</span><span class="nv">${val}</span></button>${kids?`<ul>${kids}</ul>`:''}</li>`;
+  const off='not used';
+  const m=L.mode, vm=L.vulnMode;
+  const cf=n('Contact frequency', m==='cf_poa'?'est':'off', m==='cf_poa'?est('cf'):off,'f-cf');
+  const poa=n('Probability of action', m==='cf_poa'?'est':'off', m==='cf_poa'?est('poa'):off,'f-poa');
+  const tefCls= m==='lef'?'off': m==='cf_poa'?'der':'est';
+  const tefVal= m==='lef'?off: m==='cf_poa'?'calculated':est('tef');
+  const tcUsed= m!=='lef'&&vm==='tcap_rs';
+  const tc=n('Threat capability', tcUsed?'est':'off', tcUsed?est('tcap'):off,'f-tcap');
+  const rs=n('Resistance strength', tcUsed?'est':'off', tcUsed?est('rs'):off,'f-rs');
+  const vCls= m==='lef'?'off': vm==='tcap_rs'?'der':'est';
+  const vVal= m==='lef'?off: vm==='tcap_rs'? (r&&r.vulnDerived!=null? pct(r.vulnDerived):'calculated') : est('vuln');
+  const lefVal= m==='lef'? est('lef') : (r? freq(r.lefMean)+'/yr mean' : 'calculated');
+  const formsIn=(grp)=>FORMS[grp].filter(([k])=>okD(st[grp][k],'money')).length;
+  const pf=formsIn('primary'), sf=formsIn('secondary');
+  const lm= r? money(r.sle.mean)+' per event' : 'calculated';
+  const tree=n('Risk','der',r? money(r.mean)+'/yr mean':'run to calculate','sec-results',
+      n('Loss event frequency', m==='lef'?'est':'der', lefVal,'sec-lef',
+        n('Threat event frequency',tefCls,tefVal,'f-tef', cf+poa)+
+        n('Vulnerability',vCls,vVal,'f-vuln', tc+rs))+
+      n('Loss magnitude','der',lm,'sec-primary',
+        n('Primary loss', pf?'est':'der', pf? pf+' of 3 forms entered':'not entered','sec-primary')+
+        n('Secondary loss','der', sf&&okD(st.slef,'pct')? 'calculated':'not entered','sec-secondary',
+          n('Secondary loss event frequency', okD(st.slef,'pct')?'est':'der', est('slef'),'f-slef')+
+          n('Secondary loss magnitude', sf?'est':'der', sf? sf+' of 4 forms entered':'not entered','f-secondary-response'))), true);
+  side.innerHTML=`<h2>Open FAIR taxonomy</h2><p class="lede">${esc(st.name)}. Tap a factor to jump to it.</p><ul class="tree">${tree}</ul>
+  <div class="legend"><span><i class="f"></i>you estimate it</span><span><i></i>calculated</span><span><i class="o"></i>not used by this method</span></div>`;
+}
+
+/* Checks */
+function preChecks(st){
+  const out=[], L=st.lef;
+  const need=(key,why)=>{ const f=F[key], s=distStatus(get(st,f.path),f.kind); if(s.state!=='ok') out.push({lvl:'error',key,msg:`<b>${f.label}:</b> ${s.state==='error'? s.msg : why}`}); };
+  if(L.mode==='lef') need('lef','Enter a range for loss event frequency.');
+  else{
+    if(L.mode==='cf_poa'){ need('cf','Enter a range for contact frequency.'); need('poa','Enter a range for probability of action.'); } else need('tef','Enter a range for threat event frequency.');
+    if(L.vulnMode==='tcap_rs'){ need('tcap','Enter a range for threat capability.'); need('rs','Enter a range for resistance strength.'); } else need('vuln','Enter a range for vulnerability.');
+  }
+  for(const [k] of FORMS.primary){ const s=distStatus(st.primary[k],'money'); if(s.state==='error') out.push({lvl:'error',key:'primary.'+k,msg:`<b>Primary ${F['primary.'+k].label.toLowerCase()}:</b> ${s.msg}`}); }
+  for(const [k] of FORMS.secondary){ const s=distStatus(st.secondary[k],'money'); if(s.state==='error') out.push({lvl:'error',key:'secondary.'+k,msg:`<b>Secondary ${F['secondary.'+k].label.toLowerCase()}:</b> ${s.msg}`}); }
+  const sl=distStatus(st.slef,'pct'); if(sl.state==='error') out.push({lvl:'error',key:'slef',msg:`<b>Secondary loss event frequency:</b> ${sl.msg}`});
+  if(!FORMS.primary.some(([k])=>okD(st.primary[k],'money'))) out.push({lvl:'error',key:'primary.response',msg:'<b>Primary loss:</b> enter at least one form of primary loss.'});
+  const sf=FORMS.secondary.some(([k])=>okD(st.secondary[k],'money'));
+  if(sf&&sl.state==='empty') out.push({lvl:'error',key:'slef',msg:'<b>Secondary loss:</b> you entered secondary loss amounts but no secondary loss event frequency. Add it, or clear the amounts.'});
+  if(!sf&&sl.state==='ok') out.push({lvl:'warn',key:'secondary.response',msg:'<b>Secondary loss:</b> you entered how often stakeholders react but no amounts, so secondary loss is treated as zero.'});
+  return out;
+}
+function postChecks(st,r){
+  const out=[], L=st.lef;
+  const ranges=[];
+  const all=[];
+  const push=(key)=>{ const f=F[key], d=get(st,f.path); if(okD(d,f.kind)) all.push([key,f,d]); };
+  if(L.mode==='lef') push('lef'); else { if(L.mode==='cf_poa'){push('cf');push('poa');} else push('tef'); if(L.vulnMode==='tcap_rs'){push('tcap');push('rs');} else push('vuln'); }
+  FORMS.primary.forEach(([k])=>push('primary.'+k)); push('slef'); FORMS.secondary.forEach(([k])=>push('secondary.'+k));
+  const noSrc=all.filter(([,,d])=>!String(d.src||'').trim()).map(([,f])=>f.label);
+  const flat=all.filter(([,,d])=>d.min===d.max).map(([,f])=>f.label);
+  if(r.lefMean>1) out.push({lvl:'warn',msg:`<b>Frequency looks high:</b> the model expects ${every(r.lefMean)}. Check that these are loss events (the organization actually loses something), not attempts or incidents without loss, and compare with your incident history.`});
+  if(r.lefMean>0&&r.lefMean<0.01) out.push({lvl:'info',msg:`<b>Very rare event:</b> ${every(r.lefMean)}. That can be right, but make sure the range isn’t narrower than your evidence supports.`});
+  if(L.mode!=='lef'&&L.vulnMode==='direct'&&okD(L.vuln,'pct')&&L.vuln.ml>=50&&String(A.scope.controls||'').trim()) out.push({lvl:'warn',msg:'<b>Controls vs. vulnerability:</b> you listed existing controls, but most threat events still succeed (vulnerability most likely ≥ 50%). Either the controls don’t cover this attack path, which is worth saying explicitly, or vulnerability is overstated.'});
+  if(r.vulnDerived!=null) out.push({lvl:'info',msg:`<b>Derived vulnerability:</b> threat capability exceeds resistance strength in ${pct(r.vulnDerived)} of comparisons. Sense-check it: does it match what you’d have estimated directly?`});
+  if(r.p50===0&&r.mean>0) out.push({lvl:'info',msg:`<b>Most years have no loss:</b> the median year is $0 because the event happens in only ${pct(r.pAny)} of years. Report the mean and the tail (90th and 95th percentiles), not the median.`});
+  if(r.mean>0&&r.p95/r.mean>5) out.push({lvl:'info',msg:`<b>Heavy tail:</b> a 1-in-20 year (${money(r.p95)}) is more than five times the mean. The mean understates how bad a bad year is, so show both.`});
+  if(r.secShareLoss>0.7) out.push({lvl:'info',msg:`<b>Secondary loss drives the result:</b> ${pct(r.secShareLoss)} of simulated loss is secondary. Spend your validation time on the secondary estimates: record counts, notification obligations, contracts and churn.`});
+  const wide=all.filter(([,f,d])=>f.kind==='money'&&d.min>0&&d.max/d.min>100).map(([,f])=>f.label);
+  if(wide.length) out.push({lvl:'info',msg:`<b>Very wide ranges:</b> ${[...new Set(wide)].join(', ')}. Fine if the uncertainty is real; narrowing them with data would sharpen the result.`});
+  if(flat.length) out.push({lvl:'warn',msg:`<b>No uncertainty expressed:</b> ${[...new Set(flat)].join(', ')} ${flat.length>1?'have':'has'} the same minimum and maximum. FAIR depends on honest ranges; a single number hides what you don’t know.`});
+  if(noSrc.length) out.push({lvl:'warn',msg:`<b>Undocumented estimates:</b> ${noSrc.length} of ${all.length} factors have no rationale or source recorded. Leadership will ask where the numbers came from.`});
+  if(r.events<50) out.push({lvl:'info',msg:`<b>Few simulated events:</b> only ${r.events} loss events occurred in the simulation. Increase the number of simulated years for steadier tail percentiles.`});
+  if(!out.length) out.push({lvl:'ok',msg:'<b>No problems found.</b> The inputs pass the automatic checks. That doesn’t make them right; review each range with the people who own the data.'});
+  return out;
+}
+const checksHTML=list=>`<div class="checks">${list.map(c=>`<div class="check ${c.lvl}">${c.msg}</div>`).join('')}</div>`;
+
+/* Results */
+function renderResults(){
+  const st=cur(), r=results[st.id], thr=A.settings.threshold;
+  const settings=`<details class="more"><summary>Simulation settings</summary><div class="body" style="max-width:none">
+    <div class="settings">
+      <label class="fld"><span>Simulated years</span><select data-a="settings.iterations">${[1000,10000,50000,100000].map(n=>`<option value="${n}" ${+A.settings.iterations===n?'selected':''}>${n.toLocaleString('en-US')}</option>`).join('')}</select></label>
+      <label class="fld"><span>Random seed</span><input data-a="settings.seed" data-num="int" inputmode="numeric" value="${esc(A.settings.seed)}"></label>
+    </div>
+    <p class="muted">More simulated years give steadier tail percentiles. The seed makes results repeatable: the same inputs and seed always give the same numbers, and every option uses the same seed so differences come from your inputs, not random noise.</p></div></details>`;
+  const thrField=`<label class="fld" style="max-width:320px;margin-top:4px"><span>Loss threshold to test <span class="hint">optional, e.g. your risk appetite or tolerance</span></span><input data-a="settings.threshold" data-num="money" inputmode="decimal" value="${esc(withCommas(thr))}" placeholder="e.g. 1m"></label>`;
+  let body='';
+  const pre=preChecks(st);
+  if(!r){
+    body=`<p class="lede">Run the simulation to see results for ${esc(st.name)}.</p>${pre.length?checksHTML(pre):''}`;
+  } else {
+    const pThr= thr? exceed(r.sorted,thr) : null;
+    const narr=`Across ${r.N.toLocaleString('en-US')} simulated years, the loss event happened ${every(r.lefMean)}, and at least one loss occurred in ${pct(r.pAny)} of years. The average annual loss is <b>${money(r.mean)}</b>. ${r.p50>0? `In a typical (median) year, losses are about ${money(r.p50)}.` : 'In a typical year there is no loss at all.'} In 1 year out of 10, losses exceed <b>${money(r.p90)}</b>, and in 1 out of 20 they exceed ${money(r.p95)}. When the event happens, it typically costs ${money(r.sle.p50)}, and 1 event in 10 costs more than ${money(r.sle.p90)}.${thr? ` The chance of losing more than ${money(thr)} in a year is <b>${pct(pThr)}</b>.`:''}`;
+    const stat=(k,v,ex,key)=>`<div class="stat${key?' key':''}"><div class="k">${k}</div><div class="v">${v}</div><div class="ex">${ex}</div></div>`;
+    const bk=Object.entries(r.breakdown).sort((a,b)=>b[1]-a[1]); const bmax=Math.max(1,...bk.map(x=>x[1])); const btot=bk.reduce((s,x)=>s+x[1],0)||1;
+    body=`${stale?'<div class="banner">Inputs changed since the last run. Run the simulation again to update these results.</div>':''}
+    <p class="narr">${narr}</p>
+    <div class="stats">
+      ${stat('Average annual loss',money(r.mean),'The mean across all simulated years. Use it for cost-benefit and for comparing options.',true)}
+      ${stat('Bad year: 1 in 10',money(r.p90),'90th percentile of annual loss. One year in ten is worse than this.')}
+      ${stat('Severe year: 1 in 20',money(r.p95),'95th percentile of annual loss.')}
+      ${stat('Loss event frequency',freq(r.lefMean)+' per year',`Mean. ${every(r.lefMean).replace(/^./,c=>c.toUpperCase())}. Range 10th–90th: ${freq(r.lefP10)} to ${freq(r.lefP90)}.`)}
+      ${stat('Chance of any loss in a year',pct(r.pAny),'Share of simulated years with at least one loss event.')}
+      ${stat('Cost of one event',money(r.sle.p50),`Median per loss event. 1 in 10 events costs more than ${money(r.sle.p90)}.`)}
+      ${thr?stat('Chance of exceeding '+money(thr),pct(pThr),'Share of simulated years where total loss is above your threshold.'):''}
+      ${stat('Worst simulated year',money(r.max),'The single worst year in the run. Unstable; don’t report it as a figure.')}
+    </div>
+    <h3>Checks on inputs and results</h3>
+    ${checksHTML(pre.filter(c=>c.lvl!=='error').concat(postChecks(st,r)))}
+    <h3>Loss exceedance curve</h3>
+    <div class="chart">${lecSVG([{name:st.name,color:'var(--s1)',r}],thr)}</div>
+    <p class="cap">Read it as: the chance that total loss in a year is higher than the amount on the horizontal axis. The curve starts at the chance of any loss and falls as the amount rises. ${thr?'The dashed line is your threshold.':''}</p>
+    <h3>Cost of a single loss event</h3>
+    <div class="chart">${histSVG(r.slSorted)}</div>
+    <p class="cap">How the cost of one loss event is spread across simulated events. Bars on the right are rare, expensive events, usually the ones with secondary loss.</p>
+    <h3>Where the loss comes from</h3>
+    <div class="bars">${bk.length? bk.map(([k,v])=>`<div class="bar"><span>${k.startsWith('secondary')?'Secondary':'Primary'} ${F[k].label.toLowerCase()}</span><span class="track"><span class="fill ${k.startsWith('secondary')?'sec':''}" style="width:${(v/bmax*100).toFixed(1)}%;display:block"></span></span><span class="amt">${money(v)} · ${pct(v/btot)}</span></div>`).join('') : '<p class="muted">No loss was simulated.</p>'}</div>
+    <p class="cap">Average annual loss by form of loss. It shows which estimates matter most, so you know where better data would change the answer.</p>`;
+  }
+  $('#results').innerHTML=`<section class="panel sec" id="sec-results"><h2><span class="n">5</span>Results: ${esc(st.name)}</h2>${thrField}${settings}${body}</section>`;
+}
+
+function renderCompare(){
+  const el=$('#compare');
+  if(A.states.length<2){ el.innerHTML=''; return; }
+  const base=A.states[0], rb=results[base.id], thr=A.settings.threshold;
+  const colors=['var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
+  const have=A.states.every(s=>results[s.id]);
+  let body;
+  if(!have) body='<p class="lede">Run the simulation to compare the options.</p>';
+  else{
+    const rows=A.states.map((s,i)=>{ const r=results[s.id]; const red= i? rb.mean-r.mean : null; const cost= i? s.cost : null; const net= (i&&cost!=null)? red-cost : null; const roi=(i&&cost)? red/cost : null;
+      return `<tr><td><span class="sw" style="background:${colors[i]}"></span>${esc(s.name)}</td><td>${money(r.mean)}</td><td>${money(r.p90)}</td><td>${money(r.p95)}</td>${thr?`<td>${pct(exceed(r.sorted,thr))}</td>`:''}<td>${i?money(red)+' ('+pct(rb.mean? red/rb.mean:0)+')':'—'}</td><td>${i?(cost!=null?money(cost):'not entered'):'—'}</td><td>${net!=null?money(net):'—'}</td><td>${roi!=null?roi.toFixed(1)+'×':'—'}</td></tr>`; }).join('');
+    const cks=[];
+    A.states.slice(1).forEach(s=>{ const r=results[s.id], red=rb.mean-r.mean;
+      if(red<0) cks.push({lvl:'warn',msg:`<b>${esc(s.name)}</b> shows more loss than the current state. Check that its inputs reflect the improvement you expect.`});
+      else if(rb.mean&&red/rb.mean<0.05) cks.push({lvl:'info',msg:`<b>${esc(s.name)}</b> changes average annual loss by less than 5%. Check which factor the fix is meant to change, and whether you changed it.`});
+      if(s.cost!=null&&s.cost>red) cks.push({lvl:'info',msg:`<b>${esc(s.name)}</b> costs more per year (${money(s.cost)}) than the average loss it removes (${money(red)}). It may still be worth it if it cuts the tail: compare the 1-in-20 column.`});
+      if(s.cost==null) cks.push({lvl:'info',msg:`<b>${esc(s.name)}</b> has no annual cost entered, so net benefit can’t be calculated.`});
+    });
+    body=`${stale?'<div class="banner">Inputs changed since the last run. Run the simulation again to update the comparison.</div>':''}
+    <div class="tblwrap"><table><thead><tr><th>Option</th><th>Average annual loss</th><th>1 in 10 year</th><th>1 in 20 year</th>${thr?`<th>Chance &gt; ${money(thr)}</th>`:''}<th>Reduction vs current</th><th>Annual cost</th><th>Net benefit</th><th>Return</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="cap">Reduction is the drop in average annual loss compared with the current state. Net benefit is reduction minus annual cost. Return is reduction divided by cost: 3× means each dollar spent removes about three dollars of expected annual loss.</p>
+    ${cks.length?checksHTML(cks):''}
+    <h3>Loss exceedance curves</h3>
+    <div class="chart">${lecSVG(A.states.map((s,i)=>({name:s.name,color:colors[i],r:results[s.id]})),thr)}</div>
+    <p class="cap">A curve that sits lower and further left means less loss. Watch the tail on the right: an option can have a similar average but a much smaller chance of a severe year.</p>`;
+  }
+  el.innerHTML=`<section class="panel sec" id="sec-compare"><h2><span class="n">6</span>Compare options</h2>${body}</section>`;
+}
+
+/* Charts */
+function niceMax(v){ if(!(v>0)) return 1; const e=Math.pow(10,Math.floor(Math.log10(v))), f=v/e; return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*e; }
+function lecSVG(series,thr){
+  if(series.every(s=>s.r.mean===0)) return '<p class="muted">No losses were simulated, so there is no curve to draw.</p>';
+  const W=640,H=300,l=58,rt=16,t=14,b=38+(series.length>1?22:0), pw=W-l-rt, ph=H-t-b;
+  let xmax=Math.max(...series.map(s=>q(s.r.sorted,.995))); if(thr) xmax=Math.max(xmax,thr*1.15); xmax=niceMax(xmax);
+  const ytop=Math.max(...series.map(s=>s.r.pAny)); const ymax=Math.min(1,niceMax(ytop*1.05));
+  const X=x=>l+x/xmax*pw, Y=y=>t+ph-(y/ymax)*ph;
+  let g='';
+  for(let i=0;i<=5;i++){ const yv=ymax*i/5, y=Y(yv); g+=`<line class="gl" x1="${l}" x2="${W-rt}" y1="${y}" y2="${y}"/><text x="${l-6}" y="${y+4}" text-anchor="end">${pct(yv)}</text>`; }
+  for(let i=0;i<=5;i++){ const xv=xmax*i/5, x=X(xv); g+=`<text x="${x}" y="${t+ph+16}" text-anchor="middle">${money(xv)}</text>`; }
+  g+=`<line class="ax" x1="${l}" x2="${W-rt}" y1="${t+ph}" y2="${t+ph}"/><line class="ax" x1="${l}" x2="${l}" y1="${t}" y2="${t+ph}"/>`;
+  g+=`<text x="${l+pw/2}" y="${t+ph+32}" text-anchor="middle">Annual loss</text>`;
+  const paths=series.map(s=>{ const pts=[]; const K=120; for(let j=0;j<=K;j++){ const x=xmax*j/K; pts.push([X(x),Y(exceed(s.r.sorted,x))]); } return `<path d="M${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L')}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round"/>`; }).join('');
+  let th='';
+  if(thr&&thr<=xmax){ const x=X(thr); th=`<line x1="${x}" x2="${x}" y1="${t}" y2="${t+ph}" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${x+5}" y="${t+12}" style="fill:var(--red)">threshold ${money(thr)}</text>`; }
+  let lg='';
+  if(series.length>1){ let x=l; series.forEach(s=>{ lg+=`<rect x="${x}" y="${H-14}" width="12" height="4" fill="${s.color}"/><text x="${x+16}" y="${H-9}">${esc(s.name).slice(0,28)}</text>`; x+=Math.min(200,30+esc(s.name).slice(0,28).length*6.2); }); }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Loss exceedance curve">${g}${paths}${th}${lg}</svg>`;
+}
+function histSVG(sl){
+  if(!sl.length) return '<p class="muted">No loss events were simulated.</p>';
+  const W=640,H=240,l=46,rt=16,t=10,b=40, pw=W-l-rt, ph=H-t-b, B=24;
+  const top=niceMax(q(sl,.99)); const w=top/B; const c=new Array(B).fill(0);
+  for(let i=0;i<sl.length;i++){ let k=Math.floor(sl[i]/w); if(k>=B) k=B-1; c[k]++; }
+  const cmax=Math.max(...c)/sl.length, ymax=niceMax(cmax);
+  let g='';
+  for(let i=0;i<=4;i++){ const yv=ymax*i/4, y=t+ph-(yv/ymax)*ph; g+=`<line class="gl" x1="${l}" x2="${W-rt}" y1="${y}" y2="${y}"/><text x="${l-6}" y="${y+4}" text-anchor="end">${pct(yv)}</text>`; }
+  const bw=pw/B;
+  c.forEach((n,i)=>{ const h=(n/sl.length)/ymax*ph; g+=`<rect x="${(l+i*bw+1).toFixed(1)}" y="${(t+ph-h).toFixed(1)}" width="${(bw-2).toFixed(1)}" height="${h.toFixed(1)}" fill="var(--s1)" opacity="${i===B-1?0.55:0.9}"/>`; });
+  for(let i=0;i<=4;i++){ const xv=top*i/4; g+=`<text x="${l+pw*i/4}" y="${t+ph+16}" text-anchor="middle">${money(xv)}${i===4?'+':''}</text>`; }
+  g+=`<line class="ax" x1="${l}" x2="${W-rt}" y1="${t+ph}" y2="${t+ph}"/><text x="${l+pw/2}" y="${t+ph+32}" text-anchor="middle">Cost of one loss event (share of events)</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Histogram of single loss event cost">${g}</svg>`;
+}
+
+/* ---------- Run ---------- */
+function updateRunMsg(){
+  const errs=A.states.reduce((n,s)=>n+preChecks(s).filter(c=>c.lvl==='error').length,0);
+  const has=A.states.some(s=>results[s.id]);
+  $('#runmsg').textContent= errs? `${errs} input ${errs===1?'issue':'issues'} to fix before running.` : stale&&has? 'Inputs changed. Run again to update results.' : has? `Last run: ${(+A.settings.iterations).toLocaleString('en-US')} simulated years per option.` : 'Ready to run.';
+}
+function run(){
+  const bad=[]; A.states.forEach((s,i)=>{ const e=preChecks(s).filter(c=>c.lvl==='error'); if(e.length) bad.push([i,e]); });
+  if(bad.length){
+    const [i,e]=bad[0];
+    if(A.active!==i){ A.active=i; renderSide(); renderStateArea(); renderResults(); renderCompare(); }
+    $('#runmsg').textContent=`Fix ${A.states[i].name}: ${e[0].msg.replace(/<[^>]+>/g,'')}`;
+    const k=e[0].key; const el=k? document.getElementById('f-'+k.replace('.','-')) : null; (el||$('#sec-results')).scrollIntoView({block:'start'});
+    renderResults(); return;
+  }
+  const btn=$('#runbtn'); btn.disabled=true; btn.textContent='Running…';
+  setTimeout(()=>{
+    try{
+      const N=Math.min(200000,Math.max(100,+A.settings.iterations||10000)), seed=(+A.settings.seed||1)>>>0;
+      results={}; A.states.forEach(s=>{ results[s.id]=simulate(s,N,seed); });
+      stale=false; renderSide(); renderResults(); renderCompare(); updateRunMsg();
+      $('#sec-results').scrollIntoView({block:'start'});
+      dirty=true; scheduleSave();
+    } finally { btn.disabled=false; btn.textContent='Run simulation'; }
+  },30);
+}
+
+function summary(){
+  const out={runAt:null,iterations:+A.settings.iterations,seed:+A.settings.seed,threshold:A.settings.threshold,options:[]};
+  A.states.forEach(s=>{ const r=results[s.id]; if(!r) return; out.runAt=r.runAt;
+    out.options.push({name:s.name,annualCost:s.cost,meanAnnualLoss:Math.round(r.mean),p10:Math.round(r.p10),p50:Math.round(r.p50),p90:Math.round(r.p90),p95:Math.round(r.p95),p99:Math.round(r.p99),chanceAnyLoss:+r.pAny.toFixed(4),
+      chanceAboveThreshold: A.settings.threshold? +exceed(r.sorted,A.settings.threshold).toFixed(4):null,lefMean:+r.lefMean.toFixed(4),lefP10:+r.lefP10.toFixed(4),lefP90:+r.lefP90.toFixed(4),
+      singleLossP50:Math.round(r.sle.p50),singleLossP90:Math.round(r.sle.p90),singleLossMean:Math.round(r.sle.mean),derivedVulnerability:r.vulnDerived,secondaryShareOfLoss:+r.secShareLoss.toFixed(4),
+      breakdown:Object.fromEntries(Object.entries(r.breakdown).map(([k,v])=>[k,Math.round(v)]))}); });
+  out.stale=stale;
+  return out;
+}
+
+/* ---------- Persistence ---------- */
+const LSK='fair-workbench:analyses';
+const col=()=>'data/users/'+uid;
+function lsAll(){ try{ return JSON.parse(localStorage.getItem(LSK)||'{}')||{}; }catch(e){ return {}; } }
+function lsPut(doc){ try{ const all=lsAll(); all[doc.id]=doc; localStorage.setItem(LSK,JSON.stringify(all)); return true; }catch(e){ return false; } }
+function lsDel(id){ try{ const all=lsAll(); delete all[id]; localStorage.setItem(LSK,JSON.stringify(all)); }catch(e){} }
+const store={
+  async list(){ if(db){ const s=await db.collection(col()).orderBy('updatedAt','desc').limit(50).get(); return s.docs.map(d=>d.data()).filter(Boolean); } return Object.values(lsAll()).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))); },
+  async save(doc){ if(db){ await db.collection(col()).doc(doc.id).set(doc); return 'cloud'; } return lsPut(doc)?'local':'none'; },
+  async remove(id){ if(db){ await db.collection(col()).doc(id).delete(); } else lsDel(id); }
+};
+let saveTimer=null, saving=false, again=false;
+function setSave(t){ $('#savestate').textContent=t; }
+function scheduleSave(){ if(!dirty) return; clearTimeout(saveTimer); setSave('Unsaved changes'); saveTimer=setTimeout(saveNow,1200); }
+async function saveNow(){
+  if(saving){ again=true; return; }
+  saving=true; A.updatedAt=new Date().toISOString();
+  const doc=clone(A); doc.summary=summary();
+  try{ const where=await store.save(doc); dirty=false; setSave(where==='cloud'?'Saved':where==='local'?'Saved in this browser only':'Not saved: storage isn’t available here. Use Export to keep a copy.'); }
+  catch(e){ setSave('Couldn’t save ('+(e&&e.code||'error')+'). Use Export to keep a copy.'); }
+  saving=false; if(again){ again=false; saveNow(); }
+}
+
+/* ---------- Modal ---------- */
+function modal(html){ $('#modalroot').innerHTML=`<div class="modal" data-act="close-bg"><div class="box" role="dialog" aria-modal="true">${html}</div></div>`; const f=$('#modalroot .box button, #modalroot .box textarea'); if(f) f.focus(); }
+function closeModal(){ $('#modalroot').innerHTML=''; }
+async function openList(){
+  modal('<h2>Open an analysis</h2><p class="muted">Loading…</p>');
+  try{
+    const list=await store.list();
+    const where= db? 'Saved to your account; only you can see them.' : 'Saved in this browser only.';
+    modal(`<h2>Open an analysis</h2><p class="muted" style="font-size:13px">${where}</p>${list.length? list.map(a=>`<div class="item"><div><div class="t">${esc(a.title||'Untitled analysis')}</div><div class="d">${(a.states||[]).length} option${(a.states||[]).length===1?'':'s'} · updated ${esc(new Date(a.updatedAt).toLocaleString())}</div></div><div style="display:flex;gap:6px"><button class="btn" data-act="load" data-id="${esc(a.id)}">Open</button><button class="btn quiet danger" data-act="del" data-id="${esc(a.id)}">Delete</button></div></div>`).join('') : '<p>No saved analyses yet. Changes save automatically as you work.</p>'}<div style="margin-top:12px;text-align:right"><button class="btn" data-act="close">Close</button></div>`);
+    openList.cache=list;
+  }catch(e){ modal(`<h2>Open an analysis</h2><p>Couldn’t load saved analyses (${esc(e&&e.code||'error')}). Try again in a moment.</p><div style="text-align:right"><button class="btn" data-act="close">Close</button></div>`); }
+}
+function loadAnalysis(a){ A=normalize(a); results={}; stale=false; dirty=false; renderAll(); setSave(db?'Saved':''); window.scrollTo(0,0); }
+
+async function doExport(){
+  const payload=JSON.stringify({...clone(A),summary:summary()},null,2);
+  const slug=(A.title||'fair-analysis').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'fair-analysis';
+  const csv=csvText();
+  modal(`<h2>Export</h2><p class="muted" style="font-size:13px">The JSON file holds every input and the latest results, and can be imported back. The CSV holds the results table for a spreadsheet or report.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">${downloads?`<button class="btn primary" data-act="dl-json">Download JSON</button>${csv?'<button class="btn" data-act="dl-csv">Download results CSV</button>':''}`:''}</div>
+  <p class="muted" style="font-size:13px">${downloads?'Or copy':'Copy'} the JSON:</p><textarea readonly>${esc(payload)}</textarea><div style="margin-top:10px;text-align:right"><button class="btn" data-act="close">Close</button></div>`);
+  doExport.files={json:[slug+'.json',payload],csv:csv?[slug+'-results.csv',csv]:null};
+}
+function csvText(){
+  const s=summary(); if(!s.options.length) return '';
+  const h=['Option','Annual cost','Mean annual loss','P10','P50','P90','P95','P99','Chance of any loss','Chance above threshold','LEF mean','Single loss P50','Single loss P90'];
+  const rows=s.options.map(o=>[o.name,o.annualCost??'',o.meanAnnualLoss,o.p10,o.p50,o.p90,o.p95,o.p99,o.chanceAnyLoss,o.chanceAboveThreshold??'',o.lefMean,o.singleLossP50,o.singleLossP90]);
+  return [h].concat(rows).map(r=>r.map(v=>{ const x=String(v); return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x; }).join(',')).join('\n');
+}
+async function dl(which){
+  const f=doExport.files&&doExport.files[which]; if(!f||!downloads) return;
+  try{ await downloads.save({filename:f[0],data:f[1]}); }catch(e){ if(e&&e.code!=='declined') alertBox('Couldn’t download the file ('+(e.code||'error')+'). Copy the JSON from the box instead.'); }
+}
+function alertBox(msg){ modal(`<p>${esc(msg)}</p><div style="text-align:right"><button class="btn" data-act="close">Close</button></div>`); }
+
+/* ---------- Events ---------- */
+function onField(t){
+  if(t.dataset.a){
+    const p=t.dataset.a; let v=t.value;
+    if(t.dataset.num){ const n=t.dataset.num==='int'? (v.trim()===''?null:parseInt(v,10)) : parseNum(v); if(n!=null&&Number.isNaN(n)){ t.setAttribute('aria-invalid','true'); return; } t.removeAttribute('aria-invalid'); v=n; }
+    if(p==='settings.iterations') v=+v;
+    set(A,p,v);
+    if(p.startsWith('settings.threshold')){ /* results view reads threshold live */ const pos=t.selectionStart; if(results[cur().id]){ renderResults(); renderCompare(); const el=document.querySelector('[data-a="settings.threshold"]'); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } } }
+    else if(p.startsWith('settings.')){ if(Object.keys(results).length){ stale=true; } }
+  } else if(t.dataset.s){
+    const p=t.dataset.s, st=cur(); let v=t.value;
+    if(t.dataset.num){ const n=parseNum(v); if(Number.isNaN(n)){ t.setAttribute('aria-invalid','true'); v=null; } else { t.removeAttribute('aria-invalid'); v=n; } }
+    set(st,p,v);
+    if(p==='lef.mode'||p==='lef.vulnMode'){ renderStateArea(); }
+    else if(p==='name'){ document.querySelectorAll('.tab')[A.active].textContent=v||'Option '+(A.active+1); }
+    const row=t.closest('.dist'); if(row) updateRowMsg(row);
+    if(p!=='name'&&p!=='notes'&&p!=='cost'&&!p.endsWith('.src')&&Object.keys(results).length) stale=true;
+    if(p==='cost'&&Object.keys(results).length) renderCompareSoon();
+  } else return;
+  renderSide(); updateRunMsg(); if(stale) markStaleBanners();
+  dirty=true; scheduleSave();
+}
+let cmpT=null; function renderCompareSoon(){ clearTimeout(cmpT); cmpT=setTimeout(()=>{ const a=document.activeElement, pos=a&&a.selectionStart; renderCompare(); if(a&&a.dataset&&a.dataset.s==='cost'){ const el=document.querySelector('[data-s="cost"]'); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } } },500); }
+function markStaleBanners(){ ['#sec-results','#sec-compare'].forEach(s=>{ const sec=$(s); if(sec&&!sec.querySelector('.banner')&&(sec.querySelector('.narr')||sec.querySelector('table'))){ const b=document.createElement('div'); b.className='banner'; b.textContent='Inputs changed since the last run. Run the simulation again to update these results.'; const h=sec.querySelector('h2'); h.insertAdjacentElement('afterend',b); } }); }
+
+document.addEventListener('input',e=>{ const t=e.target; if(t.matches('[data-a],[data-s]')) onField(t); });
+document.addEventListener('focusout',e=>{ const t=e.target; if(t.dataset&&t.dataset.num==='money'&&t.getAttribute('aria-invalid')!=='true'){ const n=parseNum(t.value); if(n!=null&&!Number.isNaN(n)) t.value=withCommas(n); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('#modalroot').innerHTML) closeModal(); });
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const act=b.dataset.act;
+  if(act==='close-bg'){ if(e.target===b) closeModal(); return; }
+  if(act==='close') return closeModal();
+  if(act==='run') return run();
+  if(act==='goto'){ const t=b.dataset.target; const el=t&&document.getElementById(t); if(el){ el.scrollIntoView({block:'start'}); const inp=el.querySelector('input,select'); if(inp) setTimeout(()=>inp.focus({preventScroll:true}),350); } return; }
+  if(act==='tab'){ A.active=+b.dataset.i; renderSide(); renderStateArea(); renderResults(); $('#sec-state').scrollIntoView({block:'start'}); dirty=true; scheduleSave(); return; }
+  if(act==='add-state'){ const c=clone(cur()); c.id=newId(); c.name='Treatment option '+A.states.length; c.notes=''; c.cost=null; A.states.push(c); A.active=A.states.length-1; stale=stale||Object.keys(results).length>0; renderSide(); renderStateArea(); renderResults(); renderCompare(); updateRunMsg(); $('#sec-state').scrollIntoView({block:'start'}); dirty=true; scheduleSave(); return; }
+  if(act==='del-state'){
+    if(b.dataset.confirm!=='1'){ b.dataset.confirm='1'; b.textContent='Confirm: delete '+cur().name; return; }
+    const id=cur().id; A.states.splice(A.active,1); delete results[id]; A.active=0; renderAll(); dirty=true; scheduleSave(); return; }
+  if(act==='new'){ if(dirty) await saveNow(); loadAnalysis(blankAnalysis()); setSave(''); return; }
+  if(act==='open'){ if(dirty) await saveNow(); return openList(); }
+  if(act==='load'){ const a=(openList.cache||[]).find(x=>x.id===b.dataset.id); if(a){ closeModal(); loadAnalysis(a); } return; }
+  if(act==='del'){
+    if(b.dataset.confirm!=='1'){ b.dataset.confirm='1'; b.textContent='Confirm delete'; return; }
+    try{ await store.remove(b.dataset.id); if(b.dataset.id===A.id){ A.id=newId(); dirty=true; } openList(); }catch(err){ alertBox('Couldn’t delete it ('+(err&&err.code||'error')+').'); } return; }
+  if(act==='export') return doExport();
+  if(act==='dl-json') return dl('json');
+  if(act==='dl-csv') return dl('csv');
+  if(act==='import'){ $('#importfile').value=''; $('#importfile').click(); return; }
+});
+$('#importfile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ const o=JSON.parse(rd.result); const a=o.analysis||o; if(!a||!Array.isArray(a.states)) throw new Error('shape'); const n=normalize(a); n.id=newId(); n.title=(n.title||'Imported analysis'); loadAnalysis(n); dirty=true; scheduleSave(); }catch(err){ alertBox('That file isn’t a FAIR workbench export. Choose a .json file exported from this tool.'); } };
+  rd.readAsText(f);
+});
+
+/* ---------- Init ---------- */
+renderAll();
+setSave('');
+(async()=>{
+  try{
+    if(window.claude&&window.claude.use){
+      const [d,u,dlc]=await Promise.all([window.claude.use('db'),window.claude.use('user'),window.claude.use('downloads')]);
+      downloads=dlc||null;
+      if(d&&u){ const id=await u.id(); if(id){ db=d; uid=id; } }
+    }
+  }catch(e){}
+  capsReady=true;
+  if(!dirty){
+    try{ const list=await store.list(); if(list.length&&!dirty){ loadAnalysis(list[0]); setSave(db?'Opened your most recent analysis':'Opened your most recent analysis from this browser'); } }catch(e){}
+  } else scheduleSave();
+})();
+})();
+</script>
+</body>
+</html>
