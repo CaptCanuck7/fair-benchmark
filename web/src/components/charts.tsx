@@ -25,7 +25,7 @@ export function LecChart({ series, threshold, label }: { series: CurveSeries[]; 
     return <p className="muted">No losses were simulated, so there is no curve to draw.</p>
   }
   const multi = series.length > 1
-  const W = 640, H = 300, l = 58, rt = 16, t = 14, b = 38 + (multi ? 22 : 0)
+  const W = 640, H = 306, l = 58, rt = 24, t = 14, b = 44
   const pw = W - l - rt, ph = H - t - b
   const xmax = Math.max(...series.map((s) => s.points[s.points.length - 1]?.x ?? 0)) || 1
   const ytop = Math.max(...series.map((s) => s.points[0]?.y ?? 0))
@@ -34,61 +34,61 @@ export function LecChart({ series, threshold, label }: { series: CurveSeries[]; 
   const Y = (y: number) => t + ph - (y / ymax) * ph
   const ticks = [0, 1, 2, 3, 4, 5]
 
-  let legendX = l
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
-      {ticks.map((i) => {
-        const yv = (ymax * i) / 5
-        return (
-          <g key={`y${i}`}>
-            <line className="gl" x1={l} x2={W - rt} y1={Y(yv)} y2={Y(yv)} />
-            <text x={l - 6} y={Y(yv) + 4} textAnchor="end">{pct(yv)}</text>
-          </g>
-        )
-      })}
-      {ticks.map((i) => {
-        const xv = (xmax * i) / 5
-        return <text key={`x${i}`} x={X(xv)} y={t + ph + 16} textAnchor="middle">{money(xv)}</text>
-      })}
-      <line className="ax" x1={l} x2={W - rt} y1={t + ph} y2={t + ph} />
-      <line className="ax" x1={l} x2={l} y1={t} y2={t + ph} />
-      <text x={l + pw / 2} y={t + ph + 32} textAnchor="middle">Annual loss</text>
-      {series.map((s, i) => (
-        <path
-          key={i}
-          d={'M' + s.points.map((p) => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' L')}
-          fill="none"
-          stroke={s.color}
-          strokeWidth={2.5}
-          strokeLinejoin="round"
-        />
-      ))}
-      {threshold != null && threshold > 0 && threshold <= xmax && (
-        <>
-          <line x1={X(threshold)} x2={X(threshold)} y1={t} y2={t + ph} stroke="var(--red)" strokeWidth={1.5} strokeDasharray="5 4" />
-          <text x={X(threshold) + 5} y={t + 12} className="thr">threshold {money(threshold)}</text>
-        </>
-      )}
-      {multi &&
-        series.map((s, i) => {
-          const name = s.name.slice(0, 28)
-          const x = legendX
-          legendX += Math.min(200, 30 + name.length * 6.2)
+    <>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+        {ticks.map((i) => {
+          const yv = (ymax * i) / 5
           return (
-            <g key={`lg${i}`}>
-              <rect x={x} y={H - 14} width={12} height={4} fill={s.color} />
-              <text x={x + 16} y={H - 9}>{name}</text>
+            <g key={`y${i}`}>
+              <line className="gl" x1={l} x2={W - rt} y1={Y(yv)} y2={Y(yv)} />
+              <text x={l - 6} y={Y(yv) + 4} textAnchor="end">{pct(yv)}</text>
             </g>
           )
         })}
-    </svg>
+        {ticks.map((i) => {
+          const xv = (xmax * i) / 5
+          return <text key={`x${i}`} x={X(xv)} y={t + ph + 16} textAnchor="middle">{money(xv)}</text>
+        })}
+        <line className="ax" x1={l} x2={W - rt} y1={t + ph} y2={t + ph} />
+        <line className="ax" x1={l} x2={l} y1={t} y2={t + ph} />
+        <text x={l + pw / 2} y={t + ph + 38} textAnchor="middle">Annual loss</text>
+        {series.map((s, i) => (
+          <path
+            key={i}
+            d={'M' + s.points.map((p) => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' L')}
+            fill="none"
+            stroke={s.color}
+            strokeWidth={2.5}
+            strokeLinejoin="round"
+          />
+        ))}
+        {threshold != null && threshold > 0 && threshold <= xmax && (
+          <>
+            <line x1={X(threshold)} x2={X(threshold)} y1={t} y2={t + ph} stroke="var(--red)" strokeWidth={1.5} strokeDasharray="5 4" />
+            <text x={X(threshold) + 5} y={t + 12} className="thr">threshold {money(threshold)}</text>
+          </>
+        )}
+      </svg>
+      {multi && (
+        // An HTML legend wraps on narrow screens, where an in-SVG one would collide.
+        <ul className="chart-legend" aria-label="Legend">
+          {series.map((s, i) => (
+            <li key={i}>
+              <span className="sw" style={{ background: s.color }} />
+              {s.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   )
 }
 
 /** Histogram of the cost of one loss event, as a share of simulated events. */
 export function HistChart({ hist }: { hist: Histogram | null }) {
   if (!hist || hist.total === 0) return <p className="muted">No loss events were simulated.</p>
-  const W = 640, H = 240, l = 46, rt = 16, t = 10, b = 40
+  const W = 640, H = 246, l = 46, rt = 24, t = 10, b = 46
   const pw = W - l - rt, ph = H - t - b, B = hist.bins.length
   const ymax = niceMax(Math.max(...hist.bins.map((x) => x.share)))
   const bw = pw / B
@@ -127,7 +127,7 @@ export function HistChart({ hist }: { hist: Histogram | null }) {
         </text>
       ))}
       <line className="ax" x1={l} x2={W - rt} y1={t + ph} y2={t + ph} />
-      <text x={l + pw / 2} y={t + ph + 32} textAnchor="middle">Cost of one loss event (share of events)</text>
+      <text x={l + pw / 2} y={t + ph + 38} textAnchor="middle">Cost of one loss event (share of events)</text>
     </svg>
   )
 }

@@ -5,3 +5,6 @@ __pycache__/
 .pytest_cache/
 *.db
 .env
+
+# Volume backups made with the README commands
+fair-data-backup.tgz

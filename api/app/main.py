@@ -80,7 +80,15 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="FAIR Risk Workbench API", lifespan=lifespan)
+# No Swagger UI: it loads scripts from a CDN, which the app's CSP blocks. The
+# schema itself is served under /api so it is reachable through nginx.
+app = FastAPI(
+    title="FAIR Risk Workbench API",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url="/api/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,
