@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Analysis, Scope } from '../types'
+import type { Analysis, Check, Scope, Settings } from '../types'
 import { api, ApiError } from '../api/client'
+import { useContent } from '../content'
 import { saveStatusText, useAutosave } from '../hooks/useAutosave'
-import { setPath, treatmentCopy, updateState } from '../lib/model'
+import { useRuns } from '../hooks/useRuns'
+import { factorAnchor, parseCheckPath, setPath, treatmentCopy, updateState } from '../lib/model'
+import { CompareSection } from './CompareSection'
 import { FrequencySection } from './FrequencySection'
 import { ConformanceNote, Intro } from './Intro'
 import { PrimarySection, SecondarySection } from './LossSections'
 import { OptionTabs } from './OptionTabs'
+import { ResultsSection } from './ResultsSection'
+import { RunBar } from './RunBar'
+import { RunHistory } from './RunHistory'
 import { ScopeSection } from './ScopeSection'
 import { TaxonomySidebar } from './TaxonomySidebar'
 
@@ -18,11 +24,34 @@ interface Props {
 }
 
 export function Workspace({ id, navigate }: Props) {
+  const content = useContent()
   const [doc, setDoc] = useState<Analysis | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [, setInputHash] = useState('')
+  const [inputHash, setInputHash] = useState('')
+  const [preChecks, setPreChecks] = useState<Check[][] | null>(null)
+  const [running, setRunning] = useState(false)
+  const [runMsg, setRunMsg] = useState<string | null>(null)
   const docRef = useRef<Analysis | null>(null)
-  const autosave = useAutosave(setInputHash)
+  const runs = useRuns(id)
+
+  const validate = useCallback((a: Analysis) => {
+    api.validate(a).then(
+      (v) => {
+        // Ignore an answer for a document that has since changed.
+        if (docRef.current && docRef.current.states.length === v.states.length) setPreChecks(v.states.map((s) => s.checks))
+      },
+      () => setPreChecks(null),
+    )
+  }, [])
+
+  const onSaved = useCallback(
+    (hash: string, saved: Analysis) => {
+      setInputHash(hash)
+      validate(saved)
+    },
+    [validate],
+  )
+  const autosave = useAutosave(onSaved)
   const { schedule, reset } = autosave
 
   useEffect(() => {
@@ -36,14 +65,19 @@ export function Workspace({ id, navigate }: Props) {
         reset(doc)
         setDoc(doc)
         setInputHash(inputHash)
+        validate(doc)
         document.title = `${doc.title} · FAIR risk workbench`
       },
-      (e) => live && setLoadError(e instanceof ApiError && e.status === 404 ? 'This analysis doesn’t exist. It may have been deleted.' : String(e.message ?? e)),
+      (e) =>
+        live &&
+        setLoadError(e instanceof ApiError && e.status === 404 ? 'This analysis doesn’t exist. It may have been deleted.' : String(e.message ?? e)),
     )
+    runs.load().catch(() => undefined)
     return () => {
       live = false
     }
-  }, [id, reset])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, reset, validate])
 
   /** Apply an edit, re-render, and schedule an autosave. */
   const edit = useCallback(
@@ -53,6 +87,7 @@ export function Workspace({ id, navigate }: Props) {
       const next = fn(cur)
       docRef.current = next
       setDoc(next)
+      setRunMsg(null)
       schedule(next)
     },
     [schedule],
@@ -66,6 +101,39 @@ export function Workspace({ id, navigate }: Props) {
     const input = el.querySelector<HTMLElement>('input, select')
     if (input) window.setTimeout(() => input.focus({ preventScroll: true }), 350)
   }, [])
+
+  async function run() {
+    const cur = docRef.current
+    if (!cur || running) return
+    setRunning(true)
+    setRunMsg(null)
+    try {
+      if (!(await autosave.flush())) {
+        setRunMsg('Couldn’t save the latest changes, so the run didn’t start. See the save status at the top.')
+        return
+      }
+      const result = await api.runAnalysis(cur.id)
+      setInputHash(result.inputHash)
+      await runs.added(result)
+      window.setTimeout(() => document.getElementById('sec-results')?.scrollIntoView({ block: 'start' }), 0)
+    } catch (e) {
+      if (!(e instanceof ApiError)) {
+        setRunMsg(String(e))
+        return
+      }
+      // Pre-check failure: go to the failing option and factor, as the prototype does.
+      const first = e.errors[0]
+      const where = first ? parseCheckPath(first.path, Object.fromEntries(Object.entries(content.factors).map(([k, f]) => [k, f.path]))) : null
+      if (where) {
+        if (where.index !== docRef.current?.active) edit((a) => ({ ...a, active: where.index }))
+        const target = where.key ? factorAnchor(where.key) : 'sec-state'
+        window.setTimeout(() => goto(target), 50)
+      }
+      setRunMsg(e.message)
+    } finally {
+      setRunning(false)
+    }
+  }
 
   if (loadError) {
     return (
@@ -82,6 +150,27 @@ export function Workspace({ id, navigate }: Props) {
   const i = doc.active
   const st = doc.states[i]
   const editState = (path: string, value: unknown) => edit((a) => updateState(a, a.active, path, value))
+
+  // What the results area shows: a past run when one is selected, else the latest.
+  const shown = runs.shown
+  const history = runs.viewing
+  const stale = !!runs.latest && runs.latest.inputHash !== inputHash
+  let shownResult = shown?.results.states.find((s) => s.stateId === st.id) ?? null
+  if (history && !shownResult) shownResult = shown?.results.states[0] ?? null
+  const sidebarResult = !stale && !history ? (runs.latest?.results.states.find((s) => s.stateId === st.id) ?? null) : null
+
+  const errorCount = preChecks ? preChecks.flat().filter((c) => c.level === 'error').length : 0
+  const statusMsg =
+    runMsg ??
+    (errorCount
+      ? `${errorCount} input ${errorCount === 1 ? 'issue' : 'issues'} to fix before running.`
+      : stale
+        ? 'Inputs changed. Run again to update results.'
+        : runs.latest
+          ? `Last run: ${runs.latest.iterations.toLocaleString('en-US')} simulated years per option.`
+          : preChecks
+            ? 'Ready to run.'
+            : 'Enter your estimates, then run the simulation.')
 
   return (
     <>
@@ -127,7 +216,7 @@ export function Workspace({ id, navigate }: Props) {
       </header>
 
       <div className="wrap layout">
-        <TaxonomySidebar state={st} result={null} onGoto={goto} />
+        <TaxonomySidebar state={st} result={sidebarResult} onGoto={goto} />
         <main>
           <ScopeSection
             scope={doc.scope}
@@ -153,9 +242,35 @@ export function Workspace({ id, navigate }: Props) {
           <FrequencySection stateId={st.id} lef={st.lef} onChange={editState} />
           <PrimarySection state={st} onChange={editState} />
           <SecondarySection state={st} onChange={editState} />
+          <ResultsSection
+            key={history?.id ?? 'latest'}
+            stateName={history && shownResult ? shownResult.name : st.name}
+            result={shownResult}
+            run={shown ? { iterations: shown.iterations, threshold: shown.threshold } : null}
+            stale={stale}
+            preChecks={preChecks?.[i] ?? []}
+            settings={doc.settings}
+            onSettings={(field: keyof Settings, value) => edit((a) => setPath(a, `settings.${field}`, value))}
+            history={history ? { runAt: history.runAt, onBack: runs.back } : null}
+            csvUrl={shown ? api.exportCsvUrl(doc.id, shown.id) : null}
+          />
+          {(doc.states.length > 1 || shown?.results.comparison) && (
+            <CompareSection comparison={shown?.results.comparison ?? null} threshold={shown?.threshold ?? null} stale={stale && !history} />
+          )}
+          <RunHistory
+            analysisId={doc.id}
+            runs={runs.runs}
+            shownId={shown?.id ?? null}
+            latestId={runs.latest?.id ?? null}
+            currentHash={inputHash}
+            onView={(runId) => {
+              void runs.view(runId).then(() => document.getElementById('sec-results')?.scrollIntoView({ block: 'start' }))
+            }}
+          />
           <ConformanceNote />
         </main>
       </div>
+      <RunBar message={statusMsg} running={running} onRun={run} />
     </>
   )
 }

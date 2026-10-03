@@ -1,8 +1,9 @@
-import type { Analysis, AnalysisListItem, Content, Run, RunSummary } from '../types'
+import type { Analysis, AnalysisListItem, Check, Content, Run, RunSummary } from '../types'
 
 export interface FieldError {
   path: string
   message: string
+  stateIndex?: number
 }
 
 /** An error from the API, with the message to show and any field-level errors. */
@@ -10,6 +11,12 @@ export class ApiError extends Error {
   constructor(public status: number, message: string, public errors: FieldError[] = []) {
     super(message)
   }
+}
+
+export interface ValidateResult {
+  valid: boolean
+  inputHash: string
+  states: { stateId: string; index: number; checks: Check[] }[]
 }
 
 /** A document response plus the input hash the API sends in a header. */
@@ -65,6 +72,7 @@ export const api = {
   duplicateAnalysis: (id: string) => doc('POST', `/analyses/${encodeURIComponent(id)}/duplicate`),
   importAnalysis: (raw: unknown) => doc('POST', '/import', raw),
 
+  validate: (a: Analysis) => json<ValidateResult>('POST', '/validate', a),
   runAnalysis: (id: string) => json<Run>('POST', `/analyses/${encodeURIComponent(id)}/runs`),
   listRuns: (id: string) => json<RunSummary[]>('GET', `/analyses/${encodeURIComponent(id)}/runs`),
   getRun: (id: string, runId: string) =>

@@ -27,7 +27,7 @@ export function saveStatusText(s: SaveStatus): string {
  * in flight at a time, and a change made during a save triggers another.
  * `flush()` saves immediately (used before leaving the page).
  */
-export function useAutosave(onSaved: (inputHash: string) => void) {
+export function useAutosave(onSaved: (inputHash: string, doc: Analysis) => void) {
   const [status, setStatus] = useState<SaveStatus>({ kind: 'idle' })
   const latest = useRef<Analysis | null>(null)
   const dirty = useRef(false)
@@ -36,21 +36,23 @@ export function useAutosave(onSaved: (inputHash: string) => void) {
   const onSavedRef = useRef(onSaved)
   onSavedRef.current = onSaved
 
-  const save = useCallback(async (): Promise<void> => {
+  /** Save now if there are unsaved changes. Resolves to false if the save failed. */
+  const save = useCallback(async (): Promise<boolean> => {
     window.clearTimeout(timer.current)
+    timer.current = undefined
     if (inFlight.current) {
       await inFlight.current
-      if (!dirty.current) return
+      if (!dirty.current) return true
     }
     const doc = latest.current
-    if (!doc || !dirty.current) return
+    if (!doc || !dirty.current) return true
     dirty.current = false
     setStatus({ kind: 'saving' })
     let failed = false
     const p = (async () => {
       try {
         const res = await api.saveAnalysis(doc)
-        onSavedRef.current(res.inputHash)
+        onSavedRef.current(res.inputHash, doc)
         setStatus(dirty.current ? { kind: 'pending' } : { kind: 'saved' })
       } catch (e) {
         // Keep the changes marked unsaved; the next edit (or leaving the page) tries again.
@@ -70,6 +72,7 @@ export function useAutosave(onSaved: (inputHash: string) => void) {
         void save()
       }, SAVE_DELAY_MS)
     }
+    return !failed
   }, [])
 
   const schedule = useCallback((doc: Analysis) => {
