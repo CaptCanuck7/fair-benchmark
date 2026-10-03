@@ -142,6 +142,8 @@ def normalize_import(raw: Any) -> Analysis:
     """
     if not isinstance(raw, dict):
         raise DocumentError("The file is not a FAIR workbench analysis: expected a JSON object.")
+    if "states" not in raw and isinstance(raw.get("analysis"), dict):
+        raw = raw["analysis"]  # the prototype also accepts {"analysis": {...}}
     states = raw.get("states")
     if not isinstance(states, list):
         raise DocumentError("The file is not a FAIR workbench analysis: it has no \"states\" array.")

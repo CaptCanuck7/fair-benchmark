@@ -234,6 +234,12 @@ def test_import_fills_missing_fields(client):
     assert doc["settings"]["seed"] == 20260930 and doc["scope"]["threatType"] == "Malicious, external"
 
 
+def test_import_accepts_wrapped_document(client):
+    raw = {"analysis": load_fixture("product_x.json")}
+    doc = client.post("/api/import", json=raw).json()
+    assert doc["title"] == "Product X customer data breach"
+
+
 def test_import_rejects_documents_without_states(client):
     for body in ({"title": "x"}, {"states": "nope"}, [1, 2]):
         r = client.post("/api/import", json=body)
