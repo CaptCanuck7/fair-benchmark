@@ -1,0 +1,95 @@
+{
+  "format": "fair-workbench",
+  "version": 1,
+  "id": "mg8k2x1fq3k9zt",
+  "title": "Payments API outage",
+  "createdAt": "2026-09-28T14:02:11.512Z",
+  "updatedAt": "2026-09-30T09:45:03.117Z",
+  "scope": {
+    "asset": "Payments API",
+    "threatCommunity": "Cloud provider",
+    "threatType": "Failure (system or vendor)",
+    "effect": "Availability",
+    "condition": "Regional outage longer than 4 hours",
+    "controls": "",
+    "notes": "Exported from the single-file prototype."
+  },
+  "settings": { "iterations": 10000, "seed": 20260930, "threshold": 500000 },
+  "states": [
+    {
+      "id": "mg8k2x1fa1b2c3",
+      "name": "Current state",
+      "notes": "",
+      "cost": null,
+      "lef": {
+        "mode": "cf_poa",
+        "vulnMode": "tcap_rs",
+        "lef": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "tef": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "cf": { "min": 2, "ml": 4, "max": 8, "conf": "low", "src": "Provider status history" },
+        "poa": { "min": 50, "ml": 80, "max": 100, "conf": "med", "src": "" },
+        "vuln": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "tcap": { "min": 40, "ml": 60, "max": 80, "conf": "med", "src": "" },
+        "rs": { "min": 50, "ml": 70, "max": 90, "conf": "high", "src": "DR test" }
+      },
+      "primary": {
+        "productivity": { "min": 20000, "ml": 80000, "max": 300000, "conf": "med", "src": "Finance" },
+        "response": { "min": 5000, "ml": 15000, "max": 40000, "conf": "high", "src": "" },
+        "replacement": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" }
+      },
+      "slef": { "min": 5, "ml": 10, "max": 30, "conf": "med", "src": "" },
+      "secondary": {
+        "response": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "fines": { "min": 10000, "ml": 50000, "max": 250000, "conf": "low", "src": "SLA credits" },
+        "competitive": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "reputation": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" }
+      }
+    },
+    {
+      "id": "mg8k3c7rd4e5f6",
+      "name": "Multi-region failover",
+      "notes": "Active-passive in a second region.",
+      "cost": 60000,
+      "lef": {
+        "mode": "cf_poa",
+        "vulnMode": "tcap_rs",
+        "lef": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "tef": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "cf": { "min": 2, "ml": 4, "max": 8, "conf": "low", "src": "Provider status history" },
+        "poa": { "min": 50, "ml": 80, "max": 100, "conf": "med", "src": "" },
+        "vuln": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "tcap": { "min": 40, "ml": 60, "max": 80, "conf": "med", "src": "" },
+        "rs": { "min": 75, "ml": 90, "max": 98, "conf": "high", "src": "Vendor design review" }
+      },
+      "primary": {
+        "productivity": { "min": 20000, "ml": 80000, "max": 300000, "conf": "med", "src": "Finance" },
+        "response": { "min": 5000, "ml": 15000, "max": 40000, "conf": "high", "src": "" },
+        "replacement": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" }
+      },
+      "slef": { "min": 5, "ml": 10, "max": 30, "conf": "med", "src": "" },
+      "secondary": {
+        "response": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "fines": { "min": 10000, "ml": 50000, "max": 250000, "conf": "low", "src": "SLA credits" },
+        "competitive": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "reputation": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" }
+      }
+    }
+  ],
+  "active": 1,
+  "summary": {
+    "runAt": "2026-09-30T09:44:58.902Z",
+    "iterations": 10000,
+    "seed": 20260930,
+    "threshold": 500000,
+    "options": [
+      {
+        "name": "Current state", "annualCost": null, "meanAnnualLoss": 214531, "p10": 0, "p50": 140713,
+        "p90": 540211, "p95": 702334, "p99": 1050872, "chanceAnyLoss": 0.6512, "chanceAboveThreshold": 0.1133,
+        "lefMean": 1.0681, "lefP10": 0.4513, "lefP90": 1.8008, "singleLossP50": 159311, "singleLossP90": 304428,
+        "singleLossMean": 200851, "derivedVulnerability": 0.3622, "secondaryShareOfLoss": 0.1042,
+        "breakdown": { "primary.productivity": 158340, "primary.response": 17882, "secondary.fines": 38309 }
+      }
+    ],
+    "stale": true
+  }
+}

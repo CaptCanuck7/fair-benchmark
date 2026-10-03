@@ -1,9 +1,13 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
 
-from app.schemas import Analysis, Dist, State
+# Tests use a fresh in-memory database, never the real one on the volume.
+os.environ["DATABASE_URL"] = "sqlite://"
+
+from app.schemas import Analysis, Dist, State  # noqa: E402
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -30,3 +34,15 @@ def simple_state(**kw) -> State:
 @pytest.fixture
 def product_x() -> Analysis:
     return Analysis.model_validate(load_fixture("product_x.json"))
+
+
+@pytest.fixture
+def client():
+    from fastapi.testclient import TestClient
+
+    from app.db import Base, engine
+    from app.main import app
+
+    with TestClient(app) as c:
+        yield c
+    Base.metadata.drop_all(engine)

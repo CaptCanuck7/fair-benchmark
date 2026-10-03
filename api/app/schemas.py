@@ -6,6 +6,8 @@ and blankState(); a null where an object or string is expected also falls
 back to the default, as the prototype's normalize() does.
 """
 
+import hashlib
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -163,3 +165,24 @@ def normalize_import(raw: Any) -> Analysis:
 def dump(model: BaseModel) -> dict:
     """Serialize to the camelCase wire format."""
     return model.model_dump(by_alias=True, mode="json")
+
+
+def input_hash(analysis: Analysis) -> str:
+    """SHA-256 of the inputs that affect a run: scope, states and settings.
+
+    Names and notes are left out, so renaming an option or editing notes
+    doesn't mark the results as stale.
+    """
+    scope = dump(analysis.scope)
+    scope.pop("notes", None)
+    states = []
+    for s in analysis.states:
+        d = dump(s)
+        d.pop("name", None)
+        d.pop("notes", None)
+        states.append(d)
+    canonical = json.dumps(
+        {"scope": scope, "states": states, "settings": dump(analysis.settings)},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
