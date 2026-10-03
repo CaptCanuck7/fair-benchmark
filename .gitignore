@@ -8,3 +8,8 @@ __pycache__/
 
 # Volume backups made with the README commands
 fair-data-backup.tgz
+
+# TypeScript build output (the configs now send it to node_modules/.tmp)
+*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
