@@ -1,0 +1,50 @@
+{
+  "format": "fair-workbench",
+  "version": 1,
+  "id": "product-x-reference",
+  "title": "Product X customer data breach",
+  "createdAt": "2026-09-30T12:00:00.000Z",
+  "updatedAt": "2026-09-30T12:00:00.000Z",
+  "scope": {
+    "asset": "Product X customer database",
+    "threatCommunity": "Organized cyber criminals",
+    "threatType": "Malicious, external",
+    "effect": "Confidentiality",
+    "condition": "",
+    "controls": "WAF, MFA on admin access, quarterly pen test",
+    "notes": "Reference case from CLAUDE.md section 9."
+  },
+  "settings": { "iterations": 100000, "seed": 20260930, "threshold": null },
+  "states": [
+    {
+      "id": "current",
+      "name": "Current state",
+      "notes": "",
+      "cost": null,
+      "lef": {
+        "mode": "tef_vuln",
+        "vulnMode": "direct",
+        "lef": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "tef": { "min": 0.5, "ml": 2, "max": 6, "conf": "med", "src": "SOC alert history" },
+        "cf": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "poa": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "vuln": { "min": 2, "ml": 8, "max": 20, "conf": "med", "src": "Pen test results" },
+        "tcap": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "rs": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" }
+      },
+      "primary": {
+        "productivity": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "response": { "min": 50000, "ml": 150000, "max": 400000, "conf": "med", "src": "IR retainer rates" },
+        "replacement": { "min": 25000, "ml": 75000, "max": 250000, "conf": "med", "src": "Engineering estimate" }
+      },
+      "slef": { "min": 30, "ml": 60, "max": 90, "conf": "med", "src": "Privacy office" },
+      "secondary": {
+        "response": { "min": 100000, "ml": 400000, "max": 1500000, "conf": "med", "src": "Breach cost vendor quotes" },
+        "fines": { "min": 0, "ml": 100000, "max": 1000000, "conf": "med", "src": "Legal" },
+        "competitive": { "min": null, "ml": null, "max": null, "conf": "med", "src": "" },
+        "reputation": { "min": 0, "ml": 250000, "max": 3000000, "conf": "med", "src": "Customer success churn data" }
+      }
+    }
+  ],
+  "active": 0
+}

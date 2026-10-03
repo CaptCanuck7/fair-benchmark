@@ -10,6 +10,7 @@ RUN groupadd --system app && useradd --system --gid app --home /app --shell /usr
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY tests ./tests
 
 RUN pip install --no-cache-dir ".[dev]" \
     && mkdir -p /data \
