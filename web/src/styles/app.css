@@ -40,6 +40,8 @@ a { color: var(--accent) }
 /* Header */
 .top { padding: 18px 16px 8px }
 .top .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; justify-content: space-between }
+.back { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px -8px; padding: 6px 8px; border-radius: 7px; font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none }
+.back:hover { background: var(--field); text-decoration: underline }
 .brand { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 2px }
 .titlebox { flex: 1 1 320px; min-width: 0 }
 .title { font-size: 24px; font-weight: 800; letter-spacing: -.01em; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 2px 0; width: 100%; max-width: 640px }

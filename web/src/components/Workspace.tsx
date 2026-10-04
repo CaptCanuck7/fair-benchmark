@@ -175,6 +175,19 @@ export function Workspace({ id, navigate }: Props) {
   return (
     <>
       <header className="wrap top">
+        <a
+          href="/"
+          className="back"
+          onClick={async (e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+            e.preventDefault()
+            // Save first so the home list shows the latest title and numbers.
+            await autosave.flush()
+            navigate('/')
+          }}
+        >
+          <span aria-hidden="true">←</span> Workbench home
+        </a>
         <div className="brand">FAIR risk workbench</div>
         <div className="row">
           <div className="titlebox">
@@ -197,9 +210,6 @@ export function Workspace({ id, navigate }: Props) {
             </div>
           </div>
           <div className="actions">
-            <button type="button" className="btn" onClick={() => navigate('/')}>
-              All analyses
-            </button>
             <button
               type="button"
               className="btn"
