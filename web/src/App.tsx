@@ -6,9 +6,11 @@ import { AnalysesList } from './components/AnalysesList'
 import { Workspace } from './components/Workspace'
 import { RegisterList } from './pages/RegisterList'
 import { RiskDetail } from './pages/RiskDetail'
+import { Settings } from './pages/Settings'
 
 // Pages: "/" lists analyses, "/analyses/:id" is the workspace, "/register"
-// lists register risks and "/register/:riskId" shows one.
+// lists register risks, "/register/:riskId" shows one and "/settings" shows
+// the agent's status and outbound log.
 // nginx falls back to index.html, so both work on reload.
 function useRoute(): [string, (path: string) => void] {
   const [path, setPath] = useState(() => window.location.pathname)
@@ -43,6 +45,7 @@ export default function App() {
   if (m) page = <Workspace key={m[1]} id={decodeURIComponent(m[1])} navigate={navigate} />
   else if (risk) page = <RiskDetail key={risk[1]} riskId={decodeURIComponent(risk[1])} navigate={navigate} />
   else if (/^\/register\/?$/.test(path)) page = <RegisterList navigate={navigate} />
+  else if (/^\/settings\/?$/.test(path)) page = <Settings navigate={navigate} />
   else page = <AnalysesList navigate={navigate} />
   return <ContentContext.Provider value={content}>{page}</ContentContext.Provider>
 }

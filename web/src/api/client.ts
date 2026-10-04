@@ -1,8 +1,10 @@
 import type {
+  AgentStatus,
   Analysis,
   AnalysisListItem,
   Check,
   Content,
+  OutboundLogEntry,
   RegisterImport,
   RegisterImportResult,
   RegisterRisk,
@@ -100,6 +102,9 @@ export const api = {
   listRegisterImports: () => json<RegisterImport[]>('GET', '/register/imports'),
   listRisks: () => json<RegisterRisk[]>('GET', '/register/risks'),
   getRisk: (riskId: string) => json<RegisterRiskDetail>('GET', `/register/risks/${encodeURIComponent(riskId)}`),
+
+  agentStatus: () => json<AgentStatus>('GET', '/agent/status'),
+  outboundLog: (limit = 200) => json<OutboundLogEntry[]>('GET', `/agent/outbound-log?limit=${limit}`),
 
   exportJsonUrl: (id: string) => `/api/analyses/${encodeURIComponent(id)}/export.json`,
   exportCsvUrl: (id: string, runId: string) =>

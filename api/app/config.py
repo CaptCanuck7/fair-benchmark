@@ -10,6 +10,8 @@ class Settings:
     max_upload_bytes: int = int(os.environ.get("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024)))
     # Read-only folder holding mock_internal_evidence.xlsx and reference_library.json.
     agent_data_dir: Path = Path(os.environ.get("AGENT_DATA_DIR", "/agent-data"))
+    # The agent service, reachable only on the internal compose network.
+    agent_url: str = os.environ.get("AGENT_URL", "http://agent:8001")
 
 
 settings = Settings()

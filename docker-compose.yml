@@ -7,11 +7,15 @@ services:
       MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-5242880}
       AGENT_DATA_DIR: /agent-data
+      AGENT_URL: http://agent:8001
     volumes:
       - fair_data:/data
       # Mock internal evidence and the reference library seed, read-only.
       - ./agent-data:/agent-data:ro
-    # Not published to the host: only nginx (web) can reach it.
+    # Not published to the host, and on the internal network only: it can
+    # reach web and agent, but not the internet.
+    networks:
+      - backend
     expose:
       - "8000"
     read_only: true
@@ -29,8 +33,49 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  agent:
+    build: ./agent
+    # Only the agent gets the Claude API key. Nothing else in .env is passed
+    # through except the agent's own settings below.
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      AGENT_EXTERNAL_ENABLED: ${AGENT_EXTERNAL_ENABLED:-true}
+      ALLOWED_DOMAINS: ${ALLOWED_DOMAINS:-nvd.nist.gov,cisa.gov,first.org,attack.mitre.org,cisecurity.org,verizon.com,ibm.com,cyentia.com}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+      API_INTERNAL_URL: http://api:8000
+    # Internal network to talk to api; egress network for the Claude API and
+    # allowlisted sources. Which hosts it may contact is enforced in code by
+    # the outbound guard (agent/app/guard.py). Not published to the host.
+    networks:
+      - backend
+      - egress
+    expose:
+      - "8001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
   web:
     build: ./web
+    # frontend carries the published port; backend reaches api.
+    networks:
+      - frontend
+      - backend
     ports:
       - "127.0.0.1:8080:80"
     read_only: true
@@ -53,6 +98,14 @@ services:
       timeout: 3s
       retries: 3
     restart: unless-stopped
+
+networks:
+  # No route out of the host: api, agent and web talk to each other here.
+  backend:
+    internal: true
+  # Ordinary bridge networks with outbound access.
+  frontend: {}
+  egress: {}
 
 volumes:
   fair_data:

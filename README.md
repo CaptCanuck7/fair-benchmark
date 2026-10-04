@@ -33,6 +33,15 @@ They cover the PERT sampling, the simulation (including the Product X
 reference case at 100,000 years), every check rule, and the API endpoints,
 including importing prototype exports.
 
+The agent has its own suite, with the Claude API mocked and no network use:
+
+```sh
+docker compose exec agent pytest
+```
+
+Tests marked `live` call the Claude API and the internet, and are skipped
+unless you ask for them with `docker compose exec agent pytest -m live`.
+
 ## Using it
 
 1. **Analyses list.** Start a new analysis or import a JSON file exported from
@@ -67,6 +76,16 @@ risk to see its entry, with the Risk Analysis text split into its sections.
 **Test data only.** Do not load real register data until your organization has
 approved this use. When the agent is added (see `AGENT_BUILD.md`), risk text is
 sent to the Claude API.
+
+**Settings** (from the register page) shows whether the agent is on and the
+log of every outbound request it attempted.
+
+### The agent
+
+The agent prepares FAIR analyses from the register, and analysts approve
+everything it drafts. It needs a Claude API key: copy `.env.example` to `.env`,
+set `ANTHROPIC_API_KEY`, and run `docker compose up -d`. Without a key the
+rest of the app works and the agent is shown as off.
 
 The api container also loads `agent-data/mock_internal_evidence.xlsx` on every
 start. It stands in for records the SOC, Asset Management and other teams would
@@ -123,6 +142,13 @@ docker compose up --build
 |---|---|---|
 | `api` | Python 3.12, FastAPI, Pydantic v2, NumPy, SQLAlchemy 2, SQLite | Simulation engine, validation, checks, persistence, import and export |
 | `web` | React 18, TypeScript, Vite, served by nginx | The UI. nginx also proxies `/api/*` to `api`. |
+| `agent` | Python 3.12, FastAPI, Anthropic Python SDK, httpx | Stateless workers for the agent tasks. Holds no data: `api` sends it inputs and stores what comes back. |
+
+**Networks.** `backend` is an internal Compose network with no route out of
+the host, and all three services are on it. `api` is on `backend` only, so it
+can't reach the internet. `agent` is also on `egress`, for the Claude API and
+the allowlisted sources. `web` is also on `frontend`, which carries the
+published port. Only `web` is published.
 
 - **The simulation runs on the server** in NumPy, vectorized across simulated
   years. The browser never computes results.
@@ -142,7 +168,17 @@ api/app/
   engine/            distributions, simulate, stats, checks, fmt (message formatting)
   routers/           analyses, simulate (runs, validate), io (import/export)
   content/factors.py factor text
+  register/          register parser and section splitter
+  evidence.py        mock internal evidence loader and queries
+  identifiers.py     identifier denylist for the agent's outbound guard
 api/tests/           pytest suite and fixtures
+agent/app/
+  main.py            agent service: health and status (task endpoints come later)
+  config.py          settings from the environment
+  llm.py             Claude wrapper: structured output, one retry, token counts
+  guard.py           outbound guard: allowlist, identifier denylist, logging
+  api_client.py      calls to api's internal endpoints
+agent/tests/         pytest suite (Claude API mocked)
 web/src/
   App.tsx            routing: "/" list, "/analyses/:id" workspace
   api/client.ts      fetch wrapper
@@ -175,11 +211,14 @@ All under `/api`, JSON throughout.
 | GET | `/register/imports` | Past register imports, newest first |
 | GET | `/register/risks` | Register risks with their scores and statuses |
 | GET | `/register/risks/{riskId}` | One risk: fields, sections, monitoring updates |
+| GET | `/agent/status` | Whether the agent is configured, and why not |
+| GET | `/agent/outbound-log` | The agent's outbound requests, newest first, identifiers redacted |
 | GET | `/openapi.json` | The OpenAPI schema |
 
 The api also serves read-only `/internal/evidence/{sheet}?asset_id=...` (sheets:
 `assets`, `telemetry`, `incidents`, `findings`, `control-tests`, `vendors`,
-`about`) and `/internal/evidence/incidents?type=...` for the agent. nginx
+`about`), `/internal/evidence/incidents?type=...`,
+`/internal/guard/identifiers` and `POST /internal/outbound-log` for the agent. nginx
 doesn't proxy `/internal/`, so the browser can't reach them.
 
 Validation errors return 422 as
@@ -189,9 +228,18 @@ Validation errors return 422 as
 
 This is a risk tool, so it follows the baseline in `CLAUDE.md`:
 
-- **Only nginx is published, and only on `127.0.0.1:8080`.** The API isn't
-  reachable from the host.
-- **Both containers run as non-root users** (`app` and `nginx`), with:
+- **Only nginx is published, and only on `127.0.0.1:8080`.** The API and the
+  agent aren't reachable from the host.
+- **The API has no internet access.** It sits on an internal-only network.
+- **Only the agent gets the Claude API key.** Compose passes it to that one
+  container. The key is never logged or returned by an endpoint.
+- **The agent's outbound requests go through one guard** (`agent/app/guard.py`):
+  https only, allowlisted domains and fixed feed addresses only, searches of at
+  most 120 characters, and nothing containing a register or evidence identifier.
+  Redirects are re-checked, responses are size-capped, and every attempt is
+  logged (redacted) before it is sent. If the log can't be written, the request
+  isn't sent.
+- **All containers run as non-root users** (`app` and `nginx`), with:
   - read-only root filesystems
   - every Linux capability dropped
   - `no-new-privileges`
@@ -214,7 +262,8 @@ This is a risk tool, so it follows the baseline in `CLAUDE.md`:
   - 1 MB request bodies, in both nginx and the API
   - at most 200,000 simulated years
   - at most 20 million simulated loss events per option
-- **No secrets** are needed or stored.
+- **The only secret** is the optional `ANTHROPIC_API_KEY`, kept in the
+  gitignored `.env`.
 
 ## Decisions
 
@@ -309,6 +358,48 @@ prototype first; otherwise choose the simpler option."
   Formula cells are read from their cached values and never recalculated.
 - **The upload limit is 5 MB on `/api/register/import` only**, in both nginx
   and the API. Every other path keeps the 1 MB limit.
+
+**Agent service and guard** (`AGENT_BUILD.md`, milestone 2)
+- **No `temperature` setting.** The spec asks for a low temperature, but current
+  Sonnet models reject non-default sampling settings with an error. Each run
+  uses structured outputs (a JSON schema the reply must follow), Pydantic
+  validation and a fixed `effort` level instead. The model, prompt version
+  and input hash are still stored with each run.
+- **Refusal fallback is on.** Requests opt into the API's server-side fallback
+  (`fallbacks: "default"`), so a request that a safety classifier declines is
+  retried on the fallback model. Security wording can trigger the cyber
+  classifier. The model that actually answered is recorded.
+- **Validation happens twice.** The API's structured outputs guarantee the JSON
+  shape. Pydantic then checks what the API's schema can't express (number
+  ranges, min ≤ most likely ≤ max). A failure gets one corrective retry quoting
+  the error, and a second failure fails the run.
+- **Domain restriction is enforced in code, not by the network.** Docker can't
+  filter egress by domain without an extra proxy container, so the agent's
+  `egress` network can reach any host and the guard decides. The api, which
+  holds the data, has no egress at all. A filtering egress proxy would be a
+  sensible later hardening step.
+- **The guard's identifier list comes from api** (`/internal/guard/identifiers`)
+  and is fetched at the start of each task, so a new register import is picked
+  up. People's names are matched as written, without a leading title such as
+  "VP", and by surname. First names alone aren't blocked because they're too
+  common.
+- **Business unit names are blocked as the spec says**, including "Product".
+  A search such as "product end-of-support exploitation" is therefore blocked.
+  Prompts steer searches toward generic terms.
+- **Matching respects word boundaries**, so "Asset-412" doesn't block
+  "Asset-4120" and "Nova" doesn't block "renovate".
+- **The agent redacts outbound log entries** before they are stored: each
+  identifier becomes a placeholder such as `[asset_id]`. That keeps register
+  identifiers out of the log, including blocked attempts.
+- **Fixed feed addresses** (NVD API, CISA KEV feed, EPSS API and the MITRE
+  ATT&CK repository on raw.githubusercontent.com) are allowed by URL prefix
+  even if their domains are removed from `ALLOWED_DOMAINS`. Turning external
+  sources off blocks them too.
+- **The agent status endpoint only checks that the key and model are set.**
+  The agent's internal `/status/check` confirms that the key and model work
+  with a models lookup, which spends no tokens.
+- **Allowed domains are read-only on the Settings page for now.** They come
+  from `.env`.
 
 ## Later extensions
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { QualityStatus, RegisterImport, RegisterRisk, TriageStatus } from '../types'
+import type { AgentStatus, QualityStatus, RegisterImport, RegisterRisk, TriageStatus } from '../types'
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
 import { TestDataNotice } from '../components/TestDataNotice'
@@ -15,6 +15,7 @@ const NOT_RUN = 'not_run'
 export function RegisterList({ navigate }: Props) {
   const [risks, setRisks] = useState<RegisterRisk[] | null>(null)
   const [lastImport, setLastImport] = useState<RegisterImport | null>(null)
+  const [agent, setAgent] = useState<AgentStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -35,6 +36,7 @@ export function RegisterList({ navigate }: Props) {
   useEffect(() => {
     document.title = 'Risk register · FAIR risk workbench'
     load()
+    api.agentStatus().then(setAgent, () => setAgent(null))
   }, [load])
 
   async function importFile(file: File) {
@@ -83,6 +85,17 @@ export function RegisterList({ navigate }: Props) {
             <button type="button" className="btn primary" disabled={busy} onClick={() => fileRef.current?.click()}>
               {busy ? 'Importing…' : 'Import register'}
             </button>
+            <a
+              href="/settings"
+              className="btn"
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+                e.preventDefault()
+                navigate('/settings')
+              }}
+            >
+              Settings
+            </a>
             <input
               ref={fileRef}
               type="file"
@@ -106,6 +119,11 @@ export function RegisterList({ navigate }: Props) {
 
       <main className="wrap">
         <TestDataNotice />
+        {agent && !agent.configured && (
+          <div className="check warn" role="status">
+            <b>Agent is off.</b> {agent.reason} You can still import and read the register.
+          </div>
+        )}
         {error && (
           <div className="check error" role="alert">
             {error}

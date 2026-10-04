@@ -17,7 +17,7 @@ from app.errors import (
     request_validation_handler,
 )
 from app.evidence import EVIDENCE_FILE, load_evidence
-from app.routers import analyses, internal_evidence, io, register, simulate
+from app.routers import agent, analyses, internal_evidence, internal_guard, io, register, simulate
 from app.routers.analyses import HASH_HEADER
 
 
@@ -117,6 +117,8 @@ app.include_router(simulate.router)
 app.include_router(io.router)
 app.include_router(register.router)
 app.include_router(internal_evidence.router)
+app.include_router(internal_guard.router)
+app.include_router(agent.router)
 
 
 @app.get("/api/health")

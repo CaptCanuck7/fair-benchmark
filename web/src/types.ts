@@ -288,3 +288,26 @@ export interface RegisterImport {
   rowCount: number
   riskCount: number
 }
+
+// --- Agent (mirrors api/app/routers/agent.py) ---
+
+export interface AgentStatus {
+  configured: boolean
+  /** Why the agent is off, in words for the analyst. */
+  reason: string | null
+  model: string | null
+  externalEnabled: boolean
+  allowedDomains?: string[]
+}
+
+export interface OutboundLogEntry {
+  id: number
+  agentRunId: string | null
+  tool: string
+  /** Register and evidence identifiers are already redacted, e.g. "[asset_id]". */
+  destination: string
+  query: string | null
+  allowed: boolean
+  blockedReason: string | null
+  at: string
+}

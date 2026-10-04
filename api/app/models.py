@@ -127,3 +127,25 @@ class EvidenceVendor(EvidenceRecord, Base):
 
 class EvidenceAbout(EvidenceRecord, Base):
     __tablename__ = "evidence_about"
+
+
+# --- Agent support ---
+
+
+class OutboundLogRow(Base):
+    """Every outbound request the agent attempted, allowed or blocked.
+
+    The agent redacts register and evidence identifiers from `destination` and
+    `query` before sending the entry, so the log itself holds none.
+    """
+
+    __tablename__ = "outbound_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    tool: Mapped[str] = mapped_column(String(64))
+    destination: Mapped[str] = mapped_column(Text)
+    query: Mapped[str | None] = mapped_column(Text, nullable=True)
+    allowed: Mapped[bool] = mapped_column(Boolean)
+    blocked_reason: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    at: Mapped[str] = mapped_column(String(32), index=True)
