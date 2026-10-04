@@ -223,3 +223,68 @@ export interface AnalysisListItem {
     options: { stateId: string; name: string; meanAnnualLoss: number }[]
   } | null
 }
+
+// --- Tactical risk register (mirrors api/app/routers/register.py) ---
+
+export type QualityStatus = 'ready' | 'needs_info'
+export type TriageStatus = 'qualifies' | 'screened_out'
+
+export interface RegisterRisk {
+  riskId: string
+  title: string | null
+  category: string | null
+  assetIds: string[]
+  baselineImpact: number | null
+  baselineLikelihood: number | null
+  baselineScore: number | null
+  targetScore: number | null
+  residualScore: number | null
+  structured: boolean
+  monitoringCount: number
+  /** Null until the agent's quality, triage and classification steps have run. */
+  quality: QualityStatus | null
+  triage: TriageStatus | null
+  classification: string | null
+  analysisId: string | null
+}
+
+export interface MonitoringUpdate {
+  taskName: string | null
+  updateText: string | null
+  residualImpact: number | null
+  residualLikelihood: number | null
+  residualScore: number | null
+  completedDate: string | null
+}
+
+/** Register fields keyed as in api/app/register/parser.py COLUMNS. */
+export type RegisterFields = Record<string, string | number | null> & { asset_ids?: string[] }
+
+export interface RegisterRiskDetail extends RegisterRisk {
+  fields: RegisterFields
+  /** risk_statement, detailed_analysis, baseline_controls, exploit_paths, preamble; or raw when unstructured. */
+  sections: Record<string, string>
+  monitoring: MonitoringUpdate[]
+  import: { importId: string; filename: string; importedAt: string } | null
+  drafts: unknown[]
+  evidence: unknown[]
+  dataRequests: unknown[]
+}
+
+export interface RegisterImportResult {
+  importId: string
+  filename: string
+  importedAt: string
+  rowCount: number
+  riskCount: number
+  created: number
+  updated: number
+}
+
+export interface RegisterImport {
+  importId: string
+  filename: string
+  importedAt: string
+  rowCount: number
+  riskCount: number
+}

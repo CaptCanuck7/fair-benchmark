@@ -7,6 +7,11 @@ import pytest
 # Tests use a fresh in-memory database, never the real one on the volume.
 os.environ["DATABASE_URL"] = "sqlite://"
 
+# agent-data/ sits at the repo root locally and is mounted at /agent-data in the
+# container; both are two levels above this folder.
+AGENT_DATA = Path(os.environ.get("AGENT_DATA_DIR") or Path(__file__).resolve().parents[2] / "agent-data")
+os.environ["AGENT_DATA_DIR"] = str(AGENT_DATA)
+
 from app.schemas import Analysis, Dist, State  # noqa: E402
 
 FIXTURES = Path(__file__).parent / "fixtures"

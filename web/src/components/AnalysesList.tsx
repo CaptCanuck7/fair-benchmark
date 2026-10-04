@@ -75,6 +75,17 @@ export function AnalysesList({ navigate }: Props) {
             <button type="button" className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>
               Import
             </button>
+            <a
+              href="/register"
+              className="btn"
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+                e.preventDefault()
+                navigate('/register')
+              }}
+            >
+              Risk register
+            </a>
             <input
               ref={fileRef}
               type="file"

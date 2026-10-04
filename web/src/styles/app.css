@@ -218,3 +218,30 @@ tr:last-child td, tr:last-child th { border-bottom: 0 }
 .chart-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 4px 0 0; padding: 0 0 0 9%; font-size: 12.5px; color: var(--muted) }
 /* Charts scale down with the screen; keep their labels readable on phones. */
 @media (max-width: 520px) { .chart text { font-size: 19px } }
+
+/* Risk register */
+.banner.notice { margin-top: 4px }
+.small { font-size: 12.5px }
+.filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 0 0 6px }
+.filters .fld { flex: 0 1 190px }
+.filters p { margin: 0 0 8px }
+table.reg { min-width: 860px }
+table.reg th, table.reg td { text-align: left; vertical-align: top }
+table.reg .num { text-align: right }
+table.reg .wrapcell { white-space: normal; min-width: 220px }
+.badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; background: var(--field); border: 1px solid var(--line) }
+.badge.ready, .badge.qualifies { background: var(--accent-soft); border-color: var(--accent); color: var(--accent) }
+.badge.needs_info { background: var(--amber-soft); border-color: var(--amber) }
+.badge.screened_out { color: var(--muted) }
+.detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start }
+@media (min-width: 1080px) { .detail { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) } }
+.h2 { font-size: 19px; margin: 0 0 8px; letter-spacing: -.005em }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 16px; margin: 0 0 6px }
+.facts dt { font-size: 12.5px; font-weight: 600; color: var(--muted) }
+.facts dd { margin: 0; font-size: 14px; overflow-wrap: anywhere }
+.regsec h4 { font-size: 13.5px; margin: 12px 0 2px }
+.prewrap { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 74ch }
+.updates { margin: 0; padding-left: 20px }
+.updates li { margin: 0 0 10px }
+.updates .t { font-weight: 700; font-size: 14px }
+.updates .d { font-size: 12.5px; color: var(--muted) }

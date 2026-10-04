@@ -9,39 +9,45 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings
 from app.content.factors import content_payload
-from app.db import init_db
+from app.db import SessionLocal, init_db
 from app.errors import (
     ApiError,
     api_error_handler,
     pydantic_validation_handler,
     request_validation_handler,
 )
-from app.routers import analyses, io, simulate
+from app.evidence import EVIDENCE_FILE, load_evidence
+from app.routers import analyses, internal_evidence, io, register, simulate
 from app.routers.analyses import HASH_HEADER
 
 
-LIMIT_MESSAGE = "The request body is larger than the 1 MB limit."
+def limit_message(max_bytes: int) -> str:
+    return f"The request body is larger than the {max_bytes / (1024 * 1024):g} MB limit."
 
 
 class BodyTooLarge(HTTPException):
     # An HTTPException, so FastAPI passes it through body parsing as a 413
     # instead of turning it into a generic 400.
-    def __init__(self) -> None:
-        super().__init__(status_code=413, detail=LIMIT_MESSAGE)
+    def __init__(self, max_bytes: int) -> None:
+        super().__init__(status_code=413, detail=limit_message(max_bytes))
 
 
 class BodySizeLimit:
-    """Reject request bodies over `max_bytes` with 413, whether or not Content-Length is sent."""
+    """Reject request bodies over the limit with 413, whether or not Content-Length is sent.
 
-    def __init__(self, app: ASGIApp, max_bytes: int):
-        self.app, self.max_bytes = app, max_bytes
+    `max_bytes` applies everywhere except the exact paths in `overrides`.
+    """
+
+    def __init__(self, app: ASGIApp, max_bytes: int, overrides: dict[str, int] | None = None):
+        self.app, self.max_bytes, self.overrides = app, max_bytes, overrides or {}
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        max_bytes = self.overrides.get(scope.get("path", ""), self.max_bytes)
         for name, value in scope.get("headers", []):
-            if name == b"content-length" and value.isdigit() and int(value) > self.max_bytes:
-                return await self._reject(send)
+            if name == b"content-length" and value.isdigit() and int(value) > max_bytes:
+                return await self._reject(send, max_bytes)
 
         seen = 0
         started = False
@@ -51,8 +57,8 @@ class BodySizeLimit:
             msg = await receive()
             if msg["type"] == "http.request":
                 seen += len(msg.get("body", b""))
-                if seen > self.max_bytes:
-                    raise BodyTooLarge()
+                if seen > max_bytes:
+                    raise BodyTooLarge(max_bytes)
             return msg
 
         async def tracking_send(msg: Message) -> None:
@@ -65,10 +71,10 @@ class BodySizeLimit:
             await self.app(scope, limited_receive, tracking_send)
         except BodyTooLarge:
             if not started:
-                await self._reject(send)
+                await self._reject(send, max_bytes)
 
-    async def _reject(self, send: Send) -> None:
-        body = json.dumps({"detail": LIMIT_MESSAGE, "errors": []}).encode()
+    async def _reject(self, send: Send, max_bytes: int) -> None:
+        body = json.dumps({"detail": limit_message(max_bytes), "errors": []}).encode()
         await send({"type": "http.response.start", "status": 413,
                     "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
         await send({"type": "http.response.body", "body": body})
@@ -77,6 +83,8 @@ class BodySizeLimit:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    with SessionLocal() as session:
+        load_evidence(session, settings.agent_data_dir / EVIDENCE_FILE)
     yield
 
 
@@ -97,7 +105,8 @@ app.add_middleware(
     allow_headers=["Content-Type"],
     expose_headers=[HASH_HEADER],
 )
-app.add_middleware(BodySizeLimit, max_bytes=settings.max_body_bytes)
+app.add_middleware(BodySizeLimit, max_bytes=settings.max_body_bytes,
+                   overrides={register.IMPORT_PATH: settings.max_upload_bytes})
 
 app.add_exception_handler(RequestValidationError, request_validation_handler)
 app.add_exception_handler(ValidationError, pydantic_validation_handler)
@@ -106,6 +115,8 @@ app.add_exception_handler(ApiError, api_error_handler)
 app.include_router(analyses.router)
 app.include_router(simulate.router)
 app.include_router(io.router)
+app.include_router(register.router)
+app.include_router(internal_evidence.router)
 
 
 @app.get("/api/health")

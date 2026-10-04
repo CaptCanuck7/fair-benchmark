@@ -5,8 +5,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/fair.db}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-5242880}
+      AGENT_DATA_DIR: /agent-data
     volumes:
       - fair_data:/data
+      # Mock internal evidence and the reference library seed, read-only.
+      - ./agent-data:/agent-data:ro
     # Not published to the host: only nginx (web) can reach it.
     expose:
       - "8000"

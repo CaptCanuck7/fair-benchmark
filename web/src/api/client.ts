@@ -1,4 +1,15 @@
-import type { Analysis, AnalysisListItem, Check, Content, Run, RunSummary } from '../types'
+import type {
+  Analysis,
+  AnalysisListItem,
+  Check,
+  Content,
+  RegisterImport,
+  RegisterImportResult,
+  RegisterRisk,
+  RegisterRiskDetail,
+  Run,
+  RunSummary,
+} from '../types'
 
 export interface FieldError {
   path: string
@@ -28,10 +39,12 @@ export interface DocResponse {
 async function request(method: string, path: string, body?: unknown): Promise<Response> {
   let res: Response
   try {
+    const form = body instanceof FormData
     res = await fetch(`/api${path}`, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // The browser sets the multipart Content-Type (with its boundary) for FormData.
+      headers: body === undefined || form ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : form ? body : JSON.stringify(body),
     })
   } catch {
     throw new ApiError(0, 'Can’t reach the server. Check that the containers are running.')
@@ -46,7 +59,8 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
     } catch {
       /* not JSON */
     }
-    if (res.status === 413) detail = 'That is larger than the 1 MB limit.'
+    if (res.status === 413)
+      detail = path === '/register/import' ? 'That workbook is larger than the 5 MB limit.' : 'That is larger than the 1 MB limit.'
     throw new ApiError(res.status, detail, errors)
   }
   return res
@@ -77,6 +91,15 @@ export const api = {
   listRuns: (id: string) => json<RunSummary[]>('GET', `/analyses/${encodeURIComponent(id)}/runs`),
   getRun: (id: string, runId: string) =>
     json<Run>('GET', `/analyses/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`),
+
+  importRegister: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return json<RegisterImportResult>('POST', '/register/import', form)
+  },
+  listRegisterImports: () => json<RegisterImport[]>('GET', '/register/imports'),
+  listRisks: () => json<RegisterRisk[]>('GET', '/register/risks'),
+  getRisk: (riskId: string) => json<RegisterRiskDetail>('GET', `/register/risks/${encodeURIComponent(riskId)}`),
 
   exportJsonUrl: (id: string) => `/api/analyses/${encodeURIComponent(id)}/export.json`,
   exportCsvUrl: (id: string, runId: string) =>

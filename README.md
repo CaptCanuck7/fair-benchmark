@@ -56,10 +56,27 @@ Everything saves automatically about a second after you stop typing.
 **Export JSON** in the workspace header downloads the analysis plus the latest
 results in the prototype's format.
 
+### Risk register
+
+**Risk register** on the home page opens the tactical risk register. Import a
+register workbook (.xlsx, up to 5 MB); `agent-data/tactical_risk_register_test.xlsx`
+is a test register. Rows that share a risk ID become one risk with a list of
+monitoring updates, and scores are recalculated as impact × likelihood. Open a
+risk to see its entry, with the Risk Analysis text split into its sections.
+
+**Test data only.** Do not load real register data until your organization has
+approved this use. When the agent is added (see `AGENT_BUILD.md`), risk text is
+sent to the Claude API.
+
+The api container also loads `agent-data/mock_internal_evidence.xlsx` on every
+start. It stands in for records the SOC, Asset Management and other teams would
+supply, and the agent will read it through internal-only endpoints.
+
 ## Configuration
 
 No configuration is needed. To override defaults, copy `.env.example` to
-`.env`. It documents `DATABASE_URL`, `CORS_ORIGIN` and `MAX_BODY_BYTES`.
+`.env`. It documents `DATABASE_URL`, `CORS_ORIGIN`, `MAX_BODY_BYTES` and
+`MAX_UPLOAD_BYTES`.
 
 ## Your data: back up, restore, reset
 
@@ -154,7 +171,16 @@ All under `/api`, JSON throughout.
 | GET | `/analyses/{id}/export.json` | Document plus latest results, in the prototype's format |
 | GET | `/analyses/{id}/runs/{runId}/export.csv` | Results table, with the prototype's columns |
 | POST | `/import` | Create an analysis from an exported JSON file |
+| POST | `/register/import` | Upload a register workbook (multipart field `file`, `.xlsx`, 5 MB) |
+| GET | `/register/imports` | Past register imports, newest first |
+| GET | `/register/risks` | Register risks with their scores and statuses |
+| GET | `/register/risks/{riskId}` | One risk: fields, sections, monitoring updates |
 | GET | `/openapi.json` | The OpenAPI schema |
+
+The api also serves read-only `/internal/evidence/{sheet}?asset_id=...` (sheets:
+`assets`, `telemetry`, `incidents`, `findings`, `control-tests`, `vendors`,
+`about`) and `/internal/evidence/incidents?type=...` for the agent. nginx
+doesn't proxy `/internal/`, so the browser can't reach them.
 
 Validation errors return 422 as
 `{"detail": "...", "errors": [{"path": "states[1].lef.tef", "message": "..."}]}`.
@@ -252,6 +278,37 @@ prototype first; otherwise choose the simpler option."
   CSP blocks. The schema is still served at `/api/openapi.json`.
 - **nginx resolves `api` through Docker's DNS on each request** (re-checked
   every 10 seconds), so recreating the API container doesn't break the proxy.
+
+**Risk register and internal evidence** (`AGENT_BUILD.md`, milestone 1)
+- **The data folder is `agent-data/`**, as `AGENT_BUILD.md` lays it out. It was
+  delivered as `agent data/` and renamed. Compose mounts it read-only into the
+  api container at `/agent-data`.
+- **Importing a register again updates risks with the same risk ID in place**,
+  rather than adding duplicates. That keeps drafts, evidence and analyses linked
+  to a risk across re-imports. Risks missing from a later import are kept. Each
+  import is still recorded in `register_imports`.
+- **Risks are addressed by their register ID** in URLs (`/register/TR-7`,
+  `/api/register/risks/TR-7`), which is unique after the rule above.
+- **Unstructured analysis text** is stored as `{"raw": text}` in `sections`.
+  Text before the first label in structured text is kept as `preamble`.
+- **A score input that isn't a whole number from 1 to 5 counts as missing**, so
+  its score is null.
+- **A risk's residual score** comes from the most recently completed monitoring
+  update that has both residual inputs.
+- **The register's first sheet is read.** Up to 10,000 rows and 60 columns.
+  openpyxl uses defusedxml for the XML.
+- **Evidence record IDs** come from each sheet's ID column: Incident ID,
+  Finding ID, Record ID, Asset ID (Asset Inventory and Vendor Assessments) and
+  Item (About). Security Telemetry has no ID column, so its rows are cited by
+  spreadsheet row, for example "Security Telemetry Row 10".
+- **Telemetry rows marked "Organization-wide"** are returned for every asset
+  query, flagged `organizationWide`, since they apply to every asset.
+- **The incident `type` filter** matches any incident whose Type contains the
+  text, ignoring case, so `type=phishing` finds "Credential phishing".
+- **Evidence tables are reloaded from the workbook on every api start.**
+  Formula cells are read from their cached values and never recalculated.
+- **The upload limit is 5 MB on `/api/register/import` only**, in both nginx
+  and the API. Every other path keeps the 1 MB limit.
 
 ## Later extensions
 
