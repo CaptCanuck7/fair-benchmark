@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app import agent_pipeline
 from app.config import settings
 from app.content.factors import content_payload
 from app.db import SessionLocal, init_db
@@ -85,6 +86,7 @@ async def lifespan(_app: FastAPI):
     init_db()
     with SessionLocal() as session:
         load_evidence(session, settings.agent_data_dir / EVIDENCE_FILE)
+        agent_pipeline.fail_interrupted(session)
     yield
 
 

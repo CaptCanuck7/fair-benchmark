@@ -102,10 +102,22 @@ export function Settings({ navigate }: Props) {
                   <dt>Allowed sites</dt>
                   <dd>{status.allowedDomains?.length ? status.allowedDomains.join(', ') : '—'}</dd>
                 </div>
+                <div>
+                  <dt>Triage threshold</dt>
+                  <dd>
+                    {status.triageMinScore != null
+                      ? `Baseline score ${status.triageMinScore} or more, or impact 5`
+                      : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Analyst name</dt>
+                  <dd>{status.analystName ?? <span className="muted">Not set: reviews are recorded as “Analyst (name not set)”</span>}</dd>
+                </div>
               </dl>
               <p className="cap">
-                These come from the .env file (AGENT_EXTERNAL_ENABLED and ALLOWED_DOMAINS). Change them there and run
-                docker compose up -d.
+                These come from the .env file (AGENT_EXTERNAL_ENABLED, ALLOWED_DOMAINS, TRIAGE_MIN_SCORE and
+                ANALYST_NAME). Change them there and run docker compose up -d.
               </p>
             </>
           )}

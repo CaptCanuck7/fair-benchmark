@@ -1,39 +1,64 @@
-"""Agent status and the outbound request log, for the browser."""
+"""Agent status, agent jobs and the outbound request log, for the browser."""
 
-import httpx
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
+from app import agent_pipeline
+from app.agent_client import fetch_agent_status
 from app.config import settings
 from app.db import get_session
-from app.models import OutboundLogRow
+from app.errors import ApiError
+from app.models import AgentRunRow, OutboundLogRow, RiskRow
+from app.routers.register import get_risk, queue_checks, run_out
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
-
-NOT_RUNNING = "The agent service isn’t running. Start it with docker compose up."
-
-
-def fetch_agent_status() -> dict:
-    """Ask the agent service whether it is configured. Never raises."""
-    try:
-        res = httpx.get(f"{settings.agent_url}/status", timeout=3.0)
-        res.raise_for_status()
-        data = res.json()
-    except (httpx.HTTPError, ValueError):
-        return {"configured": False, "reason": NOT_RUNNING, "model": None, "externalEnabled": False}
-    return {
-        "configured": bool(data.get("configured")),
-        "reason": data.get("reason"),
-        "model": data.get("model"),
-        "externalEnabled": bool(data.get("externalEnabled")),
-        "allowedDomains": data.get("allowedDomains", []),
-    }
 
 
 @router.get("/status")
 def agent_status() -> dict:
-    return fetch_agent_status()
+    return {**fetch_agent_status(), "triageMinScore": settings.triage_min_score,
+            "analystName": settings.analyst_name or None}
+
+
+def _require_agent() -> None:
+    status = fetch_agent_status()
+    if not status["configured"]:
+        raise ApiError(503, status["reason"] or "The agent is off.")
+
+
+@router.post("/risks/{risk_id}/{task}", status_code=202)
+def start_risk_task(risk_id: str, task: Literal["intake"], session: Session = Depends(get_session)) -> dict:
+    """Start an agent task for one risk. `intake` re-runs the quality check,
+    triage and classification even if the entry hasn't changed. (Scenario,
+    vectors, evidence and estimates arrive with later milestones.)"""
+    row = get_risk(session, risk_id)
+    _require_agent()
+    if agent_pipeline.is_busy(session, row.id):
+        raise ApiError(409, "Checks are already running for this risk.")
+    agent_pipeline.queue_intake(session, [row], force=True)
+    run = agent_pipeline.latest_run(session, row.id, "quality")
+    return {"runId": run.id if run else None, "riskId": row.risk_id}
+
+
+@router.post("/register/intake", status_code=202)
+def start_register_intake(session: Session = Depends(get_session)) -> dict:
+    """Run the intake checks for every risk that hasn't been checked on its
+    current entry (new risks, changed risks, and failed checks)."""
+    _require_agent()
+    rows = session.scalars(select(RiskRow).options(selectinload(RiskRow.monitoring))).all()
+    return queue_checks(session, list(rows))
+
+
+@router.get("/runs/{run_id}")
+def get_run(run_id: str, session: Session = Depends(get_session)) -> dict:
+    run = session.get(AgentRunRow, run_id)
+    if run is None:
+        raise ApiError(404, "Agent run not found.")
+    risk = session.get(RiskRow, run.risk_pk) if run.risk_pk else None
+    return {**run_out(run), "riskId": risk.risk_id if risk else None, "analysisId": run.analysis_id}
 
 
 @router.get("/outbound-log")

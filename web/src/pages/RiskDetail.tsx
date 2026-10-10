@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import type { RegisterRiskDetail } from '../types'
+import { useCallback, useEffect, useState } from 'react'
+import type { AgentStatus, RegisterRiskDetail } from '../types'
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
+import { QualityTab } from '../components/QualityTab'
 import { TestDataNotice } from '../components/TestDataNotice'
 
 interface Props {
@@ -35,7 +36,11 @@ const FACTS: [key: string, label: string][] = [
 
 // Tabs in pipeline order. Each fills in as the agent milestones land.
 const TABS: [id: string, label: string, about: string][] = [
-  ['quality', 'Quality', 'Checks this entry for missing or vague information and lists questions for you.'],
+  [
+    'quality',
+    'Quality',
+    'Checks this entry for missing or vague information and lists questions for you, then triages it and names the kind of weakness behind it.',
+  ],
   [
     'scenario',
     'Scenario',
@@ -66,13 +71,27 @@ function scoreText(impact: unknown, likelihood: unknown, score: number | null): 
 
 export function RiskDetail({ riskId, navigate }: Props) {
   const [risk, setRisk] = useState<RegisterRiskDetail | null>(null)
+  const [agent, setAgent] = useState<AgentStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState(TABS[0][0])
 
-  useEffect(() => {
-    document.title = `${riskId} · Risk register`
+  const load = useCallback(() => {
     api.getRisk(riskId).then(setRisk, (e: ApiError) => setError(e.message))
   }, [riskId])
+
+  useEffect(() => {
+    document.title = `${riskId} · Risk register`
+    load()
+    api.agentStatus().then(setAgent, () => setAgent(null))
+  }, [riskId, load])
+
+  // Refresh while the agent is working on this risk.
+  const running = risk?.agent.state === 'running'
+  useEffect(() => {
+    if (!running) return
+    const t = window.setTimeout(load, 2500)
+    return () => window.clearTimeout(t)
+  }, [risk, running, load])
 
   const f = risk?.fields ?? {}
   const latest = risk?.monitoring
@@ -216,7 +235,11 @@ export function RiskDetail({ riskId, navigate }: Props) {
               <div id="tabpanel" role="tabpanel" aria-labelledby={`tab-${active[0]}`}>
                 <h2 className="h2">{active[1]}</h2>
                 <p className="lede">{active[2]}</p>
-                <p className="muted">Not run yet.</p>
+                {active[0] === 'quality' ? (
+                  <QualityTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
+                ) : (
+                  <p className="muted">Not run yet.</p>
+                )}
               </div>
             </section>
           </div>

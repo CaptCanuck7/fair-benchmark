@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AgentStatus, QualityStatus, RegisterImport, RegisterRisk, TriageStatus } from '../types'
+import type { AgentStatus, RegisterImport, RegisterRisk } from '../types'
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
+import { conditionLabel, QUALITY, TRIAGE } from '../lib/register'
 import { TestDataNotice } from '../components/TestDataNotice'
 
 interface Props {
   navigate: (path: string) => void
 }
 
-const QUALITY: Record<QualityStatus, string> = { ready: 'Ready', needs_info: 'Needs info' }
-const TRIAGE: Record<TriageStatus, string> = { qualifies: 'Qualifies', screened_out: 'Screened out' }
 const NOT_RUN = 'not_run'
+const POLL_MS = 2500
 
 export function RegisterList({ navigate }: Props) {
   const [risks, setRisks] = useState<RegisterRisk[] | null>(null)
@@ -39,14 +39,48 @@ export function RegisterList({ navigate }: Props) {
     api.agentStatus().then(setAgent, () => setAgent(null))
   }, [load])
 
+  // While the agent is checking risks, refresh until it's done.
+  const running = (risks ?? []).filter((r) => r.agent.state === 'running').length
+  useEffect(() => {
+    if (!running) return
+    const t = window.setTimeout(load, POLL_MS)
+    return () => window.clearTimeout(t)
+  }, [risks, running, load])
+
+  const unchecked = (risks ?? []).filter((r) => r.quality == null && r.agent.state !== 'running').length
+
+  async function runChecks() {
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await api.runRegisterIntake()
+      setStatus(
+        r.queued.length
+          ? `Checking ${r.queued.length} risk${r.queued.length === 1 ? '' : 's'}.`
+          : 'Every risk has already been checked on its current entry.',
+      )
+      load()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function importFile(file: File) {
     setBusy(true)
     setError(null)
     setStatus(null)
     try {
       const r = await api.importRegister(file)
+      const n = r.checks.queued.length
+      const checks = r.checks.agentOff
+        ? ' The agent is off, so the quality checks didn’t run.'
+        : n
+          ? ` Checking ${n} risk${n === 1 ? '' : 's'}: quality, triage and condition type. This takes a minute or two.`
+          : ' Every risk was already checked on its current entry.'
       setStatus(
-        `Imported ${r.filename}: ${r.rowCount} row${r.rowCount === 1 ? '' : 's'} gave ${r.riskCount} risk${r.riskCount === 1 ? '' : 's'} (${r.created} new, ${r.updated} updated).`,
+        `Imported ${r.filename}: ${r.rowCount} row${r.rowCount === 1 ? '' : 's'} gave ${r.riskCount} risk${r.riskCount === 1 ? '' : 's'} (${r.created} new, ${r.updated} updated).${checks}`,
       )
       load()
     } catch (e) {
@@ -164,7 +198,13 @@ export function RegisterList({ navigate }: Props) {
                 </label>
                 <p className="muted small" aria-live="polite">
                   Showing {shown.length} of {risks.length} risks.
+                  {running > 0 && ` Checking ${running} now…`}
                 </p>
+                {agent?.configured && unchecked > 0 && (
+                  <button type="button" className="btn" disabled={busy} onClick={() => void runChecks()}>
+                    Run checks on {unchecked} unchecked risk{unchecked === 1 ? '' : 's'}
+                  </button>
+                )}
               </div>
               <div className="tblwrap">
                 <table className="reg">
@@ -198,12 +238,54 @@ export function RegisterList({ navigate }: Props) {
                             {r.riskId}
                           </a>
                         </th>
-                        <td className="wrapcell">{r.title ?? '—'}</td>
+                        <td className="wrapcell">
+                          {r.title ?? '—'}
+                          {r.note && <div className="rownote">{r.note}</div>}
+                          {r.agent.state === 'failed' && (
+                            <div className="rownote err">The agent’s check failed: {r.agent.error}</div>
+                          )}
+                        </td>
                         <td>{r.category ?? '—'}</td>
                         <td className="num">{r.baselineScore ?? '—'}</td>
-                        <td>{r.quality ? <Status kind={r.quality} label={QUALITY[r.quality]} /> : <NotRun />}</td>
-                        <td>{r.triage ? <Status kind={r.triage} label={TRIAGE[r.triage]} /> : <NotRun />}</td>
-                        <td>{r.classification ? r.classification.replace(/_/g, ' ') : <NotRun />}</td>
+                        <td>
+                          {r.agent.state === 'running' && !r.quality ? (
+                            <span className="muted">Checking…</span>
+                          ) : r.quality ? (
+                            <Status kind={r.quality} label={QUALITY[r.quality]} />
+                          ) : r.agent.state === 'failed' ? (
+                            <Status kind="failed" label="Check failed" />
+                          ) : (
+                            <NotRun />
+                          )}
+                        </td>
+                        <td>
+                          {r.triage ? (
+                            <>
+                              <Status kind={r.triage} label={TRIAGE[r.triage]} />
+                              {r.triageOverridden && <div className="small muted">overridden</div>}
+                            </>
+                          ) : r.quality === 'needs_info' ? (
+                            <span className="muted">Not run</span>
+                          ) : r.agent.state === 'running' ? (
+                            <span className="muted">Checking…</span>
+                          ) : (
+                            <NotRun />
+                          )}
+                        </td>
+                        <td>
+                          {r.classification ? (
+                            <>
+                              {conditionLabel(r.classification)}
+                              {r.secondaryClassification && (
+                                <div className="small muted">also {conditionLabel(r.secondaryClassification).toLowerCase()}</div>
+                              )}
+                            </>
+                          ) : r.agent.state === 'running' && r.triage === 'qualifies' ? (
+                            <span className="muted">Checking…</span>
+                          ) : (
+                            <NotRun />
+                          )}
+                        </td>
                         <td>
                           {r.analysisId ? (
                             <a

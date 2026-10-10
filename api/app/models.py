@@ -132,6 +132,57 @@ class EvidenceAbout(EvidenceRecord, Base):
 # --- Agent support ---
 
 
+class AgentRunRow(Base):
+    """One agent task run: a job the api starts and the UI polls.
+
+    `status` is queued, running, succeeded or failed. `input_hash` is a SHA-256
+    of the exact input sent to the agent, so a run can be explained later.
+    """
+
+    __tablename__ = "agent_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    risk_pk: Mapped[int | None] = mapped_column(ForeignKey("risks.id", ondelete="CASCADE"), nullable=True, index=True)
+    analysis_id: Mapped[str | None] = mapped_column(ForeignKey("analyses.id", ondelete="CASCADE"), nullable=True,
+                                                    index=True)
+    task: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    input_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[str] = mapped_column(String(32))
+    finished_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DraftRow(Base):
+    """Something the agent drafted, awaiting or past review.
+
+    `kind` is quality, triage, classification, scenario, vectors, estimate or
+    report. `status` is drafted, approved, edited or rejected. An analyst's
+    edit (or a triage override) is kept in `edited_payload`, beside the draft.
+    """
+
+    __tablename__ = "drafts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    risk_pk: Mapped[int] = mapped_column(ForeignKey("risks.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(16), default="drafted")
+    reviewer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    agent_run_id: Mapped[str | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    edited_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    @property
+    def effective(self) -> dict:
+        """The version downstream steps use: the analyst's edit if there is one."""
+        return self.edited_payload if self.status == "edited" and self.edited_payload is not None else self.payload
+
+
 class OutboundLogRow(Base):
     """Every outbound request the agent attempted, allowed or blocked.
 

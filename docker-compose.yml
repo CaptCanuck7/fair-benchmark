@@ -8,6 +8,9 @@ services:
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-5242880}
       AGENT_DATA_DIR: /agent-data
       AGENT_URL: http://agent:8001
+      TRIAGE_MIN_SCORE: ${TRIAGE_MIN_SCORE:-6}
+      ANALYST_NAME: ${ANALYST_NAME:-}
+      AGENT_WORKERS: ${AGENT_WORKERS:-3}
     volumes:
       - fair_data:/data
       # Mock internal evidence and the reference library seed, read-only.

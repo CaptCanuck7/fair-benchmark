@@ -241,10 +241,16 @@ export interface RegisterRisk {
   residualScore: number | null
   structured: boolean
   monitoringCount: number
-  /** Null until the agent's quality, triage and classification steps have run. */
+  /** Null until run, or when the pipeline stopped earlier (needs_info stops before triage). */
   quality: QualityStatus | null
   triage: TriageStatus | null
+  triageOverridden: boolean
+  /** Condition type: unsupported_software, missing_control, misconfiguration, process_gap, third_party, other. */
   classification: string | null
+  secondaryClassification: string | null
+  /** Why the risk stopped: the gaps for needs_info, the reason for screened out. */
+  note: string | null
+  agent: { state: 'running' | 'failed' | null; error: string | null }
   analysisId: string | null
 }
 
@@ -266,9 +272,87 @@ export interface RegisterRiskDetail extends RegisterRisk {
   sections: Record<string, string>
   monitoring: MonitoringUpdate[]
   import: { importId: string; filename: string; importedAt: string } | null
-  drafts: unknown[]
+  /** The current intake results; null for a stage not run or not reached. */
+  intake: {
+    quality: Draft<QualityResult> | null
+    triage: Draft<TriageResult> | null
+    classification: Draft<ClassificationResult> | null
+  }
+  triageThreshold: number
+  drafts: Draft<unknown>[]
+  runs: AgentRun[]
   evidence: unknown[]
   dataRequests: unknown[]
+}
+
+export type DraftStatus = 'drafted' | 'approved' | 'edited' | 'rejected'
+
+/** Something the agent drafted (mirrors api/app/routers/register.py draft_out). */
+export interface Draft<T> {
+  id: number
+  kind: string
+  status: DraftStatus
+  payload: T
+  editedPayload: T | null
+  /** The analyst's edit if there is one, else the draft. */
+  effective: T
+  reviewer: string | null
+  reviewedAt: string | null
+  agentRunId: string | null
+  draftedAt: string | null
+  model: string | null
+  promptVersion: string | null
+}
+
+export interface QualityGap {
+  field: string
+  problem: string
+  source: 'rule' | 'agent'
+  blocking: boolean
+}
+
+export interface QualityResult {
+  status: QualityStatus
+  gaps: QualityGap[]
+  questions: string[]
+  checks: { namesAsset: boolean; namesCondition: boolean; namesLossPath: boolean }
+  /** Fields and model checks ("agent:condition") that made it needs_info. */
+  blockedBy: string[]
+  unmetChecks?: string[]
+  wouldQualify: boolean
+}
+
+export interface TriageResult {
+  status: TriageStatus
+  score: number | null
+  threshold: number
+  /** The rule that decided, in words. */
+  rule: string
+  reason: string | null
+  advisory: string | null
+  noteError: string | null
+  override?: { from: TriageStatus; reason: string; by: string; at: string }
+}
+
+export interface ClassificationResult {
+  primary_type: string
+  secondary_type: string | null
+  confidence: 'low' | 'med' | 'high'
+  reason: string
+}
+
+export interface AgentRun {
+  id: string
+  task: string
+  status: 'queued' | 'running' | 'succeeded' | 'failed'
+  model: string | null
+  promptVersion: string | null
+  inputHash: string | null
+  inputTokens: number
+  outputTokens: number
+  startedAt: string
+  finishedAt: string | null
+  error: string | null
 }
 
 export interface RegisterImportResult {
@@ -279,6 +363,8 @@ export interface RegisterImportResult {
   riskCount: number
   created: number
   updated: number
+  /** Risks queued for the intake checks, or why none were (agent off). */
+  checks: { queued: string[]; agentOff: string | null }
 }
 
 export interface RegisterImport {
@@ -298,6 +384,8 @@ export interface AgentStatus {
   model: string | null
   externalEnabled: boolean
   allowedDomains?: string[]
+  triageMinScore?: number
+  analystName?: string | null
 }
 
 export interface OutboundLogEntry {

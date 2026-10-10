@@ -11,6 +11,7 @@ import type {
   RegisterRiskDetail,
   Run,
   RunSummary,
+  TriageStatus,
 } from '../types'
 
 export interface FieldError {
@@ -104,6 +105,17 @@ export const api = {
   getRisk: (riskId: string) => json<RegisterRiskDetail>('GET', `/register/risks/${encodeURIComponent(riskId)}`),
 
   agentStatus: () => json<AgentStatus>('GET', '/agent/status'),
+  /** Re-run the quality check, triage and classification for one risk. */
+  rerunIntake: (riskId: string) =>
+    json<{ runId: string | null; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/intake`),
+  /** Run the intake checks for every risk not yet checked on its current entry. */
+  runRegisterIntake: () => json<{ queued: string[]; agentOff: string | null }>('POST', '/agent/register/intake'),
+  triageOverride: (riskId: string, body: { status: TriageStatus; reason: string }) =>
+    json<RegisterRiskDetail & { classificationNote: string | null }>(
+      'POST',
+      `/register/risks/${encodeURIComponent(riskId)}/triage-override`,
+      body,
+    ),
   outboundLog: (limit = 200) => json<OutboundLogEntry[]>('GET', `/agent/outbound-log?limit=${limit}`),
 
   exportJsonUrl: (id: string) => `/api/analyses/${encodeURIComponent(id)}/export.json`,

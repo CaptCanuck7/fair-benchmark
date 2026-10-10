@@ -1,6 +1,7 @@
-from conftest import AGENT_DATA
+from conftest import AGENT_DATA, REAL_FETCH_AGENT_STATUS
 
 from app.identifiers import person_variants
+from app.config import settings
 from app.routers import agent as agent_router
 
 REGISTER = AGENT_DATA / "tactical_risk_register_test.xlsx"
@@ -53,7 +54,8 @@ def test_outbound_log_rejects_bad_entries(client):
 
 
 def test_status_when_agent_is_unreachable(client, monkeypatch):
-    monkeypatch.setattr(agent_router.settings, "agent_url", "http://127.0.0.1:9")
+    monkeypatch.setattr(agent_router, "fetch_agent_status", REAL_FETCH_AGENT_STATUS)
+    monkeypatch.setattr(settings, "agent_url", "http://127.0.0.1:9")
     status = client.get("/api/agent/status").json()
     assert status["configured"] is False
     assert "isn’t running" in status["reason"]

@@ -29,4 +29,5 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-p no:cacheprovider"
+addopts = "-p no:cacheprovider -m 'not live'"
+markers = ["live: runs the pipeline through the real agent service and the Claude API (opt in with pytest -m live)"]

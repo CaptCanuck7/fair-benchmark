@@ -247,3 +247,24 @@ table.reg .wrapcell { white-space: normal; min-width: 220px }
 .updates .d { font-size: 12.5px; color: var(--muted) }
 .row.spread { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between }
 .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; overflow-wrap: anywhere }
+
+/* Intake checks (quality, triage, condition type) */
+.rownote { font-size: 12.5px; color: var(--muted); margin-top: 3px; max-width: 60ch }
+.rownote.err, .err { color: var(--red) }
+.badge.failed { background: var(--red-soft); border-color: var(--red); color: var(--red) }
+.agentbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--field); border: 1px solid var(--line); border-radius: 8px; margin: 0 0 8px }
+.intake h3 { margin-top: 18px }
+.intake h4 { font-size: 13.5px; margin: 12px 0 4px }
+.draftlabel { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px dashed var(--amber); background: var(--amber-soft); margin: 0 0 6px }
+.draftlabel.ok { border-style: solid; border-color: var(--green); background: transparent; color: var(--green) }
+.checklist { list-style: none; padding: 0; margin: 6px 0; font-size: 13.5px }
+.checklist li.no { color: var(--red) }
+.gaps, .questions { margin: 0 0 6px; padding-left: 20px; font-size: 13.5px; max-width: 74ch }
+.gaps li, .questions li { margin: 0 0 5px }
+.tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 4px; background: var(--field); border: 1px solid var(--line); color: var(--muted); vertical-align: 1px }
+.tag.warn { border-color: var(--amber); background: var(--amber-soft); color: var(--ink) }
+.override { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 6px 0; max-width: 60ch }
+.override .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px }
+table.runs-tbl { min-width: 560px }
+table.runs-tbl th, table.runs-tbl td { text-align: left; vertical-align: top; white-space: normal }
+table.runs-tbl .num { text-align: right; white-space: nowrap }

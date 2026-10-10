@@ -42,6 +42,25 @@ docker compose exec agent pytest
 Tests marked `live` call the Claude API and the internet, and are skipped
 unless you ask for them with `docker compose exec agent pytest -m live`.
 
+The api suite never calls the agent either. The agent's answers are faked, or
+replayed from `api/tests/fixtures/intake_recorded.json`, which holds real model
+output from a live run.
+
+**Live evaluation** runs the quality check, triage and condition
+classification on the test register through the real agent and the Claude API,
+and checks the results against `AGENT_BUILD.md` section 14. It needs the agent
+configured. It spends tokens (about 60,000 input and 7,000 output on the
+current model), and uses a throwaway in-memory database, not your saved data.
+
+```sh
+docker compose exec api pytest -m live -s
+```
+
+To refresh the recorded fixture from a live run, add
+`-e RECORD_DIR=/tmp` after `exec`, then copy it out with
+`docker compose exec api cat /tmp/intake_recorded.json > api/tests/fixtures/intake_recorded.json`.
+In Git Bash, run `export MSYS_NO_PATHCONV=1` first so `/tmp` isn't rewritten.
+
 ## Using it
 
 1. **Analyses list.** Start a new analysis or import a JSON file exported from
@@ -73,12 +92,37 @@ is a test register. Rows that share a risk ID become one risk with a list of
 monitoring updates, and scores are recalculated as impact × likelihood. Open a
 risk to see its entry, with the Risk Analysis text split into its sections.
 
-**Test data only.** Do not load real register data until your organization has
-approved this use. When the agent is added (see `AGENT_BUILD.md`), risk text is
-sent to the Claude API.
+**Checks on import.** When the agent is on, importing starts three checks for
+each risk, in the background. The list refreshes itself while they run (a
+minute or two for the test register).
 
-**Settings** (from the register page) shows whether the agent is on and the
-log of every outbound request it attempted.
+1. **Quality check.** Automatic rules look for missing fields and short or
+   unstructured analysis text. The agent then judges whether the text names
+   what is at risk, the weakness, and how loss could happen. A risk that
+   **needs info** stops here, with its gaps and questions for you.
+2. **Triage.** A fixed rule decides: a ready risk **qualifies** when its
+   baseline score is at least `TRIAGE_MIN_SCORE` (6 by default) or its impact
+   is 5. Otherwise it is **screened out**. The agent only explains the result
+   and may add an advisory note, which never changes it. You can override
+   triage either way on the risk's Quality tab, with a reason. Your name
+   (`ANALYST_NAME`) and the date are recorded.
+3. **Condition type.** For risks that qualify, the agent names the kind of
+   weakness: unsupported software, missing control, misconfiguration, process
+   gap, third party or other. Evidence gathering will use it to decide where to
+   look first.
+
+Everything the agent writes is labeled **Agent draft**. A risk's Quality tab
+shows each result, the agent runs behind it (model, prompt version and tokens),
+and **Run checks again**. Importing the same register again doesn't re-check
+risks whose entries haven't changed.
+
+**Test data only.** Do not load real register data until your organization has
+approved this use. When the agent runs, risk text is sent to the Claude API.
+People's names from the register (analyst, owner, managers) are not sent.
+
+**Settings** (from the register page) shows whether the agent is on, the
+triage threshold, the reviewer name, and the log of every outbound request the
+agent attempted.
 
 ### The agent
 
@@ -400,6 +444,53 @@ prototype first; otherwise choose the simpler option."
   with a models lookup, which spends no tokens.
 - **Allowed domains are read-only on the Settings page for now.** They come
   from `.env`.
+
+**Quality, triage and classification** (`AGENT_BUILD.md`, milestone 3)
+- **Gaps below the triage threshold don't block.** Section 9.1 says a missing
+  asset always makes a risk `needs_info`. Section 14 expects TR-16, which lists
+  no assets or environment, to be ready and then screened out. We chose
+  section 14. Missing impact, likelihood or risk statement always blocks.
+  Missing assets or environment, and the model's three text checks (names an
+  asset, a condition, a loss path), block only a risk that would qualify: a
+  score at or above the threshold, or impact 5. For other risks they are listed
+  as gaps but don't block, since triage screens those risks out anyway.
+- **The rules live in api and the model's part lives in the agent.** The
+  quality rules (`api/app/register/quality.py`) and the triage rule
+  (`api/app/register/triage.py`) are plain tested code. The agent's three
+  tasks only judge text, explain and classify. A triage explanation that fails
+  leaves the rule's result in place, with a note.
+- **Classification runs only for risks that qualify**, including risks an
+  analyst overrides into the pipeline (section 6: screened-out risks stop).
+  Overriding a risk out of the pipeline keeps any condition type it already
+  had, but hides it.
+- **Jobs run in a small thread pool inside api** (`AGENT_WORKERS`, default 3).
+  Import returns at once and the UI polls. Runs left queued or running when
+  api restarts are marked failed at the next start, with a message to run the
+  checks again. Run timestamps carry microseconds so runs sort in order.
+- **Re-checking.** `POST /api/agent/risks/{id}/intake` re-runs the three
+  checks for one risk. `POST /api/agent/register/intake` runs them for every
+  risk not yet checked on its current entry. These add an `intake` task to
+  section 11's list. Import skips risks whose quality check already succeeded
+  on the same input (the run's input hash, which includes the threshold).
+- **A new check makes new drafts.** Older ones are kept for the record. A
+  triage override applies to the triage draft it was made on, so re-checking a
+  changed risk clears it.
+- **Only what the tasks need is sent to the model.** That is the title,
+  category, asset IDs, environment, risk action, scores, mitigation plan and
+  analysis text. People's names are left out.
+- **The model's gap `field` comes from a fixed list** of register fields and
+  analysis sections, so gaps can be labeled. The register list's note shows the
+  rule gaps and the checks that blocked. The agent's extra comments appear on
+  the risk's Quality tab.
+- **Classification wording.** The prompt says a gap in overseeing a supplier
+  (such as an overdue vendor assessment) is `third_party`, not `process_gap`.
+  The condition type routes evidence gathering, and section 7 sends
+  `third_party` to vendor assessments and breach disclosures.
+- **Reviewer name.** With `ANALYST_NAME` unset, reviews are recorded as
+  "Analyst (name not set)".
+- **Unit tests can't reach the agent.** An automatic fixture makes the agent
+  read as off and runs jobs inline in every api test except those marked
+  `live`, so importing a register in a test never calls the Claude API.
 
 ## Later extensions
 

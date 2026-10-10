@@ -12,7 +12,11 @@ os.environ["DATABASE_URL"] = "sqlite://"
 AGENT_DATA = Path(os.environ.get("AGENT_DATA_DIR") or Path(__file__).resolve().parents[2] / "agent-data")
 os.environ["AGENT_DATA_DIR"] = str(AGENT_DATA)
 
+from app import agent_client as _agent_client  # noqa: E402
 from app.schemas import Analysis, Dist, State  # noqa: E402
+
+# The real agent status lookup, for the test that checks an unreachable agent.
+REAL_FETCH_AGENT_STATUS = _agent_client.fetch_agent_status
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -39,6 +43,32 @@ def simple_state(**kw) -> State:
 @pytest.fixture
 def product_x() -> Analysis:
     return Analysis.model_validate(load_fixture("product_x.json"))
+
+
+@pytest.fixture(autouse=True)
+def no_real_agent(request, monkeypatch):
+    """Unit tests never reach the agent service or the Claude API.
+
+    The agent reads as off, jobs run inline, and a stray agent call fails the
+    test. Tests that need the agent install a fake on top of this; tests marked
+    `live` are left alone.
+    """
+    if request.node.get_closest_marker("live"):
+        return
+    from app import agent_client, agent_pipeline
+    from app.routers import agent as agent_router
+    from app.routers import register as register_router
+
+    off = {"configured": False, "reason": "The agent is off in unit tests.", "model": None,
+           "externalEnabled": False}
+
+    def no_call(task, payload):
+        raise AssertionError(f"A unit test tried to call the real agent ({task}).")
+
+    monkeypatch.setattr(agent_pipeline, "submit", lambda fn, risk_pk, *a: fn(risk_pk, *a))
+    monkeypatch.setattr(agent_client, "call_task", no_call)
+    for module in (agent_client, register_router, agent_router):
+        monkeypatch.setattr(module, "fetch_agent_status", lambda: off)
 
 
 @pytest.fixture
