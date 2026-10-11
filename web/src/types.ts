@@ -495,6 +495,10 @@ export interface EvidenceItem {
   groups: FactorGroup[]
   /** Set when the item is an answer to this data request. */
   fromDataRequest: number | null
+  /** Whether `value` was found in the cited record; null for items stored before the check. */
+  valueCheck?: 'found' | 'not_found' | 'not_checked' | null
+  /** The cited record's fields (internal rows, library entries); null when there is none. */
+  sourceFields?: Record<string, unknown> | null
 }
 
 export interface DataRequest {

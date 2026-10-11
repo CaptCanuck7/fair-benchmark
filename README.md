@@ -984,6 +984,43 @@ prototype first; otherwise choose the simpler option."
   - **Evaluation:** the live estimates evaluation (and so its replay) also
     checks the cap and that `evidence_match` follows the tags. The recorded
     estimates already meet the cap, so they weren't re-recorded.
+- **Fix 6: evidence values are checked against their records.**
+  - **What's kept:** each source the tools return keeps its record:
+    - an internal row's cleaned fields
+    - a reference library entry's metric, value and unit
+
+    The number parsing the library refresh used (`numbers_in`, `value_in`, the
+    0.5% tolerance) moved to `agent/app/numbers.py`, and both tasks use it.
+  - **`value_check`:** `postprocess` sets it on each item.
+    - "found" when the value is a numeric cell or appears in a text cell.
+    - "not_found" when it doesn't. The item is kept, since a value may be
+      derived (hours times a rate).
+    - "not_checked" when there's no value or no record (web results, feeds).
+
+    The item carries the source fields to the api.
+  - **Storage:** a new `evidence_checks` table, keyed to the evidence item,
+    holds the check and the fields, as `analysis_drafts` did in milestone 7.
+    `evidence_items` isn't altered, so existing volumes keep working.
+    - Items stored before this change have no row and show nothing.
+    - Items from a data request answer report "not_checked".
+  - **Library entries are checked too.** They are external, but their figures
+    are a record to compare against. Web pages aren't.
+  - **In the UI:** the Evidence tab and the evidence lists on the Estimates tab
+    show "Value not found in source" for "not_found", and an expandable
+    "Source record" for internal items.
+  - **What the model sees:** the estimates task gets each item's `value_check`,
+    and `estimates.v2.md` says a "not_found" value may be derived or
+    mistranscribed and isn't to be relied on without saying so. The source
+    fields go from the api only to the browser: no payload to the agent
+    carries them, and the analysis document doesn't either.
+  - **Recordings:** the evidence recordings predate the check, so replayed
+    items show no check. That changes nothing a replay test sends or expects,
+    so the fixtures weren't re-recorded.
+  - **Live run on TR-6:** 12 of 14 values were found in their records and two
+    web items weren't checked. A live run of all nine risks on `estimates.v2`
+    passed every rule. In an earlier run, TR-7's rationale didn't use wording
+    the "zero confirmed logins is weak evidence" check recognises; the rerun
+    passed.
 
 ## Later extensions
 

@@ -226,13 +226,17 @@ FACTOR_GROUPS = {
 }
 
 
-def evidence_item_out(e: EvidenceItemRow) -> dict:
+def evidence_item_out(e: EvidenceItemRow, check: tuple[str | None, dict | None] = (None, None)) -> dict:
     return {
         "id": e.id, "origin": e.origin, "sourceType": e.source_type, "sourceName": e.source_name,
         "citation": e.citation, "publishedAt": e.published_at, "retrievedAt": e.retrieved_at, "summary": e.summary,
         "value": e.value, "unit": e.unit, "factors": e.factors, "stale": e.stale,
         "groups": [g for g, keys in FACTOR_GROUPS.items() if any(f in keys for f in e.factors)],
         "fromDataRequest": e.data_request_id,
+        # found, not_found or not_checked, and the cited record's fields; null
+        # for items stored before the check.
+        "valueCheck": check[0],
+        "sourceFields": check[1],
     }
 
 
@@ -248,10 +252,11 @@ def evidence_out(session: Session, row: RiskRow) -> dict:
     """The latest evidence run's items and data requests, plus every answered
     request (answers outlive a re-run) and the evidence each answer created."""
     items, requests = agent_pipeline.current_evidence(session, row.id)
+    checks = agent_pipeline.evidence_checks(session, items)
     latest = agent_pipeline.latest_evidence_run(session, row.id)
     summary = session.get(EvidenceRunRow, latest.id) if latest else None
     return {
-        "evidence": [evidence_item_out(e) for e in items],
+        "evidence": [evidence_item_out(e, checks.get(e.id, (None, None))) for e in items],
         "dataRequests": [data_request_out(r) for r in requests],
         "evidenceRun": None if latest is None else {
             "id": latest.id, "finishedAt": latest.finished_at, "model": latest.model,

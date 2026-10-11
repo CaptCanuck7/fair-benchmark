@@ -37,7 +37,8 @@ def evidence_context(req: EstimatesRequest) -> dict:
 
 def build_user(req: EstimatesRequest) -> str:
     evidence = [{"id": e.id, "origin": e.origin, "source": e.source_name, "citation": e.citation,
-                 "summary": e.summary, "value": e.value, "unit": e.unit, "factors": e.factors, "stale": e.stale}
+                 "summary": e.summary, "value": e.value, "unit": e.unit, "factors": e.factors, "stale": e.stale,
+                 "value_check": e.value_check}
                 for e in req.evidence]
     requests = [{"id": r.id, "team": r.team, "factor": r.factor, "question": r.question, "status": r.status,
                  "answer": r.answer} for r in req.data_requests]

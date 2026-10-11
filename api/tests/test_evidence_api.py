@@ -210,3 +210,84 @@ def test_settings_survive_through_apply(client):
         app_settings.apply(s)
     assert settings.triage_min_score == 9
     client.put("/api/settings", json={"triageMinScore": 6})
+
+
+# ---------------------------------------------------------------- AGENT_FIXES.md fix 6: value checks
+
+MARKER = "SRC-FIELD-MARKER-7731"
+SOURCE = {"Incident ID": "INC-2026-021", "Attempts": 1, "Notes": f"One attempt. {MARKER}"}
+
+
+@pytest.fixture
+def checked(fake, monkeypatch):
+    """The fake's evidence with the agent's value check: the incident's value
+    is found in its record; the old report is a web item, not checked."""
+    def call(task, payload):
+        res = fake(task, payload)
+        if task == "evidence":
+            inc, web = res.output["items"]
+            inc.update(value_check="found", source_fields=SOURCE)
+            web.update(value_check="not_checked", source_fields=None)
+        return res
+
+    monkeypatch.setattr(agent_client, "call_task", call)
+    return fake
+
+
+def gathered(client) -> dict:
+    import_register(client)
+    review(client, scenario_for(client, "TR-6")["id"], "approve")
+    assert start(client, "TR-6", "evidence").status_code == 202
+    return detail(client, "TR-6")
+
+
+def test_value_checks_and_source_records_are_stored_and_shown(client, checked):
+    ev = {e["citation"]: e for e in gathered(client)["evidence"]}
+    inc, web = ev["Incident History INC-2026-021"], ev["https://www.verizon.com/old"]
+    assert (inc["valueCheck"], inc["sourceFields"]) == ("found", SOURCE)
+    assert (web["valueCheck"], web["sourceFields"]) == ("not_checked", None)
+
+
+def test_a_not_found_value_is_kept(client, fake, monkeypatch):
+    def call(task, payload):
+        res = fake(task, payload)
+        if task == "evidence":
+            for item in res.output["items"]:
+                item.update(value_check="not_found", source_fields={"Attempts": 3})
+        return res
+
+    monkeypatch.setattr(agent_client, "call_task", call)
+    d = gathered(client)
+    assert len(d["evidence"]) == 2 and {e["valueCheck"] for e in d["evidence"]} == {"not_found"}
+
+
+def test_answered_requests_are_not_checked_and_older_items_show_nothing(client, fake):
+    d = gathered(client)  # the plain fake: an agent from before the check
+    assert {(e["valueCheck"], e["sourceFields"]) for e in d["evidence"]} == {(None, None)}
+    req = d["dataRequests"][0]
+    client.put(f"/api/data-requests/{req['id']}", json={"answer": "Tested in March 2026."})
+    answered = next(e for e in detail(client, "TR-6")["evidence"] if e["fromDataRequest"])
+    assert (answered["valueCheck"], answered["sourceFields"]) == ("not_checked", None)
+
+
+def test_source_fields_never_go_back_out(client, checked):
+    """The estimates task gets each item's value_check, never its source record;
+    nor does anything else the api sends to the agent."""
+    gathered(client)
+    n = len(checked.calls)
+    assert start(client, "TR-6", "estimates").status_code == 202
+    sent = checked.calls[n][1]
+    assert {e["value_check"] for e in sent["evidence"]} == {"found", "not_checked"}
+    assert all("source_fields" not in e for e in sent["evidence"])
+    est = detail(client, "TR-6")["estimates"]
+    for f in est["factors"]:
+        if f["status"] == "estimated":
+            client.post(f"/api/register/risks/TR-6/estimates/{f['factor']}/reveal", json={"analystRange": None})
+            client.put(f"/api/register/risks/TR-6/estimates/{f['factor']}", json={"choice": "agent"})
+    aid = client.post("/api/register/risks/TR-6/create-analysis").json()["analysisId"]
+    client.post(f"/api/agent/analyses/{aid}/review")
+    assert any(t == "review" for t, _ in checked.calls[n:])
+    after = json.dumps([p for _, p in checked.calls[n:]])
+    assert MARKER not in after and "source_fields" not in after and "sourceFields" not in after
+    # The analysis document doesn't carry it either.
+    assert MARKER not in json.dumps(client.get(f"/api/analyses/{aid}").json())

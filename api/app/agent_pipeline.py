@@ -31,6 +31,7 @@ from app.models import (
     AgentRunRow,
     DataRequestRow,
     DraftRow,
+    EvidenceCheckRow,
     EvidenceItemRow,
     EvidenceRunRow,
     ReferenceLibraryRow,
@@ -361,12 +362,17 @@ def _gather_evidence(s: Session, row: RiskRow, run: AgentRunRow, state) -> None:
         return
     out = res.output
     for item in out["items"]:
-        s.add(EvidenceItemRow(
+        ev = EvidenceItemRow(
             risk_pk=row.id, agent_run_id=run.id, origin=item["origin"], source_type=item["source_type"],
             source_name=item["source_name"], citation=item["citation"], published_at=item.get("published_at"),
             retrieved_at=item["retrieved_at"], summary=item["summary"], value=item.get("value"),
             unit=item.get("unit"), factors=item["factors"], stale=bool(item.get("stale")),
-        ))
+        )
+        s.add(ev)
+        if "value_check" in item:  # absent from agents (and recordings) older than the check
+            s.flush()
+            s.add(EvidenceCheckRow(evidence_item_id=ev.id, value_check=item["value_check"],
+                                   source_fields=item.get("source_fields")))
     for req in out["data_requests"]:
         s.add(DataRequestRow(risk_pk=row.id, agent_run_id=run.id, team=req["team"], question=req["question"],
                              factor=req["factor"], reason=req["reason"], status="open"))
@@ -452,8 +458,24 @@ def current_evidence(session: Session, risk_pk: int) -> tuple[list[EvidenceItemR
     return [e for e in items if (run_id and e.agent_run_id == run_id) or e.data_request_id in ids], shown
 
 
+def evidence_checks(session: Session, items: list[EvidenceItemRow]) -> dict[int, tuple[str | None, dict | None]]:
+    """Each item's value check and source record fields. An answered data
+    request's item is not_checked; an item stored before the check has none."""
+    rows = {c.evidence_item_id: c for c in session.scalars(
+        select(EvidenceCheckRow).where(EvidenceCheckRow.evidence_item_id.in_([e.id for e in items])))}
+    out: dict[int, tuple[str | None, dict | None]] = {}
+    for e in items:
+        if e.id in rows:
+            out[e.id] = (rows[e.id].value_check, rows[e.id].source_fields)
+        elif e.data_request_id is not None:
+            out[e.id] = ("not_checked", None)
+    return out
+
+
 def estimates_payload(session: Session, row: RiskRow, run_id: str, state) -> dict[str, Any]:
     items, requests = current_evidence(session, row.id)
+    # The check result goes to the agent; the source fields don't.
+    checks = evidence_checks(session, items)
     scenario = {k: v for k, v in usable(state.drafts["scenario"]).items() if k != "basedOn"}
     vectors = usable(state.drafts.get("vectors"))
     return {
@@ -463,7 +485,8 @@ def estimates_payload(session: Session, row: RiskRow, run_id: str, state) -> dic
         "vectors": {k: v for k, v in vectors.items() if k != "basedOn"} if vectors else None,
         "evidence": [{"id": e.id, "origin": e.origin, "source_type": e.source_type, "source_name": e.source_name,
                       "citation": e.citation, "summary": e.summary, "value": e.value, "unit": e.unit,
-                      "factors": e.factors, "stale": e.stale} for e in items],
+                      "factors": e.factors, "stale": e.stale, "value_check": checks.get(e.id, (None, None))[0]}
+                     for e in items],
         "data_requests": [{"id": r.id, "team": r.team, "question": r.question, "factor": r.factor,
                            "status": r.status, "answer": r.answer} for r in requests],
     }

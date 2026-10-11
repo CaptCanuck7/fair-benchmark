@@ -329,3 +329,9 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
 .report form .fld { margin-top: 10px }
 .runbtns { display: flex; gap: 8px; flex-shrink: 0 }
 @media (max-width: 520px) { .runbtns .btn { padding: 8px 11px; font-size: 14px } .runbtns { gap: 6px } }
+
+/* Source records beside evidence items (value check) */
+.source .fields { display: grid; gap: 2px 12px; margin: 6px 0 0; font-size: 12.5px }
+.source .fields div { display: grid; grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: 8px }
+.source dt { color: var(--muted) }
+.source dd { margin: 0; overflow-wrap: anywhere }

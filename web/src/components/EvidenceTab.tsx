@@ -126,6 +126,34 @@ export function EvidenceTab({ risk, agent, reload, onShowRequests }: Props) {
   )
 }
 
+/** "Value not found in source" when the agent's number isn't in the record it cites. */
+export function ValueCheckTag({ e }: { e: EvidenceItem }) {
+  if (e.valueCheck !== 'not_found') return null
+  return (
+    <span className="tag warn" title="The value may be derived (for example hours times a rate) or mistranscribed. Compare it with the source record.">
+      Value not found in source
+    </span>
+  )
+}
+
+/** The cited record's fields, for internal items, to compare with the agent's summary and value. */
+export function SourceRecord({ e }: { e: EvidenceItem }) {
+  if (e.origin !== 'internal' || !e.sourceFields) return null
+  return (
+    <details className="more source">
+      <summary>Source record</summary>
+      <dl className="fields">
+        {Object.entries(e.sourceFields).map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{typeof v === 'number' ? v.toLocaleString('en-US') : String(v)}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  )
+}
+
 function EvidenceRow({ e }: { e: EvidenceItem }) {
   const { factors } = useContent()
   const isUrl = e.citation.startsWith('https://')
@@ -140,6 +168,7 @@ function EvidenceRow({ e }: { e: EvidenceItem }) {
           </span>
         )}
         {e.fromDataRequest && <span className="tag">Data request answer</span>}
+        <ValueCheckTag e={e} />
       </div>
       <p>{e.summary}</p>
       {e.value != null && (
@@ -161,6 +190,7 @@ function EvidenceRow({ e }: { e: EvidenceItem }) {
           <span className="mono">{e.citation}</span>
         )}
       </div>
+      <SourceRecord e={e} />
     </li>
   )
 }

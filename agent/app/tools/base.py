@@ -80,6 +80,9 @@ class Source:
     published_at: str | None
     retrieved_at: str
     text: str | None = None  # page text, kept for checks (library refresh)
+    # The record's cleaned fields (internal rows) or a library entry's metric,
+    # value and unit, kept to check an evidence item's value against.
+    fields: dict | None = None
 
 
 @dataclass

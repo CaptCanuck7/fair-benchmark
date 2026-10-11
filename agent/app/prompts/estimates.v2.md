@@ -42,6 +42,11 @@ Rules for each range:
   record count tagged to another secondary factor). You may still propose it,
   but only at conf "low", and the rationale must say which related evidence
   it uses and why that evidence applies to this factor.
+- Checked values. Each evidence item's `value_check` says whether its value
+  was found in the cited record: "found", "not_found" or "not_checked". A
+  "not_found" value may be derived (for example, hours times a labor rate) or
+  mistranscribed. Don't rely on it without saying so in the rationale, and
+  prefer the record's own numbers where they serve.
 - Units as stored: frequencies are events per year; poa, vuln and slef are
   percent from 0 to 100; tcap and rs are percentiles from 0 to 100; every
   loss form is US dollars per loss event. Keep min <= ml <= max, none

@@ -418,3 +418,62 @@ def test_stale_boundary():
     assert is_stale("2024-10-09", today) is False
     assert is_stale("2024-09-09", today) is True
     assert is_stale(None, today) is False
+
+
+# ---------------------------------------------------------------- AGENT_FIXES.md fix 6: values vs their records
+
+RECORD = {"Incident ID": "INC-2026-021", "Response Hours": 45, "Records Exposed": 0,
+          "Notes": "Response took 45 hours and cost $6,750 at $150 per hour."}
+
+
+@pytest.mark.parametrize("value, fields, expected", [
+    (45, RECORD, "found"),                     # a numeric cell
+    (6750, RECORD, "found"),                   # only inside a notes sentence
+    (150, RECORD, "found"),
+    (45.1, RECORD, "found"),                   # within the library tolerance (0.5%)
+    (7000, RECORD, "not_found"),               # nowhere in the row
+    (None, RECORD, "not_checked"),             # no value
+    (45, None, "not_checked"),                 # no record: a web result or a feed
+    (4880000, {"metric": "Average breach cost", "value": 4880000, "unit": "USD"}, "found"),
+])
+def test_value_check(value, fields, expected):
+    assert evidence.value_check(value, fields) == expected
+
+
+def test_a_value_not_in_its_record_is_flagged_and_kept():
+    wrong = {"citation": "Incident History INC-2026-021", "summary": "Cost $9,999 to resolve.", "value": 9999,
+             "unit": "USD", "factors": ["primary.response"]}
+    fake = FakeClient(tool_call("internal_records", {"sheets": ["incidents", "assets"]}),
+                      reply({"items": [*ALL_GROUPS, wrong], "data_requests": REQUESTS}))
+    out = evidence.run(llm(fake), REQ, toolbox()).output
+    checks = [(i["summary"], i["value_check"]) for i in out.items]
+    assert checks == [("A brute-force attempt, no access.", "not_checked"),
+                      ("410,000 people have records.", "found"),
+                      ("Cost $9,999 to resolve.", "not_found")]
+    assert out.items[1]["source_fields"]["Individuals With Records (approx.)"] == "410000"
+    assert out.items[2]["source_fields"]["Incident ID"] == "INC-2026-021"
+
+
+def test_web_items_carry_no_source_fields():
+    reg = Registry()
+    reg.add(Source(citation="https://www.ibm.com/x", origin="external", source_type="web", source_name="IBM",
+                   published_at=None, retrieved_at="2026-10-11T00:00:00Z"))
+    assert reg.get("https://www.ibm.com/x").fields is None
+
+
+def test_library_records_keep_the_entry_figures():
+    reg = Registry()
+    entry = {"citation": "IBM 2025, p. 8: https://www.ibm.com/x", "metric": "Average breach cost", "value": 4880000,
+             "unit": "USD", "source": "IBM", "edition": "2025"}
+    internal_evidence.library(reg, "breach cost", search=lambda q: [entry])
+    assert reg.get(entry["citation"]).fields == {"metric": "Average breach cost", "value": 4880000, "unit": "USD"}
+
+
+def test_estimates_see_value_check():
+    from app.schemas import EstimatesRequest
+    from app.tasks import estimates
+    req = EstimatesRequest(risk=RISK, scenario=SCENARIO, evidence=[
+        {"id": 1, "origin": "internal", "source_type": "incident", "source_name": "Incident History",
+         "citation": "Incident History INC-2026-021", "summary": "Cost $9,999.", "value": 9999, "factors": ["tef"],
+         "value_check": "not_found"}])
+    assert '"value_check": "not_found"' in estimates.build_user(req)

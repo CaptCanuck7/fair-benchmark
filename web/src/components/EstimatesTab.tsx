@@ -5,6 +5,7 @@ import { useContent } from '../content'
 import { dateTime, fmtVal } from '../lib/format'
 import { distStatus } from '../lib/model'
 import { TaskBar } from './DraftControls'
+import { SourceRecord, ValueCheckTag } from './EvidenceTab'
 import { NumberInput } from './NumberInput'
 
 const METHOD: Record<string, string> = {
@@ -333,7 +334,7 @@ function EvidenceList({ items }: { items: EvidenceItem[] }) {
         {items.map((e) => (
           <li key={e.id}>
             <span className={`tag ${e.origin === 'internal' ? 'ok' : ''}`}>{e.origin === 'internal' ? 'Internal' : 'External'}</span>{' '}
-            {e.stale && <span className="tag warn">Stale</span>} {e.summary}
+            {e.stale && <span className="tag warn">Stale</span>} <ValueCheckTag e={e} /> {e.summary}
             {e.value != null && (
               <b>
                 {' '}
@@ -341,6 +342,7 @@ function EvidenceList({ items }: { items: EvidenceItem[] }) {
               </b>
             )}{' '}
             <span className="mono muted">{e.citation}</span>
+            <SourceRecord e={e} />
           </li>
         ))}
       </ul>

@@ -11,6 +11,7 @@ import re
 from pydantic import BaseModel
 
 from app.llm import LLM, LLMResult
+from app.numbers import numbers_in, value_in  # noqa: F401  (numbers_in: used by tests)
 from app.schemas import LibraryOutput, LibraryRequest
 from app.tasks.common import load_prompt
 from app.tools.base import Registry
@@ -20,10 +21,6 @@ PROMPT_VERSION = "library.v1"
 MAX_TOOL_CALLS = 12
 MAX_SECONDS = 180.0
 
-NUMBER = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(million|billion|thousand|%|percent)?", re.IGNORECASE)
-SCALE = {"thousand": 1e3, "million": 1e6, "billion": 1e9}
-
-
 class LibraryResult(BaseModel):
     entries: list[dict]
     rejected: list[dict]
@@ -32,22 +29,6 @@ class LibraryResult(BaseModel):
 
 def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
-
-
-def numbers_in(text: str) -> list[float]:
-    """Every number in the text, read both as written and with its scale word."""
-    out = []
-    for m in NUMBER.finditer(text):
-        n = float(m.group(1).replace(",", ""))
-        out.append(n)
-        word = (m.group(2) or "").lower()
-        if word in SCALE:
-            out.append(n * SCALE[word])
-    return out
-
-
-def value_in(value: float, quote: str) -> bool:
-    return any(abs(n - value) <= max(abs(value) * 0.005, 1e-9) for n in numbers_in(quote))
 
 
 def check(out: LibraryOutput, registry: Registry) -> tuple[list[dict], list[dict]]:

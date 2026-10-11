@@ -15,6 +15,7 @@ import json
 from pydantic import BaseModel
 
 from app.llm import LLM, LLMResult, untrusted
+from app.numbers import value_in_record
 from app.schemas import FACTOR_GROUPS, NON_MALICIOUS, EvidenceOutput, EvidenceRequest
 from app.tasks.common import load_prompt, render_risk
 from app.tools.base import Registry, is_stale
@@ -100,6 +101,15 @@ def build_user(req: EvidenceRequest, toolbox: Toolbox) -> str:
     )
 
 
+def value_check(value: float | None, fields: dict | None) -> str:
+    """found or not_found when the value can be compared with its source
+    record; not_checked with no value or no record (web results, feeds). A
+    value not found may be derived (hours x rate), so the item is kept."""
+    if value is None or not fields:
+        return "not_checked"
+    return "found" if value_in_record(value, fields) else "not_found"
+
+
 def postprocess(out: EvidenceOutput, registry: Registry, toolbox: Toolbox, tool_calls: int,
                 threat_type: str) -> EvidenceResult:
     items, rejected, seen = [], [], set()
@@ -118,6 +128,8 @@ def postprocess(out: EvidenceOutput, registry: Registry, toolbox: Toolbox, tool_
             "citation": src.citation, "published_at": src.published_at, "retrieved_at": src.retrieved_at,
             "summary": item.summary, "value": item.value, "unit": item.unit, "factors": list(item.factors),
             "stale": is_stale(src.published_at),
+            "value_check": value_check(item.value, src.fields),
+            "source_fields": src.fields,
         })
 
     requests = [r.model_dump() for r in out.data_requests]

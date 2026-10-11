@@ -376,3 +376,21 @@ class AnalysisDraftRow(Base):
     @property
     def effective(self) -> dict:
         return self.edited_payload if self.status == "edited" and self.edited_payload else self.payload
+
+
+class EvidenceCheckRow(Base):
+    """Whether an evidence item's value was found in the record it cites, and
+    that record's fields (AGENT_FIXES.md fix 6).
+
+    A table of its own, keyed to the item, so existing volumes need no
+    migration. Items stored before this table existed have no row and show
+    no check. `value_check` is found, not_found or not_checked.
+    """
+
+    __tablename__ = "evidence_checks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    evidence_item_id: Mapped[int] = mapped_column(ForeignKey("evidence_items.id", ondelete="CASCADE"), unique=True,
+                                                  index=True)
+    value_check: Mapped[str] = mapped_column(String(16))
+    source_fields: Mapped[dict | None] = mapped_column(JSON, nullable=True)

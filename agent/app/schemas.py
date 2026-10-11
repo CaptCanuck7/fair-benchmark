@@ -397,6 +397,8 @@ class EvidenceIn(BaseModel):
     unit: str | None = None
     factors: list[str] = Field(default_factory=list)
     stale: bool = False
+    # found, not_found or not_checked: whether `value` was found in the cited record.
+    value_check: str | None = None
 
 
 class RequestIn(BaseModel):

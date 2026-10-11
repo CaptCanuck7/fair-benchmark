@@ -52,7 +52,8 @@ def records(registry: Registry, sheets: list[str], asset_ids: list[str], inciden
             fields = _clean(item["fields"])
             published = next((iso_date(str(fields[c])) for c in DATE_COLUMNS if c in fields), None)
             registry.add(Source(citation=item["citation"], origin="internal", source_type=_source_type(sheet, fields),
-                                source_name=data["sheet"], published_at=published, retrieved_at=now_iso()))
+                                source_name=data["sheet"], published_at=published, retrieved_at=now_iso(),
+                                fields=fields))
             rows.append({"citation": item["citation"], "organizationWide": item.get("organizationWide", False),
                          "fields": fields})
         out.append({"sheet": data["sheet"], "rows": rows, "note": None if rows else "No rows for these assets."})
@@ -66,7 +67,8 @@ def library(registry: Registry, query: str, search: Callable[..., list[dict]] = 
     for e in entries:
         registry.add(Source(citation=e["citation"], origin="external", source_type="report",
                             source_name=f"{e['source']} {e['edition']}", published_at=iso_date(e["edition"]),
-                            retrieved_at=e.get("retrievedAt") or now_iso()))
+                            retrieved_at=e.get("retrievedAt") or now_iso(),
+                            fields={"metric": e["metric"], "value": e["value"], "unit": e["unit"]}))
         out.append({"citation": e["citation"], "metric": e["metric"], "value": e["value"], "unit": e["unit"],
                     "segment": e.get("segment"), "source": e["source"], "edition": e["edition"],
                     "page": e.get("page")})
