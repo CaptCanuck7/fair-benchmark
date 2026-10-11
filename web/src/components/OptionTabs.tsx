@@ -4,6 +4,8 @@ import { MAX_STATES } from '../lib/model'
 import { NumberInput } from './NumberInput'
 
 interface Props {
+  /** The register's mitigation plan, shown when the analysis came from a risk. */
+  mitigationPlan?: string | null
   states: State[]
   active: number
   onSelect: (index: number) => void
@@ -13,7 +15,7 @@ interface Props {
 }
 
 /** Tabs for the current state and up to three treatments, plus the active option's own fields. */
-export function OptionTabs({ states, active, onSelect, onAdd, onDelete, onChange }: Props) {
+export function OptionTabs({ states, active, onSelect, onAdd, onDelete, onChange, mitigationPlan }: Props) {
   const st = states[active]
   const [confirming, setConfirming] = useState(false)
   useEffect(() => setConfirming(false), [st.id])
@@ -39,6 +41,16 @@ export function OptionTabs({ states, active, onSelect, onAdd, onDelete, onChange
           </button>
         )}
       </div>
+      {mitigationPlan && (
+        <details className="more mitigation">
+          <summary>Mitigation plan from the register, for building the residual option</summary>
+          <div className="body prewrap">{mitigationPlan}</div>
+          <p className="cap">
+            Add a treatment option to model the residual state: it copies the option you’re viewing, then change the
+            factors this plan affects. It isn’t created automatically.
+          </p>
+        </details>
+      )}
       <p className="lede">
         Each option is a complete set of estimates for the same scenario. Start with the current state. To compare a
         fix, add a treatment option: it copies the option you’re viewing, and you change only the factors the fix

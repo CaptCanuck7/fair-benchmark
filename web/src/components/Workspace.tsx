@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Analysis, Check, Scope, Settings } from '../types'
+import type { Analysis, Check, Provenance, ProvenanceFactor, Scope, Settings } from '../types'
 import { api, ApiError } from '../api/client'
 import { useContent } from '../content'
 import { saveStatusText, useAutosave } from '../hooks/useAutosave'
 import { useRuns } from '../hooks/useRuns'
 import { factorAnchor, parseCheckPath, setPath, treatmentCopy, updateState } from '../lib/model'
+import { ProvenanceContext } from '../provenance'
 import { CompareSection } from './CompareSection'
 import { FrequencySection } from './FrequencySection'
 import { ConformanceNote, Intro } from './Intro'
@@ -33,6 +34,7 @@ export function Workspace({ id, navigate }: Props) {
   const [runMsg, setRunMsg] = useState<string | null>(null)
   const docRef = useRef<Analysis | null>(null)
   const runs = useRuns(id)
+  const [prov, setProv] = useState<Provenance | null>(null)
 
   const validate = useCallback((a: Analysis) => {
     api.validate(a).then(
@@ -66,6 +68,7 @@ export function Workspace({ id, navigate }: Props) {
         setDoc(doc)
         setInputHash(inputHash)
         validate(doc)
+        api.provenance(doc.id).then(setProv, () => setProv(null))
         document.title = `${doc.title} · FAIR risk workbench`
       },
       (e) =>
@@ -172,6 +175,12 @@ export function Workspace({ id, navigate }: Props) {
             ? 'Ready to run.'
             : 'Enter your estimates, then run the simulation.')
 
+  // Provenance for the factors of one option, keyed by factor.
+  const provFor = (stateId: string): Record<string, ProvenanceFactor> =>
+    Object.fromEntries(
+      (prov?.linked ? prov.factors : []).filter((f) => f.stateId === stateId).map((f) => [f.factor, f]),
+    )
+
   return (
     <>
       <header className="wrap top">
@@ -222,6 +231,24 @@ export function Workspace({ id, navigate }: Props) {
             </button>
           </div>
         </div>
+        {prov?.linked && (
+          <p className="fromrisk">
+            Created from register risk{' '}
+            <a
+              href={`/register/${encodeURIComponent(prov.riskId)}`}
+              onClick={async (e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+                e.preventDefault()
+                await autosave.flush()
+                navigate(`/register/${encodeURIComponent(prov.riskId)}`)
+              }}
+            >
+              {prov.riskId}
+              {prov.riskTitle ? ` ${prov.riskTitle}` : ''}
+            </a>
+            .
+          </p>
+        )}
         <Intro />
       </header>
 
@@ -248,10 +275,13 @@ export function Workspace({ id, navigate }: Props) {
             }}
             onDelete={() => edit((a) => ({ ...a, states: a.states.filter((_, k) => k !== a.active), active: 0 }))}
             onChange={editState}
+            mitigationPlan={prov?.linked ? prov.mitigationPlan : null}
           />
-          <FrequencySection stateId={st.id} lef={st.lef} onChange={editState} />
-          <PrimarySection state={st} onChange={editState} />
-          <SecondarySection state={st} onChange={editState} />
+          <ProvenanceContext.Provider value={provFor(st.id)}>
+            <FrequencySection stateId={st.id} lef={st.lef} onChange={editState} />
+            <PrimarySection state={st} onChange={editState} />
+            <SecondarySection state={st} onChange={editState} />
+          </ProvenanceContext.Provider>
           <ResultsSection
             key={history?.id ?? 'latest'}
             stateName={history && shownResult ? shownResult.name : st.name}

@@ -295,3 +295,54 @@ class EvidenceRunRow(Base):
     tool_calls: Mapped[int] = mapped_column(Integer, default=0)
     rejected: Mapped[list] = mapped_column(JSON, default=list)
     notes: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+# --- Estimates, the anchoring guard and push to analysis (AGENT_BUILD.md section 10) ---
+
+
+class EstimateRevealRow(Base):
+    """One reveal of the agent's range for a factor: whether the analyst had
+    entered a range of their own first, and what it was."""
+
+    __tablename__ = "estimate_reveals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    risk_pk: Mapped[int] = mapped_column(ForeignKey("risks.id", ondelete="CASCADE"), index=True)
+    draft_id: Mapped[int | None] = mapped_column(ForeignKey("drafts.id"), nullable=True)
+    factor: Mapped[str] = mapped_column(String(64))
+    analyst_range: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    revealed_at: Mapped[str] = mapped_column(String(32))
+    entered_before_reveal: Mapped[bool] = mapped_column(Boolean)
+
+
+class RiskLinkRow(Base):
+    """An analysis created from a register risk, and the scenario it used."""
+
+    __tablename__ = "risk_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    risk_pk: Mapped[int] = mapped_column(ForeignKey("risks.id", ondelete="CASCADE"), index=True)
+    scenario_draft_id: Mapped[int | None] = mapped_column(ForeignKey("drafts.id"), nullable=True)
+    analysis_id: Mapped[str] = mapped_column(ForeignKey("analyses.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[str] = mapped_column(String(32))
+
+
+class FactorProvenanceRow(Base):
+    """Where a factor's range in an analysis came from when it was pushed.
+
+    `origin` is agent (the agent's range, approved) or analyst (the analyst's
+    own). `range` is the value as pushed, so the workspace can tell when it has
+    since been changed.
+    """
+
+    __tablename__ = "factor_provenance"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    analysis_id: Mapped[str] = mapped_column(ForeignKey("analyses.id", ondelete="CASCADE"), index=True)
+    state_id: Mapped[str] = mapped_column(String(64))
+    factor_path: Mapped[str] = mapped_column(String(64))
+    origin: Mapped[str] = mapped_column(String(16))
+    evidence_ids: Mapped[list] = mapped_column(JSON, default=list)
+    approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    range: Mapped[dict | None] = mapped_column(JSON, nullable=True)

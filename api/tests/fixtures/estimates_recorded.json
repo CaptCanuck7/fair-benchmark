@@ -1,0 +1,893 @@
+{
+  "estimates": {
+    "End-of-Support OS on Customer SFTP File Transfer Servers": {
+      "method": {
+        "mode": "tef_vuln",
+        "vuln_mode": "direct",
+        "reason": "Attempts can be counted: the IDS logged 14 exploit-signature alerts from allowlisted ranges and there is an April 2026 incident of key guessing. No loss history exists for these servers, so a direct LEF estimate is not supported. Evidence on attacker capability and control strength is not on a 0 to 100 scale, so vulnerability is estimated directly."
+      },
+      "estimates": [
+        {
+          "factor": "tef",
+          "min": 5.0,
+          "ml": 20.0,
+          "max": 150.0,
+          "conf": "med",
+          "rationale": "The IDS raised 14 exploit-signature alerts from allowlisted ranges in 12 months (evidence 5), each a probable exploit attempt. Incident INC-2026-021 shows a compromised customer network was used against the servers (evidence 7). 2,150 failed key authentications are mostly misconfiguration, a weak signal (evidence 4). Nine broad allowlist ranges widen exposure (evidence 11), and nine phished corporate accounts give a small internal-foothold contribution (evidence 13). The 1.84M blocked connections are background scanning that never reached the service, so they are not counted (evidence 3). The most likely value sits slightly above the 14 observed alerts to allow for undetected attempts and the post-support period; the range is wide.",
+          "evidence_ids": [
+            5,
+            7,
+            4,
+            11,
+            13,
+            3
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "vuln",
+          "min": 5.0,
+          "ml": 20.0,
+          "max": 50.0,
+          "conf": "low",
+          "rationale": "The OS has had no patches since January 2026, with six published vulnerabilities, two critical and one with a public exploit (evidence 9). The SFTP service is three releases behind and cannot be fixed on this OS (evidence 10). Against this, none of the 14 exploit alerts succeeded and there were no confirmed compromises in 36 months (evidence 6). That is weak evidence, since the OS only lost support in January 2026. The pen test (evidence 12) was run from a non-allowlisted address and not repeated after end of support, so it adds little. Key-only authentication does not stop pre-authentication exploits. The CVE details are still open (data request 1), so the range is wide and confidence low.",
+          "evidence_ids": [
+            9,
+            10,
+            6,
+            5,
+            12
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "primary.response",
+          "min": 3000.0,
+          "ml": 15000.0,
+          "max": 90000.0,
+          "conf": "low",
+          "rationale": "INC-2026-021 cost 45 response hours at the $150 loaded rate, or $6,750, for an attempt with no access (evidence 7, 8). A real compromise of servers holding payroll data would need much more work: forensics, rebuilding the servers, and customer coordination. The most likely value is roughly 100 hours at $150, with a high end of about 600 hours. These multiples are judgement, not measured, so confidence is low.",
+          "evidence_ids": [
+            7,
+            8
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "primary.replacement",
+          "reason": "No evidence on replacement cost. The volume of files on disk is still being asked for (data request 2).",
+          "data_request_id": 2,
+          "new_request": null
+        },
+        {
+          "factor": "primary.productivity",
+          "reason": "No evidence on lost productivity from a compromise. The SFTP servers' outage impact on customers is not described.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Asset Management",
+            "question": "If both SFTP servers had to be taken offline for several days after a compromise, which business processes and how many staff would be unable to work, and for how long?",
+            "reason": "This gives a basis for estimating productivity loss from an outage."
+          }
+        },
+        {
+          "factor": "slef",
+          "reason": "The asset records show the data involved (evidence 1, 2) but nothing on how often a loss would draw regulator, customer or partner reactions. Legal obligations are still open (data request 3).",
+          "data_request_id": 3,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.response",
+          "reason": "No evidence on past breach response costs such as notification, credit monitoring and legal fees. Finance's request is open.",
+          "data_request_id": 4,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "Contract and legal obligations, and any past fines or claims, are unknown. Legal's request is open.",
+          "data_request_id": 3,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "The number of affected people and customers is known (evidence 1, 2), but there is no data on customer churn or revenue at risk. Finance's request is open.",
+          "data_request_id": 4,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.competitive",
+          "reason": "No evidence on competitive loss. Revenue from the 340 dependent customers is not yet known (data request 4).",
+          "data_request_id": 4,
+          "new_request": null
+        }
+      ]
+    },
+    "No MFA on Legacy Support Admin Console": {
+      "method": {
+        "mode": "tef_vuln",
+        "vuln_mode": "direct",
+        "reason": "Telemetry lets us count attempts (failed logins, lockouts, spraying bursts, phished accounts), so threat event frequency times vulnerability fits. There is no confirmed loss history, and the zero confirmed events in 36 months is weak evidence given low detection coverage. A pen test gives a direct success rate for vulnerability."
+      },
+      "estimates": [
+        {
+          "factor": "tef",
+          "min": 3.0,
+          "ml": 12.0,
+          "max": 60.0,
+          "conf": "med",
+          "rationale": "Security Telemetry shows 3 suspected password-spraying bursts in 12 months (id 17), but the review was one-off so coverage is limited. There were 310 lockouts (id 16) and 9,400 failed logins (id 15), which show frequent guessing. 9 corporate accounts were phished in 12 months, 2 of them support engineers (id 19), so foothold events happen several times a year. MITRE valid-account abuse (id 23) supports the paths. I take a threat event as a deliberate attempt against the console. The range allows for undercounting because nothing alerts on the logs.",
+          "evidence_ids": [
+            15,
+            16,
+            17,
+            19,
+            23
+          ],
+          "basis": "mixed"
+        },
+        {
+          "factor": "vuln",
+          "min": 5.0,
+          "ml": 25.0,
+          "max": 60.0,
+          "conf": "med",
+          "rationale": "The internal pen test (PT-058, id 21) got valid credentials by spraying in 2 of 3 attempts and then reached tenant data, which points to high vulnerability once an attacker is inside the network. Real attackers are likely less skilled and less persistent than testers, and the 310 lockouts (id 16) show lockout does stop some guessing. The finding (FND-0988, id 20) shows 140 of 220 users already on MFA, so about 64% of accounts are protected and exposure is shrinking. The 80 users still without MFA remain open. Which of the 35 impersonation accounts are among them is an open question (data request 13). MITRE password spraying (id 22) confirms the technique avoids per-account lockout. The range is wide because the sample is only 3 tests.",
+          "evidence_ids": [
+            16,
+            20,
+            21,
+            22
+          ],
+          "basis": "mixed"
+        },
+        {
+          "factor": "slef",
+          "min": 30.0,
+          "ml": 70.0,
+          "max": 95.0,
+          "conf": "low",
+          "rationale": "The Asset Inventory (id 14) shows the console reaches all Nova customer tenant data. About 9.5M individuals have records and about 3,100 customers depend on it. It is Restricted and Tier 1. A confirmed breach of this data would very likely lead to customer and regulator reactions. No internal history of such an event exists, so the range is wide and confidence is low.",
+          "evidence_ids": [
+            14
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "primary.response",
+          "reason": "The only evidence is the $150 per hour labor rate (id 24). There are no response hours for a comparable incident, so cost cannot be built. The SOC request is still open.",
+          "data_request_id": 8,
+          "new_request": null
+        },
+        {
+          "factor": "primary.replacement",
+          "reason": "No evidence on tenant restoration or rebuild cost. The Finance request is still open.",
+          "data_request_id": 9,
+          "new_request": null
+        },
+        {
+          "factor": "primary.productivity",
+          "reason": "No evidence on lost work or support downtime from such an event.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "If the legacy support console were taken offline for several days to contain a credential compromise, how many support staff would be idle or slowed, and for how long?",
+            "reason": "Productivity loss from taking the console offline needs staff counts and downtime. Nothing in the evidence covers it."
+          }
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "The inventory shows the scale of records (id 14), but there is no information on notification rules, fines or contract penalties. The Legal request is still open.",
+          "data_request_id": 10,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.competitive",
+          "reason": "No data on contract termination clauses or customer revenue at risk. The Third-Party Risk request is still open.",
+          "data_request_id": 11,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.response",
+          "reason": "The inventory gives scale (9.5M individuals, 3,100 customers) but no costs for notification, credit monitoring or call handling.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Legal",
+            "question": "If customer data in this console were breached, what would it cost per affected individual or customer to notify them, offer credit monitoring or similar services, and handle inbound inquiries?",
+            "reason": "Secondary response cost needs unit costs for notification and customer support. None exist in the evidence."
+          }
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "No evidence on customer churn, lost sales or brand impact from a breach of this kind.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "What is the annual revenue from the roughly 3,100 customers that use this console, and what share of it has been lost after past security incidents or service outages?",
+            "reason": "Reputation loss needs revenue at stake and any past churn after incidents. The evidence has neither."
+          }
+        }
+      ]
+    },
+    "Over-Privileged CI/CD Deployment Role in Production Cloud Account": {
+      "method": {
+        "mode": "tef_vuln",
+        "vuln_mode": "direct",
+        "reason": "There is telemetry that counts attempts (confirmed engineer account compromises, pipeline changes), and a pen test shows how often an attempt would succeed. No loss history exists for this scenario, so direct LEF is not supported. Evidence on attacker capability and control strength is not on a 0 to 100 scale, so vulnerability is estimated directly as a percentage."
+      },
+      "estimates": [
+        {
+          "factor": "tef",
+          "min": 0.5,
+          "ml": 3.0,
+          "max": 9.0,
+          "conf": "low",
+          "rationale": "Security Telemetry Row 10 (id 30) shows 9 corporate accounts confirmed compromised by phishing in 12 months, 2 of them support engineers. Engineers who can edit pipelines are a subset of the workforce, so the rate of engineer-account compromises that could reach the pipeline is below 9 a year. I used a most likely value of about 3 and a high of 9, the corporate total. Row 11 (id 31) shows 1,260 pipeline changes a year, so a hostile edit has many chances to blend in. Row 12 (id 32) shows 2 alerts from outside the pipeline range, both benign. That is not proof of zero attacks. Key-leak and dependency attempts are not counted (request 19 is open), so confidence is low.",
+          "evidence_ids": [
+            30,
+            31,
+            32
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "vuln",
+          "min": 40.0,
+          "ml": 70.0,
+          "max": 90.0,
+          "conf": "med",
+          "rationale": "The May 2026 penetration test (id 29) showed a tester with a standard engineer account edited a pipeline definition and gained production admin. The single reviewer approved it without noticing, so the skill needed is low. The wildcard policy (FND-1220, id 27) means any foothold gives full access. The 14-month-old long-lived keys (FND-1221, id 28) add a second path. The SIEM alerts (id 32) work but do not block access. One pen test is a small sample and real attackers must first get a foothold, so the range is wide. The most likely value is 70%.",
+          "evidence_ids": [
+            27,
+            28,
+            29,
+            31,
+            32
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "slef",
+          "min": 50.0,
+          "ml": 80.0,
+          "max": 95.0,
+          "conf": "low",
+          "rationale": "The production account is classified Restricted and holds time and attendance data for about 3.4 million individuals, with about 2,300 dependent customers (Asset Inventory Asset-355, id 25). A confidentiality breach of that size would very likely require regulator notification and draw customer reactions. Whether every event reaches that scale depends on how much data the attacker actually reads, so the range is wide. Legal's request 18 on notification duties is still open, so confidence is low.",
+          "evidence_ids": [
+            25,
+            26
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "primary.response",
+          "reason": "No evidence gives breach response costs such as notification, monitoring, forensics or legal. Finance has an open request for this.",
+          "data_request_id": 17,
+          "new_request": null
+        },
+        {
+          "factor": "primary.productivity",
+          "reason": "The CI/CD platform's dependent customers (id 26) show importance but give no figure for lost productivity per event. No data request exists for this factor.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "If the production cloud account and CI/CD pipeline were unavailable or being investigated for several days, how many staff would be idle or diverted and what is their loaded hourly cost?",
+            "reason": "Needed to size productivity loss per event. The evidence has dependent-customer counts but no staff or cost figures."
+          }
+        },
+        {
+          "factor": "primary.replacement",
+          "reason": "No evidence gives rebuild cost or recovery time. Finance has an open request on this.",
+          "data_request_id": 22,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "No evidence shows applicable regulations or past penalties. Legal has an open request.",
+          "data_request_id": 18,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.response",
+          "reason": "Evidence gives the number of affected individuals and customers (id 25) but no cost for customer notification, support or contract handling. No data request exists for this form.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "After a past incident or breach, what did it cost to handle customer inquiries, notifications and contract remediation for the roughly 2,300 dependent customers? If none, what would you expect?",
+            "reason": "Needed to size secondary response cost per event."
+          }
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "Evidence shows the number of customers and individuals but nothing on churn, lost revenue or the value of customer contracts. No request exists.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "What is the annual revenue from the roughly 2,300 customers who depend on this service, and how much of it could be lost if a data breach were publicly reported?",
+            "reason": "Needed to size reputation and competitive losses after a breach."
+          }
+        },
+        {
+          "factor": "secondary.competitive",
+          "reason": "No evidence shows any competitive advantage tied to the data or the platform, or the value at risk. No request exists.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "Does the production environment hold trade secrets, pricing or product plans whose exposure would give competitors an advantage? If so, what is their estimated value?",
+            "reason": "Needed to decide whether competitive loss applies and how large it is."
+          }
+        }
+      ]
+    },
+    "User Access Reviews Not Performed for Payroll Processing Application": {
+      "method": {
+        "mode": "lef",
+        "vuln_mode": "direct",
+        "reason": "There is loss history for this exact scenario on this asset: the Oct 2024 incident where a terminated contractor used a local account to view 14 records. Attempts cannot be counted yet because the telemetry request is still open, so direct loss event frequency is the best-supported method."
+      },
+      "estimates": [
+        {
+          "factor": "lef",
+          "min": 0.05,
+          "ml": 0.3,
+          "max": 1.5,
+          "conf": "low",
+          "rationale": "The incident history (INC-2024-077) shows one confirmed loss event on this asset in about two years, which points to roughly 0.5 per year. The control test CT-311 shows 18% of sampled accounts with stale access and two reviews missed, so exposure is higher than normal. The SSO leaver deprovisioning test CT-312 passed 40 of 40, so the 2024 gap is limited to the local accounts. One past event is a thin base, and whether any stale accounts were used is unknown (data request 27 is open). The range is wide, with a most likely value of about 0.3 per year.",
+          "evidence_ids": [
+            34,
+            37,
+            38
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "primary.response",
+          "min": 3000.0,
+          "ml": 9000.0,
+          "max": 30000.0,
+          "conf": "med",
+          "rationale": "The 2024 incident (INC-2024-077) took 60 response hours at the 150 USD/hour loaded labor rate, which is 9,000 USD with no other direct costs. That is used as the most likely value. The low end assumes a quicker case with fewer records viewed (about 20 hours). The high end allows a broader investigation of many stale accounts (about 200 hours). Confidence is medium because this is one internal event on the same asset.",
+          "evidence_ids": [
+            34,
+            35,
+            36
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "vuln",
+          "reason": "This is not needed for the direct LEF method. The CT-311 and CT-312 test results are kept as support for the LEF estimate.",
+          "data_request_id": 31,
+          "new_request": null
+        },
+        {
+          "factor": "primary.productivity",
+          "reason": "No evidence on lost productivity in this scenario. The past incident recorded only response labor.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "If payroll staff had to stop work or redo processing while stale payroll access was investigated and removed, how many hours of lost work would that typically cause, and at what cost?",
+            "reason": "There is no evidence about productivity loss, and the 2024 incident cost record shows no such costs."
+          }
+        },
+        {
+          "factor": "primary.replacement",
+          "reason": "No evidence of any asset replacement cost. The 2024 incident had no other direct costs.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "If stale access to payroll data were abused, would any equipment, accounts or records need to be replaced or rebuilt, and what would that typically cost?",
+            "reason": "No evidence shows replacement costs for this scenario, so Finance needs to say whether any apply."
+          }
+        },
+        {
+          "factor": "slef",
+          "reason": "The only past event was not notified to customers, but it involved 14 records. The asset holds pay, tax and bank data for about 2.1M individuals, and no evidence shows how often an event here would draw regulator or customer reaction. Legal input is pending.",
+          "data_request_id": 29,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "Notification obligations and fines for unauthorized viewing of pay, tax and bank data are unknown. Legal's request is open.",
+          "data_request_id": 29,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.response",
+          "reason": "The cost per notified individual for notification, credit monitoring and credits is unknown. Finance's request is open.",
+          "data_request_id": 30,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "No evidence on customer loss or reputational cost. Asset inventory only gives scale (1,450 dependent customers).",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Legal",
+            "question": "If employee pay, tax and bank data were viewed without authorization and customers were told, what contract termination, credit or renewal impact would you expect from the 1,450 dependent customers?",
+            "reason": "Needed to size reputation loss, since no evidence exists for how customers would react."
+          }
+        },
+        {
+          "factor": "secondary.competitive",
+          "reason": "No evidence that payroll data exposure would give competitors an advantage.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Legal",
+            "question": "Could unauthorized viewing of employee pay, tax and bank data give competitors an advantage or expose any confidential business terms? If so, what would the likely cost be?",
+            "reason": "No evidence addresses competitive loss, so Legal needs to confirm whether it applies."
+          }
+        }
+      ]
+    },
+    "Unsupported Insecure Protocol on Third-Party Benefits Integration": {
+      "method": {
+        "mode": "tef_vuln",
+        "vuln_mode": "direct",
+        "reason": "No loss history exists for this scenario, so direct LEF is not supported. Attempts cannot be counted because no network inspection exists on this path. TEF times vulnerability is still the usual structure, and the confirmed weaknesses (TLS 1.0, shared basic-auth credential) inform vulnerability directly. TEF is left open pending SOC data."
+      },
+      "estimates": [
+        {
+          "factor": "vuln",
+          "min": 10.0,
+          "ml": 35.0,
+          "max": 70.0,
+          "conf": "low",
+          "rationale": "All sessions use TLS 1.0 (Security Telemetry Row 13, 100%). The architecture review FND-1150 confirms TLS 1.0 plus basic auth with one shared account, and the vendor assessment (id 44) says the legacy API gets no security fixes. These weaknesses are confirmed but no exploit-probability data exists, and open requests on downgrade feasibility and credential restrictions are unanswered. Firewall IP allowlisting may block some misuse. So I use a wide range: a threat event that reaches the path has a modest-to-substantial chance of becoming a loss.",
+          "evidence_ids": [
+            42,
+            43,
+            44
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "primary.response",
+          "min": 15000.0,
+          "ml": 60000.0,
+          "max": 250000.0,
+          "conf": "low",
+          "rationale": "No incident history exists for these assets to give response hours (loaded labor rate evidence, id 46). The loaded rate is $150 per hour. Data on about 780,000 individuals across 1,100 customers (Asset Inventory Asset-274, id 40) implies a large scoping and forensics effort. Assuming roughly 100 hours at the low end, 400 in the likely case and up to 1,500 or more with outside help at the high end gives about $15,000, $60,000 and $225,000 to $250,000. Hours are an assumption, not an observation, hence low confidence.",
+          "evidence_ids": [
+            40,
+            46
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "tef",
+          "reason": "Attempts cannot be counted: there is no network inspection on this path, so absence of observed attacks is weak evidence (id 42). Organization-wide phishing counts (id 45) do not concern this integration. The open SOC request covers credential storage and anomalous use.",
+          "data_request_id": 36,
+          "new_request": null
+        },
+        {
+          "factor": "slef",
+          "reason": "The evidence shows the volume of records and dependent customers but nothing on how often a loss event here would draw customer or regulator reactions. With about 780,000 individuals' records involved a reaction seems likely, but no data supports a number. The open Legal request on regulations and contract terms is the closest fit.",
+          "data_request_id": 40,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.response",
+          "reason": "No notification, credit monitoring or legal cost data exists yet. Finance request is open.",
+          "data_request_id": 39,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "The applicable regulations and contract penalty clauses are not yet known. Legal request is open.",
+          "data_request_id": 40,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "No evidence exists on customer churn or reputation cost. Customers depend on the feature (id 41), but no loss figures are available.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "If benefits data for about 780,000 individuals across 1,100 customers were exposed, how many customers might leave or ask for contract credits, and what is the yearly revenue per customer using this feature?",
+            "reason": "This gives a basis for estimating reputation loss after a breach, which no current evidence covers."
+          }
+        },
+        {
+          "factor": "secondary.competitive",
+          "reason": "No evidence exists on lost deals or market position effects after a breach of this kind.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "After a past security incident or a publicly known data exposure, did we lose any new deals or renewals in this product line? If so, what was the approximate value of the lost business?",
+            "reason": "This gives a basis for estimating competitive loss, which no current evidence covers."
+          }
+        }
+      ]
+    },
+    "No Data Loss Prevention on Workstations Handling Customer Data Extracts": {
+      "method": {
+        "mode": "tef_vuln",
+        "vuln_mode": "direct",
+        "reason": "Attempts can be counted: the web proxy logged 420 uploads to personal cloud storage in 30 days, and there is one confirmed loss event (INC-2025-090). One event in history is too thin to estimate LEF directly, so TEF times vulnerability fits better, with the incident as a cross-check."
+      },
+      "estimates": [
+        {
+          "factor": "tef",
+          "min": 1.0,
+          "ml": 6.0,
+          "max": 40.0,
+          "conf": "low",
+          "rationale": "Security Telemetry Row 15 shows 420 uploads to personal cloud storage in 30 days from 37 users, but upload content is not visible, so most are likely benign. Open request 46 asks how many looked like extracts. Incident INC-2025-090 shows one deliberate-style attempt (an emailed extract) in the history. Malware and phished-account context (EDR 11 detections, 9 compromised accounts) adds a little. The range counts only attempts to move extracts out, not all uploads. It is wide and low confidence because the share of uploads that were extracts is unknown, and USB use is not counted (request 45 is open).",
+          "evidence_ids": [
+            48,
+            49,
+            54,
+            55
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "vuln",
+          "min": 20.0,
+          "ml": 50.0,
+          "max": 85.0,
+          "conf": "low",
+          "rationale": "No DLP, egress monitoring or USB and cloud blocking exists on these workstations, so most attempts to copy extracts would succeed. The October 2025 audit (CT-275) failed, with 9 of 20 workstations holding old extracts, which also shows weak data handling. The one confirmed event (INC-2025-090) was recovered, so controls such as ticket approval or detection after the fact sometimes help. The range is wide because the audit does not show how many attempts actually got through, and EDR is not built to catch user copying. Evidence on the cloud and USB paths is from MITRE ATT&CK only.",
+          "evidence_ids": [
+            53,
+            49,
+            54,
+            56,
+            57
+          ],
+          "basis": "mixed"
+        },
+        {
+          "factor": "primary.response",
+          "min": 15000.0,
+          "ml": 47000.0,
+          "max": 120000.0,
+          "conf": "med",
+          "rationale": "Incident INC-2025-090 cost 47,000 USD: 180 response hours at the 150 USD/hour loaded labor rate (27,000 USD) plus 20,000 USD of other direct costs. That is the most likely value. The low end assumes a faster, smaller response. The high end allows for a larger or less contained event, since the asset holds extracts of varying size and the Restricted class implies heavier investigation. Confidence is medium because it rests on one internal incident.",
+          "evidence_ids": [
+            50,
+            51,
+            49,
+            47
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "slef",
+          "min": 10.0,
+          "ml": 35.0,
+          "max": 80.0,
+          "conf": "low",
+          "rationale": "In the single confirmed event, INC-2025-090, one customer was notified, so that event did draw an outside reaction. One event is not a rate. A recovered personal-email copy drew a reaction, so a copy that leaves the company without recovery is more likely to draw one. The range is wide and low confidence. Legal (request 48) and record counts (request 47) are still open.",
+          "evidence_ids": [
+            49,
+            52,
+            47
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "secondary.response",
+          "min": 5000.0,
+          "ml": 20000.0,
+          "max": 150000.0,
+          "conf": "low",
+          "rationale": "Incident INC-2025-090 affected 5,100 records and led to notification of one customer. That gives a scale for notification, call handling and customer follow-up. The 47,000 USD primary cost already includes the incident's other direct costs, so this range covers only the extra work in a larger exposure. The high end allows for a bigger extract or several customers, since typical extract size is unknown (request 47 open). The figures are judgement scaled from one incident, so confidence is low.",
+          "evidence_ids": [
+            52,
+            49,
+            47
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "primary.productivity",
+          "reason": "No evidence gives lost output or staff time from disrupted analyst work. Request 51 to Finance is open.",
+          "data_request_id": 51,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "No evidence on contract or regulatory notification duties, or on past fines. Request 48 to Legal is open.",
+          "data_request_id": 48,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.competitive",
+          "reason": "No evidence of customer credits, churn or lost revenue after the Nov 2025 incident. Request 49 to Finance is open.",
+          "data_request_id": 49,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "Only the asset inventory is tagged for this factor, and it gives no customer or record counts. It shows nothing about reputation harm, so no range is proposed.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Legal",
+            "question": "After the Nov 2025 incident where an extract was emailed to a personal address, did the notified customer or any others complain, escalate, ask for contract changes or publicly raise the matter?",
+            "reason": "Shows whether an event of this kind harms customer trust, which is needed to size reputation loss."
+          }
+        }
+      ]
+    },
+    "Backup Restoration Untested for Time and Attendance Database": {
+      "method": {
+        "mode": "lef",
+        "vuln_mode": "direct",
+        "reason": "There is loss history for this exact asset (the June 2025 failed-change incident), so loss event frequency can be estimated directly. Attempts cannot be counted for corruption or failed changes, and the phishing telemetry covers only the ransomware path, so TEF x vulnerability would rest on weak ground."
+      },
+      "estimates": [
+        {
+          "factor": "lef",
+          "min": 0.1,
+          "ml": 0.4,
+          "max": 1.0,
+          "conf": "low",
+          "rationale": "Incident History INC-2025-046 shows one loss event on Asset-208 since June 2025, a failed schema change that needed a restore. One event is weak evidence of frequency, and zero events in other periods would not mean zero frequency. The range is wide and centered on roughly one event every 2 to 3 years, with a ceiling of one per year. The org-wide phishing telemetry (id 63) applies only to ransomware and is not used for the numbers. Data request 53 on events across production databases is open and could narrow this.",
+          "evidence_ids": [
+            58,
+            63
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "primary.response",
+          "min": 30000.0,
+          "ml": 57000.0,
+          "max": 150000.0,
+          "conf": "med",
+          "rationale": "Incident INC-2025-046 recorded 380 response hours, about $57,000 at the $150 per hour loaded labor rate (evidence 60). That anchors the most likely value. The 2025 restore took 5.5 hours. The last restore test (CT-340) suggests a restore now of roughly 9.5 hours if scaled linearly, so a slower restore, a failed restore or a ransomware event could need many more response hours. This is why the maximum is about 2.5 times the observed cost.",
+          "evidence_ids": [
+            59,
+            60,
+            61,
+            58
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "slef",
+          "min": 50.0,
+          "ml": 80.0,
+          "max": 100.0,
+          "conf": "low",
+          "rationale": "In the one observed event (INC-2025-046) SLA credits were paid even though the restore beat the 8-hour objective, which shows that customer-facing consequences followed. The asset inventory (Asset-208) says about 2,300 customers depend on this Tier 1 database and that SLA credits and notifications follow an availability outage. One event is a thin basis, so the range stays wide but high.",
+          "evidence_ids": [
+            58,
+            62
+          ],
+          "basis": "internal"
+        },
+        {
+          "factor": "secondary.response",
+          "min": 40000.0,
+          "ml": 142000.0,
+          "max": 300000.0,
+          "conf": "low",
+          "rationale": "The incident record (INC-2025-046) shows $142,000 in other direct costs, which include SLA credits, after the failed change. This is the best available anchor for secondary response cost. The breakdown is not yet known (Finance request 56 is open), and the 2,300 dependent customers (asset inventory) mean a longer outage than 5.5 hours could cost more. The minimum allows for a smaller credit payout.",
+          "evidence_ids": [
+            59,
+            62,
+            58
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "vuln",
+          "reason": "The only evidence is a restore test from before the schema change and storage migration, so how likely a restore is to miss the 8-hour objective now is unknown. A linear scale-up gives about 9.5 hours, but that is a guess. Internal Audit request 54 on post-migration testing is open.",
+          "data_request_id": 54,
+          "new_request": null
+        },
+        {
+          "factor": "primary.productivity",
+          "reason": "The evidence shows only a total event cost and response hours, with no figure for lost staff productivity.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "During the June 2025 failed-change outage on the time and attendance database, how many non-response staff hours were lost, and what was the estimated cost of that lost work?",
+            "reason": "Needed to separate productivity loss from response cost in the $199,000 total."
+          }
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "No evidence of fines, penalties or contract terms exists yet. Legal request 55 on SLA credit terms and notification obligations is open.",
+          "data_request_id": 55,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.competitive",
+          "reason": "There is no evidence of customer churn or lost business after the 2025 event. Finance request 56 asks about churn but is still open.",
+          "data_request_id": 56,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "There is no evidence on reputational effects such as lost renewals or customer complaints after the 2025 event.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "After the June 2025 time and attendance outage, did any customers cancel, reduce their contracts, or ask for renewal concessions? If so, what was the annual value?",
+            "reason": "Lets the reputation loss be estimated from real customer reactions rather than guesswork."
+          }
+        }
+      ]
+    },
+    "Hardcoded Secrets in Source Code Repositories": {
+      "method": {
+        "mode": "tef_vuln",
+        "vuln_mode": "direct",
+        "reason": "There is one prior loss event, but the scenario covers a different path (account takeover and harvesting) and a much larger asset. Attempt-type telemetry exists (account compromises, clone alerts), so threat event frequency times vulnerability fits best. Vulnerability is estimated directly because there is no 0 to 100 capability and strength data."
+      },
+      "estimates": [
+        {
+          "factor": "tef",
+          "min": 0.5,
+          "ml": 3.0,
+          "max": 9.0,
+          "conf": "low",
+          "rationale": "Security Telemetry Row 10 shows 9 corporate accounts compromised by phishing in 12 months, but this is a base rate for all staff, not repository users. Only a share would have repository access (about 2,050 of the workforce), and not every takeover leads to cloning. Row 16 shows 4 large-clone alerts in 12 months, 3 benign and 1 unresolved contractor alert, which is weak evidence of harvesting. Incident INC-2025-012 shows a leaked key was used once since Feb 2025. The range runs from under one to the full 9 takeovers per year, with a most likely value of about 3. It stays wide and low confidence because the contractor alert is unresolved (request 60).",
+          "evidence_ids": [
+            67,
+            68,
+            64,
+            72,
+            74,
+            73
+          ],
+          "basis": "mixed"
+        },
+        {
+          "factor": "vuln",
+          "min": 20.0,
+          "ml": 50.0,
+          "max": 85.0,
+          "conf": "low",
+          "rationale": "Once an attacker holds a repository account, the source code platform (Asset-846) holds embedded secrets, so harvesting is direct. Findings FND-1302 shows 185 of 212 secrets still unrotated after 27 were rotated. The Internal Audit review CT-298 failed, with only 38% of services using the vault, so resistance is weak. SSO and MFA reduce the chance an account is taken over, but that is counted in the takeover frequency. The remaining uncertainty is whether the attacker notices and successfully uses the secrets, and whether the database network limits stop use of the database credentials. The range is wide because the counts of production credentials and API keys are not yet known (request 61).",
+          "evidence_ids": [
+            69,
+            70,
+            72,
+            73,
+            74
+          ],
+          "basis": "mixed"
+        },
+        {
+          "factor": "primary.response",
+          "min": 15000.0,
+          "ml": 61000.0,
+          "max": 250000.0,
+          "conf": "low",
+          "rationale": "Incident INC-2025-012 cost 61,000 USD in total: 200 response hours at the 150 USD/hour loaded labor rate (30,000 USD) plus 31,000 USD other direct costs. That event involved one API key and no records. A takeover that reaches production databases would likely need many more hours, such as forensics and rotation of many secrets. The most likely value is the observed 61,000 USD, with a high end of about 250,000 USD (roughly 1,000 hours plus other costs). The low end assumes a quick, contained event. Confidence is low because there is only one past event and it was smaller.",
+          "evidence_ids": [
+            65,
+            66,
+            64
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "tcap",
+          "reason": "Not needed with direct vulnerability. No tested attacker capability data exists, and request 62 is still open.",
+          "data_request_id": 62,
+          "new_request": null
+        },
+        {
+          "factor": "primary.productivity",
+          "reason": "The incident record gives only a total cost, with no separate productivity loss. Response cost is covered under primary response.",
+          "data_request_id": null,
+          "new_request": {
+            "team": "Finance",
+            "question": "If the production database or the payments and messaging services had to be taken offline to rotate secrets after a theft, how many hours would it last, and what would staff idle time or lost revenue per hour be?",
+            "reason": "No evidence separates lost productivity or revenue from response costs."
+          }
+        },
+        {
+          "factor": "slef",
+          "reason": "No evidence shows how often such events draw reactions from customers or regulators. The only past event had no records affected and no customer notification. The 5.2 million records at stake suggest higher odds for a database path, but open requests 63, 64 and 65 hold the needed data.",
+          "data_request_id": 63,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "Notification duties, fines and contract penalties are unknown until Legal answers.",
+          "data_request_id": 63,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "There is no cost data on churn, credits or reputation after past incidents, and Finance has not answered.",
+          "data_request_id": 64,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.response",
+          "reason": "The data held by the providers and the contract liability terms are unknown, and Third-Party Risk has not answered.",
+          "data_request_id": 65,
+          "new_request": null
+        }
+      ]
+    },
+    "Overdue Security Assessment for Support Ticketing Vendor": {
+      "method": {
+        "mode": "tef_vuln",
+        "vuln_mode": "direct",
+        "reason": "There is no confirmed loss history for this scenario (the one incident is recorded as Unknown), so a direct loss event frequency is not supportable. Attempts against the vendor cannot be counted yet, but the threat can be framed as threat event frequency times vulnerability. Evidence on both is thin, so most frequency factors stay open."
+      },
+      "estimates": [
+        {
+          "factor": "primary.response",
+          "min": 4500.0,
+          "ml": 13500.0,
+          "max": 40000.0,
+          "conf": "med",
+          "rationale": "Incident History INC-2026-008 (id 76) shows the response to the January 2026 sub-processor incident took 90 hours and cost $13,500, and the loaded labor rate of $150 per hour (id 78) confirms that math (90 x $150). That incident had no confirmed impact on our data and no customer notification. A real breach of the vendor's PII would need more work such as scoping, forensics and legal review. So the most likely value is the observed $13,500, the low end is about 30 hours, and the high end allows about 270 hours. The range is wide because only one comparable incident exists.",
+          "evidence_ids": [
+            76,
+            78
+          ],
+          "basis": "internal"
+        }
+      ],
+      "unestimated": [
+        {
+          "factor": "tef",
+          "reason": "Security Telemetry (id 79) counts phished corporate accounts, which does not measure attacks on the vendor or its sub-processors. The SOC request on vendor-related alerts and events is still open.",
+          "data_request_id": 70,
+          "new_request": null
+        },
+        {
+          "factor": "vuln",
+          "reason": "The evidence shows an overdue assessment, a stale SOC 2 report and three open findings, but not what the findings are or whether data is encrypted. Without that, a percentage would be a guess. The open request asks for these details.",
+          "data_request_id": 69,
+          "new_request": null
+        },
+        {
+          "factor": "slef",
+          "reason": "No evidence shows how often a vendor breach would draw reactions from customers or regulators. The records count, PII share and applicable notification laws are still open.",
+          "data_request_id": 71,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.response",
+          "reason": "The Asset Inventory (id 75) gives no record count or PII share, so notification and monitoring costs cannot be sized. The request for record counts is open.",
+          "data_request_id": 68,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.fines",
+          "reason": "The laws and contract terms that apply, and any past fines or claims, are not known yet. The Legal request is open.",
+          "data_request_id": 71,
+          "new_request": null
+        },
+        {
+          "factor": "secondary.reputation",
+          "reason": "There is no evidence on credit monitoring cost, contract credits or revenue loss. The Finance request is open.",
+          "data_request_id": 72,
+          "new_request": null
+        },
+        {
+          "factor": "primary.replacement",
+          "reason": "There is no evidence on the cost to replace the vendor or move the ticket data. The Finance request is open.",
+          "data_request_id": 73,
+          "new_request": null
+        }
+      ]
+    }
+  }
+}

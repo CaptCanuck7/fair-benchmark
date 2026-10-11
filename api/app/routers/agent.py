@@ -30,7 +30,7 @@ def _require_agent() -> None:
 
 
 @router.post("/risks/{risk_id}/{task}", status_code=202)
-def start_risk_task(risk_id: str, task: Literal["intake", "scenario", "vectors", "evidence"],
+def start_risk_task(risk_id: str, task: Literal["intake", "scenario", "vectors", "evidence", "estimates"],
                     session: Session = Depends(get_session)) -> dict:
     """Start an agent task for one risk and return its run ID; the UI polls.
 
@@ -40,6 +40,8 @@ def start_risk_task(risk_id: str, task: Literal["intake", "scenario", "vectors",
     - `vectors` drafts attack vectors or failure paths from the approved scenario.
     - `evidence` gathers cited evidence and raises data requests (needs an
       approved scenario).
+    - `estimates` drafts first-pass ranges from the evidence (needs an
+      approved scenario and an evidence run).
     """
     row = get_risk(session, risk_id)
     _require_agent()

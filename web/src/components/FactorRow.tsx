@@ -2,7 +2,9 @@ import { useState } from 'react'
 import type { Conf, Dist } from '../types'
 import { useContent } from '../content'
 import { NUMBER_HINT } from '../lib/format'
+import { dateTime } from '../lib/format'
 import { distStatus, factorAnchor } from '../lib/model'
+import { useProvenance } from '../provenance'
 import { NumberInput } from './NumberInput'
 
 const BOUNDS = [
@@ -29,12 +31,24 @@ export function FactorRow({ factorKey, dist, onChange }: Props) {
   const anyBad = Object.values(bad).some(Boolean)
   const message = anyBad ? NUMBER_HINT : status.state === 'error' ? status.msg : ''
   const msgId = `${anchor}-msg`
+  const prov = useProvenance(factorKey)
+  const changed =
+    prov?.range != null &&
+    (prov.range.min !== dist.min || prov.range.ml !== dist.ml || prov.range.max !== dist.max || prov.range.conf !== dist.conf)
 
   return (
     <div className="dist" id={anchor} data-key={factorKey}>
       <div>
         <span className="dname">{f.label}</span>
         <span className="unit">{f.unit}</span>
+        {prov && (
+          <div className={`provenance ${prov.origin}`}>
+            {prov.origin === 'agent' ? 'Agent-drafted' : 'Analyst estimate'}, approved by {prov.approvedBy}
+            {prov.approvedAt ? ` on ${dateTime(prov.approvedAt)}` : ''}
+            {prov.evidence.length > 0 && ` · ${prov.evidence.length} cited source${prov.evidence.length === 1 ? '' : 's'}`}
+            {changed && <span className="tag warn">changed since</span>}
+          </div>
+        )}
       </div>
       <div className="dgrid">
         {BOUNDS.map(([k, label], j) => (

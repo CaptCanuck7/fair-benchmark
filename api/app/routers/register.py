@@ -24,6 +24,7 @@ from app.models import (
     EvidenceItemRow,
     EvidenceRunRow,
     RegisterImportRow,
+    RiskLinkRow,
     RiskMonitoringRow,
     RiskRow,
 )
@@ -132,7 +133,7 @@ def _note(quality: dict | None, triage: dict | None) -> str | None:
     return None
 
 
-def risk_summary(row: RiskRow, state: IntakeState | None = None) -> dict:
+def risk_summary(row: RiskRow, state: IntakeState | None = None, analysis_id: str | None = None) -> dict:
     f = row.fields
     state = state or IntakeState({}, False, None)
     quality, triage, classification = current_stages(state)
@@ -160,8 +161,8 @@ def risk_summary(row: RiskRow, state: IntakeState | None = None) -> dict:
             "state": "running" if state.busy else ("failed" if last and last.status == "failed" else None),
             "error": last.error if last and last.status == "failed" and not state.busy else None,
         },
-        # Filled in by milestone 6 (push to analysis).
-        "analysisId": None,
+        # The latest analysis created from this risk.
+        "analysisId": analysis_id,
     }
 
 
@@ -174,7 +175,8 @@ def _natural_key(risk_id: str) -> list:
 def list_risks(session: Session = Depends(get_session)) -> list[dict]:
     rows = session.scalars(select(RiskRow).options(selectinload(RiskRow.monitoring))).all()
     states = intake_states(session, [r.id for r in rows])
-    return [risk_summary(r, states[r.id]) for r in sorted(rows, key=lambda r: _natural_key(r.risk_id))]
+    links = analysis_links(session, [r.id for r in rows])
+    return [risk_summary(r, states[r.id], links.get(r.id)) for r in sorted(rows, key=lambda r: _natural_key(r.risk_id))]
 
 
 def get_risk(session: Session, risk_id: str) -> RiskRow:
@@ -245,20 +247,12 @@ def data_request_out(r: DataRequestRow) -> dict:
 def evidence_out(session: Session, row: RiskRow) -> dict:
     """The latest evidence run's items and data requests, plus every answered
     request (answers outlive a re-run) and the evidence each answer created."""
-    latest = session.scalars(select(AgentRunRow).where(AgentRunRow.risk_pk == row.id, AgentRunRow.task == "evidence",
-                                                      AgentRunRow.status == "succeeded")
-                             .order_by(AgentRunRow.started_at.desc()).limit(1)).first()
-    run_id = latest.id if latest else None
-    requests = session.scalars(select(DataRequestRow).where(DataRequestRow.risk_pk == row.id).order_by(DataRequestRow.id)).all()
-    shown = [r for r in requests if r.agent_run_id == run_id or r.status == "answered"]
-    shown_ids = {r.id for r in shown}
-    items = session.scalars(select(EvidenceItemRow).where(EvidenceItemRow.risk_pk == row.id)
-                            .order_by(EvidenceItemRow.id)).all()
-    items = [e for e in items if (run_id and e.agent_run_id == run_id) or (e.data_request_id in shown_ids)]
-    summary = session.get(EvidenceRunRow, run_id) if run_id else None
+    items, requests = agent_pipeline.current_evidence(session, row.id)
+    latest = agent_pipeline.latest_evidence_run(session, row.id)
+    summary = session.get(EvidenceRunRow, latest.id) if latest else None
     return {
         "evidence": [evidence_item_out(e) for e in items],
-        "dataRequests": [data_request_out(r) for r in shown],
+        "dataRequests": [data_request_out(r) for r in requests],
         "evidenceRun": None if latest is None else {
             "id": latest.id, "finishedAt": latest.finished_at, "model": latest.model,
             "toolCalls": summary.tool_calls if summary else None,
@@ -266,6 +260,14 @@ def evidence_out(session: Session, row: RiskRow) -> dict:
             "notes": summary.notes if summary else {},
         },
     }
+
+
+def analysis_links(session: Session, risk_pks: list[int]) -> dict[int, str]:
+    """The latest analysis created from each risk."""
+    out: dict[int, str] = {}
+    for link in session.scalars(select(RiskLinkRow).where(RiskLinkRow.risk_pk.in_(risk_pks)).order_by(RiskLinkRow.id)):
+        out[link.risk_pk] = link.analysis_id
+    return out
 
 
 def risk_detail_out(session: Session, row: RiskRow) -> dict:
@@ -277,8 +279,11 @@ def risk_detail_out(session: Session, row: RiskRow) -> dict:
     drafts = session.scalars(select(DraftRow).where(DraftRow.risk_pk == row.id).order_by(DraftRow.id.desc())).all()
     # Rejected drafts are shown (so the analyst can see and reverse them) but not used downstream.
     reached = dict(zip(agent_pipeline.TASKS, current_stages(state, include_rejected=True)))
+    has_evidence = agent_pipeline.latest_evidence_run(session, row.id) is not None
+    from app.routers.estimates import estimates_out  # imported here: that module imports this one
+
     return {
-        **risk_summary(row, state),
+        **risk_summary(row, state, analysis_links(session, [row.id]).get(row.id)),
         "fields": row.fields,
         "sections": row.sections,
         "monitoring": [
@@ -299,9 +304,12 @@ def risk_detail_out(session: Session, row: RiskRow) -> dict:
         "vectors": draft_out(state.drafts["vectors"], by_id) if "vectors" in state.drafts else None,
         "vectorsStale": vectors_stale(state),
         # Why each analyst-started task can't run yet (null when it can).
-        "blocked": {task: task_blocker(state, task) for task in agent_pipeline.RISK_TASKS},
+        "blocked": {task: task_blocker(state, task, has_evidence) for task in agent_pipeline.RISK_TASKS},
+        # Estimate ranges stay hidden until revealed, factor by factor.
+        "estimates": estimates_out(session, row),
         "triageThreshold": settings.triage_min_score,
-        "drafts": [draft_out(d, by_id) for d in drafts],
+        # Estimate drafts are left out: their ranges stay hidden until revealed.
+        "drafts": [draft_out(d, by_id) for d in drafts if d.kind != "estimate"],
         "runs": [run_out(r) for r in runs[:30]],
         **evidence_out(session, row),
     }

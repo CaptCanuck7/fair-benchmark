@@ -56,7 +56,7 @@ current model), and uses a throwaway in-memory database, not your saved data.
 docker compose exec api pytest -m live -s
 ```
 
-That runs three evaluations:
+That runs four evaluations:
 
 - **`test_live_eval.py`:** the intake checks on all 13 test risks (about
   60,000 input and 7,000 output tokens).
@@ -69,13 +69,17 @@ That runs three evaluations:
   allowlisted web search, so it also costs web searches ($10 per 1,000), and it
   takes several minutes. The agent writes its outbound log to the running app,
   so this run's requests appear on the Settings page.
+- **`test_live_eval_estimates.py`:** first-pass estimates for the 9 qualifying
+  risks, with intake, scenarios and evidence replayed (about two minutes). It
+  checks every range cites evidence the risk has, and that TR-7's rationale
+  treats zero confirmed logins as weak evidence.
 
 Run one by naming its file after `-s`.
 
 To refresh the recorded fixtures from a live run, add
 `-e RECORD_DIR=/tmp` after `exec`, then copy each one out, for example
 `docker compose exec api cat /tmp/intake_recorded.json > api/tests/fixtures/intake_recorded.json`
-(and `scenario_recorded.json` the same way).
+(and `scenario_recorded.json`, `evidence_recorded.json` and `estimates_recorded.json` the same way).
 In Git Bash, run `export MSYS_NO_PATHCONV=1` first so `/tmp` isn't rewritten.
 
 ## Using it
@@ -197,6 +201,26 @@ the agent read the Verizon, IBM and Cyentia report pages and propose figures,
 each with its page and the sentence that states it. Approve or reject each
 proposal; only approved figures are used as evidence. You can also add
 figures by hand.
+
+**Estimates.** Once a risk has evidence, **Draft estimates** on its Estimates
+tab has the agent recommend a frequency method and propose a range for each
+factor it has evidence for. Every range cites that evidence. Where there's
+none, the factor is left unestimated with a data request.
+
+- **Your range comes first.** Each factor shows its evidence and three empty
+  inputs. The agent's range stays hidden until you press **Show agent range**,
+  and the app records whether you had entered your own first.
+- **Decide each factor.** After revealing, compare the two ranges and the
+  agent's rationale. Then **Keep mine**, **Take the agent's**, or enter a
+  third. You can also use your own range without revealing anything.
+- **Create analysis** builds a workbench analysis from the approved scenario
+  and the factors you decided, and opens it. Undecided factors stay empty, and
+  no treatment option is made.
+- **In the workspace**, each pushed factor shows where it came from (agent
+  draft or analyst estimate, who approved it and when, and how many sources it
+  cites). It also shows "changed since" once you edit it. The header links
+  back to the risk, and the register's mitigation plan sits beside **Add
+  treatment option**, ready for building the residual state.
 
 ### The agent
 
@@ -667,6 +691,41 @@ prototype first; otherwise choose the simpler option."
 - **Vendor-specific searches.** The mock data names no vendors, so the guard's
   vendor list is empty, and nothing asks for per-query approval yet. The guard
   already blocks a vendor name in a query unless that exact query was approved.
+
+**Estimates and push to analysis** (`AGENT_BUILD.md`, milestone 6)
+- **Estimates need an approved scenario and an evidence run.** The agent gets
+  the latest run's evidence and requests, plus every answered request.
+- **Validation rules, enforced with the usual single retry:**
+  - each range cites at least one evidence item from its own factor group
+  - min ≤ most likely ≤ max, with percent and score values at most 100
+  - confidence is "low" when every cited item is external
+  - every factor the method needs is covered, either by a range or by a data
+    request (an existing one, or a new one in plain language, stored like the
+    others)
+- **The anchoring guard is in the API, not just the page.** Until a factor is
+  revealed, its agent range, rationale and citations are left out of every
+  response, including the drafts list. A reveal is stored per draft, so
+  drafting again starts with everything hidden.
+- **The tab offers the recommended method's factors only:** its frequency
+  factors, plus every loss factor. Factors the agent said nothing about can
+  still take your range. Off-method factors would sit in rows the workspace
+  hides, so they can't be decided, and older decisions on them aren't pushed.
+- **Decisions live on the estimate draft** (`edited_payload.decisions`).
+  "Take the agent's" needs a prior reveal, and a decision can be cleared
+  (**Change**).
+- **The push writes the existing document format** through the normal create
+  path. Each factor's `src` holds:
+  - for an agent range: the rationale, then "Sources: …" with the citations,
+    then "Agent-drafted, approved by {name} on {date}."
+  - for your range: "Analyst estimate by {name} on {date}."
+
+  The scenario's controls are written with the part of the risk each one
+  affects. `factor_provenance` and `risk_links` rows record the origin and
+  evidence of each pushed factor.
+- **"Changed since"** compares the factor's current range with the pushed one,
+  so provenance stays honest after you edit it in the workspace.
+- **Each "Create analysis" makes a new analysis.** The register shows the
+  latest, and the risk links to it.
 
 ## Later extensions
 

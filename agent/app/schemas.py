@@ -361,3 +361,141 @@ class LibraryEntryOut(BaseModel):
 
 class LibraryOutput(BaseModel):
     entries: list[LibraryEntryOut] = Field(max_length=25)
+
+
+# --- First-pass estimates (section 9.6) -----------------------------------------
+
+# Units as stored in the analysis document (CLAUDE.md section 3).
+FACTOR_KIND: dict[str, str] = {
+    "lef": "freq", "tef": "freq", "cf": "freq", "poa": "pct", "vuln": "pct", "tcap": "score", "rs": "score",
+    "slef": "pct", **{f"primary.{k}": "money" for k in ("productivity", "response", "replacement")},
+    **{f"secondary.{k}": "money" for k in ("response", "fines", "competitive", "reputation")},
+}
+
+
+def group_of_factor(factor: str) -> str | None:
+    return next((g for g, keys in FACTOR_GROUPS.items() if factor in keys), None)
+
+
+def required_factors(mode: str, vuln_mode: str) -> list[tuple[str, ...]]:
+    """What a method needs: each tuple is satisfied by any one of its factors."""
+    vuln = [("vuln",)] if vuln_mode == "direct" else [("tcap",), ("rs",)]
+    freq = {"lef": [("lef",)], "tef_vuln": [("tef",), *vuln], "cf_poa": [("cf",), ("poa",), *vuln]}[mode]
+    return [*freq, FACTOR_GROUPS["primary"], ("slef",), FACTOR_GROUPS["secondary"][1:]]
+
+
+class EvidenceIn(BaseModel):
+    id: int
+    origin: Literal["internal", "external"]
+    source_type: str
+    source_name: str
+    citation: str
+    summary: str
+    value: float | None = None
+    unit: str | None = None
+    factors: list[str] = Field(default_factory=list)
+    stale: bool = False
+
+
+class RequestIn(BaseModel):
+    id: int
+    team: str
+    question: str
+    factor: str
+    status: str
+    answer: str | None = None
+
+
+class EstimatesRequest(BaseModel):
+    agent_run_id: str | None = None
+    risk: RiskEntry
+    scenario: dict
+    vectors: dict | None = None
+    evidence: list[EvidenceIn]
+    data_requests: list[RequestIn] = Field(default_factory=list)
+
+
+class MethodOut(BaseModel):
+    mode: Literal["tef_vuln", "cf_poa", "lef"]
+    vuln_mode: Literal["direct", "tcap_rs"]
+    reason: str = Field(max_length=500, description="Why this method fits the evidence, in plain words.")
+
+
+class EstimateOut(BaseModel):
+    factor: FactorKey
+    min: float
+    ml: float
+    max: float
+    conf: Literal["low", "med", "high"]
+    rationale: str = Field(max_length=900, description="How the evidence leads to this range, citing it.")
+    evidence_ids: list[int] = Field(min_length=1, max_length=12)
+
+
+class NewRequestOut(BaseModel):
+    team: Team
+    question: str = Field(min_length=15, max_length=400)
+    reason: str = Field(max_length=400)
+
+    @model_validator(mode="after")
+    def _plain(self) -> "NewRequestOut":
+        m = FAIR_JARGON.search(self.question)
+        if m:
+            raise ValueError(f"the question uses the FAIR term '{m.group(0)}'; ask in words the {self.team} team uses")
+        return self
+
+
+class UnestimatedOut(BaseModel):
+    factor: FactorKey
+    reason: str = Field(max_length=400)
+    data_request_id: int | None = Field(default=None, description="An existing data request for this gap.")
+    new_request: NewRequestOut | None = Field(default=None, description="Only when no existing request fits.")
+
+
+class EstimatesOutput(BaseModel):
+    method: MethodOut
+    estimates: list[EstimateOut] = Field(max_length=15)
+    unestimated: list[UnestimatedOut] = Field(max_length=15)
+
+    @model_validator(mode="after")
+    def _rules(self, info: ValidationInfo) -> "EstimatesOutput":
+        ctx = info.context or {}
+        evidence: dict[int, dict] = ctx.get("evidence", {})
+        request_ids: set[int] = ctx.get("request_ids", set())
+        problems: list[str] = []
+        seen: set[str] = set()
+        for e in self.estimates:
+            if e.factor in seen:
+                problems.append(f"{e.factor} appears twice")
+            seen.add(e.factor)
+            kind = FACTOR_KIND[e.factor]
+            if min(e.min, e.ml, e.max) < 0:
+                problems.append(f"{e.factor}: values can't be negative")
+            if kind in ("pct", "score") and e.max > 100:
+                problems.append(f"{e.factor}: use values from 0 to 100 (percent or percentile)")
+            if not e.min <= e.ml <= e.max:
+                problems.append(f"{e.factor}: keep min <= ml <= max")
+            if evidence:
+                unknown = [i for i in e.evidence_ids if i not in evidence]
+                if unknown:
+                    problems.append(f"{e.factor}: evidence ids {unknown} are not in the evidence list")
+                cited = [evidence[i] for i in e.evidence_ids if i in evidence]
+                group = group_of_factor(e.factor)
+                if cited and not any(group in ev["groups"] for ev in cited):
+                    problems.append(f"{e.factor}: none of the cited evidence informs the {group} group; a factor "
+                                    "with no evidence of its own goes under unestimated")
+                if cited and all(ev["origin"] == "external" for ev in cited) and e.conf != "low":
+                    problems.append(f"{e.factor}: external base rates alone support only conf 'low'")
+        for u in self.unestimated:
+            if u.factor in seen:
+                problems.append(f"{u.factor} appears twice")
+            seen.add(u.factor)
+            if (u.data_request_id is None) == (u.new_request is None):
+                problems.append(f"{u.factor}: give exactly one of data_request_id or new_request")
+            elif u.data_request_id is not None and request_ids and u.data_request_id not in request_ids:
+                problems.append(f"{u.factor}: data request {u.data_request_id} is not in the list")
+        for options in required_factors(self.method.mode, self.method.vuln_mode):
+            if not seen & set(options):
+                problems.append(f"the method needs {' or '.join(options)}: estimate it or list it under unestimated")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self

@@ -3,6 +3,7 @@ import type { AgentStatus, RegisterRiskDetail } from '../types'
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
 import { DataRequestsTab } from '../components/DataRequestsTab'
+import { EstimatesTab } from '../components/EstimatesTab'
 import { EvidenceTab } from '../components/EvidenceTab'
 import { QualityTab } from '../components/QualityTab'
 import { ScenarioTab } from '../components/ScenarioTab'
@@ -249,6 +250,8 @@ export function RiskDetail({ riskId, navigate }: Props) {
                   <EvidenceTab risk={risk} agent={agent} reload={load} onShowRequests={() => setTab('requests')} />
                 ) : active[0] === 'requests' ? (
                   <DataRequestsTab risk={risk} onRisk={setRisk} />
+                ) : active[0] === 'estimates' ? (
+                  <EstimatesTab risk={risk} agent={agent} onRisk={setRisk} reload={load} navigate={navigate} />
                 ) : (
                   <p className="muted">Not run yet.</p>
                 )}

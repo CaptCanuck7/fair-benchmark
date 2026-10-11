@@ -20,6 +20,7 @@ from app.llm import LLM, LLMError, LLMResult
 from app.schemas import (
     NON_MALICIOUS,
     ClassifyRequest,
+    EstimatesRequest,
     EvidenceRequest,
     LibraryRequest,
     QualityRequest,
@@ -28,7 +29,7 @@ from app.schemas import (
     TriageRequest,
     VectorsRequest,
 )
-from app.tasks import classify, evidence, library, quality, scenario, triage, vectors
+from app.tasks import classify, estimates, evidence, library, quality, scenario, triage, vectors
 from app.tools.base import Registry
 from app.tools.toolbox import Toolbox
 
@@ -157,3 +158,8 @@ def task_library(req: LibraryRequest):
         return library.run(llm, req, box)
 
     return _run_task(library.PROMPT_VERSION, go)
+
+
+@app.post("/tasks/estimates", response_model=TaskResult)
+def task_estimates(req: EstimatesRequest):
+    return _run_task(estimates.PROMPT_VERSION, lambda llm: estimates.run(llm, req))

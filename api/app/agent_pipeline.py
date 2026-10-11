@@ -275,7 +275,7 @@ def fail_interrupted(session: Session) -> int:
 
 # --- Scenario and vectors (pipeline step 4, started by the analyst) -------------
 
-RISK_TASKS = ("scenario", "vectors", "evidence")
+RISK_TASKS = ("scenario", "vectors", "evidence", "estimates")
 
 
 class TaskBlocked(Exception):
@@ -291,7 +291,7 @@ def queue_risk_task(session: Session, row: RiskRow, task: str) -> str:
     state = intake_states(session, [row.id])[row.id]
     if state.busy:
         raise TaskBlocked("The agent is already working on this risk. Try again when it finishes.")
-    reason = task_blocker(state, task)
+    reason = task_blocker(state, task, has_evidence=latest_evidence_run(session, row.id) is not None)
     if reason:
         raise TaskBlocked(reason)
     run = _new_run(session, row.id, task)
@@ -307,7 +307,7 @@ def run_risk_task(risk_pk: int, run_id: str) -> None:
             return
         state = intake_states(s, [risk_pk])[risk_pk]
         # Re-check: the drafts may have changed while the job was queued.
-        reason = task_blocker(state, run.task)
+        reason = task_blocker(state, run.task, has_evidence=latest_evidence_run(s, risk_pk) is not None)
         if reason:
             _finish(run, "failed", error=reason)
             s.commit()
@@ -322,6 +322,8 @@ def run_risk_task(risk_pk: int, run_id: str) -> None:
                 _draft(s, risk_pk, "scenario", res.output, run)
         elif run.task == "evidence":
             _gather_evidence(s, row, run, state)
+        elif run.task == "estimates":
+            _draft_estimates(s, row, run, state)
         else:
             scenario_draft = state.drafts["scenario"]
             scenario = {k: v for k, v in usable(scenario_draft).items() if k != "basedOn"}
@@ -414,3 +416,65 @@ def run_library_refresh(run_id: str) -> None:
                 quote=e.get("quote"), status="proposed", agent_run_id=run_id,
             ))
         s.commit()
+
+
+# --- First-pass estimates (pipeline step 6) -------------------------------------
+
+
+def latest_evidence_run(session: Session, risk_pk: int) -> AgentRunRow | None:
+    return session.scalars(select(AgentRunRow).where(AgentRunRow.risk_pk == risk_pk, AgentRunRow.task == "evidence",
+                                                     AgentRunRow.status == "succeeded")
+                           .order_by(AgentRunRow.started_at.desc()).limit(1)).first()
+
+
+def current_evidence(session: Session, risk_pk: int) -> tuple[list[EvidenceItemRow], list[DataRequestRow]]:
+    """The evidence and data requests a risk shows: the latest evidence run's,
+    plus every answered request and the evidence its answer created."""
+    latest = latest_evidence_run(session, risk_pk)
+    run_id = latest.id if latest else None
+    # Requests raised by the estimates run that followed, for factors left unestimated.
+    est = session.scalars(select(AgentRunRow.id).where(AgentRunRow.risk_pk == risk_pk, AgentRunRow.task == "estimates",
+                                                       AgentRunRow.status == "succeeded")
+                          .order_by(AgentRunRow.started_at.desc()).limit(1)).first()
+    requests = session.scalars(select(DataRequestRow).where(DataRequestRow.risk_pk == risk_pk)
+                               .order_by(DataRequestRow.id)).all()
+    shown = [r for r in requests if r.agent_run_id in (run_id, est) or r.status == "answered"]
+    ids = {r.id for r in shown}
+    items = session.scalars(select(EvidenceItemRow).where(EvidenceItemRow.risk_pk == risk_pk)
+                            .order_by(EvidenceItemRow.id)).all()
+    return [e for e in items if (run_id and e.agent_run_id == run_id) or e.data_request_id in ids], shown
+
+
+def estimates_payload(session: Session, row: RiskRow, run_id: str, state) -> dict[str, Any]:
+    items, requests = current_evidence(session, row.id)
+    scenario = {k: v for k, v in usable(state.drafts["scenario"]).items() if k != "basedOn"}
+    vectors = usable(state.drafts.get("vectors"))
+    return {
+        "agent_run_id": run_id,
+        "risk": risk_entry(row),
+        "scenario": scenario,
+        "vectors": {k: v for k, v in vectors.items() if k != "basedOn"} if vectors else None,
+        "evidence": [{"id": e.id, "origin": e.origin, "source_type": e.source_type, "source_name": e.source_name,
+                      "citation": e.citation, "summary": e.summary, "value": e.value, "unit": e.unit,
+                      "factors": e.factors, "stale": e.stale} for e in items],
+        "data_requests": [{"id": r.id, "team": r.team, "question": r.question, "factor": r.factor,
+                           "status": r.status, "answer": r.answer} for r in requests],
+    }
+
+
+def _draft_estimates(s: Session, row: RiskRow, run: AgentRunRow, state) -> None:
+    res = _call(s, run, "estimates", estimates_payload(s, row, run.id, state))
+    if res is None:
+        return
+    out = res.output
+    # A new data request for an unestimated factor is stored like any other,
+    # and the estimate points to it.
+    for u in out["unestimated"]:
+        new = u.pop("new_request", None)
+        if u.get("data_request_id") is None and new:
+            req = DataRequestRow(risk_pk=row.id, agent_run_id=run.id, team=new["team"], question=new["question"],
+                                 factor=u["factor"], reason=new["reason"], status="open")
+            s.add(req)
+            s.flush()
+            u["data_request_id"] = req.id
+    _draft(s, row.id, "estimate", out, run)

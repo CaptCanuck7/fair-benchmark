@@ -56,7 +56,8 @@ def test_only_ready_qualifying_risks_get_a_scenario(client, fake):
     assert detail(client, "TR-15")["blocked"]["scenario"].startswith("Only risks that qualify")
     assert detail(client, "TR-6")["blocked"] == {"scenario": None,
                                                  "vectors": "Draft and approve the scenario first.",
-                                                 "evidence": "Draft and approve the scenario first."}
+                                                 "evidence": "Draft and approve the scenario first.",
+                                                 "estimates": "Draft and approve the scenario first."}
 
 
 def test_scenario_draft_is_recorded_and_labeled(client, fake):

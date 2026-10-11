@@ -24,6 +24,7 @@ from app.routers import (
     analyses,
     data_requests,
     drafts,
+    estimates,
     internal_evidence,
     internal_guard,
     io,
@@ -137,6 +138,7 @@ app.include_router(internal_evidence.router)
 app.include_router(internal_guard.router)
 app.include_router(agent.router)
 app.include_router(drafts.router)
+app.include_router(estimates.router)
 app.include_router(data_requests.router)
 app.include_router(library.router)
 app.include_router(library.internal)

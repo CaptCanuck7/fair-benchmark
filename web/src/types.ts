@@ -283,7 +283,9 @@ export interface RegisterRiskDetail extends RegisterRisk {
   /** The vectors were built from a scenario that has since changed. */
   vectorsStale: boolean
   /** Why each analyst-started task can't run yet; null when it can. */
-  blocked: { scenario: string | null; vectors: string | null; evidence: string | null }
+  blocked: { scenario: string | null; vectors: string | null; evidence: string | null; estimates: string | null }
+  /** First-pass estimates. Agent ranges are null until revealed, factor by factor. */
+  estimates: EstimatesView | null
   triageThreshold: number
   drafts: Draft<unknown>[]
   runs: AgentRun[]
@@ -546,3 +548,59 @@ export interface LibraryEntry {
 }
 
 export type LibraryEntryInput = Pick<LibraryEntry, 'metric' | 'value' | 'unit' | 'segment' | 'source' | 'edition' | 'url' | 'page' | 'quote'>
+
+// --- Estimates, the anchoring guard and provenance ---
+
+export interface RangeValue {
+  min: number | null
+  ml: number | null
+  max: number | null
+  conf: Conf
+}
+
+export interface EstimateDecision {
+  choice: 'agent' | 'analyst'
+  min: number
+  ml: number
+  max: number
+  conf: Conf
+  rationale: string | null
+  evidenceIds: number[]
+  by: string
+  at: string
+  revealedFirst?: boolean
+}
+
+export interface EstimateFactor {
+  factor: string
+  status: 'estimated' | 'unestimated'
+  revealed: boolean
+  /** Null until revealed. */
+  agent: { min: number; ml: number; max: number; conf: Conf; rationale: string; evidenceIds: number[]; basis: string } | null
+  unestimated: { reason: string; dataRequestId: number | null } | null
+  reveal: { analystRange: RangeValue | null; enteredBeforeReveal: boolean; revealedAt: string } | null
+  decision: EstimateDecision | null
+}
+
+export interface EstimatesView {
+  draftId: number
+  method: { mode: LefMode; vuln_mode: VulnMode; reason: string }
+  factors: EstimateFactor[]
+  decided: number
+  agentRunId: string | null
+}
+
+export interface ProvenanceFactor {
+  stateId: string
+  factor: string
+  origin: 'agent' | 'analyst'
+  approvedBy: string | null
+  approvedAt: string | null
+  range: { min: number; ml: number; max: number; conf: Conf } | null
+  evidence: { id: number; citation: string; summary: string; origin: string }[]
+}
+
+export type Provenance =
+  | { linked: false }
+  | { linked: true; riskId: string; riskTitle: string | null; mitigationPlan: string | null; createdAt: string;
+      factors: ProvenanceFactor[] }

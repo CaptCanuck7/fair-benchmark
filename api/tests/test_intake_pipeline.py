@@ -76,6 +76,22 @@ class FakeAgent:
                                    "reason": "No test results found."}],
                 "rejected": [{"citation": "Made up", "summary": "x", "reason": "No tool returned this citation."}],
                 "tool_calls": 4, "notes": {"cveLookupsOffered": True, "cveLookupsMade": 1}}
+        elif task == "estimates":
+            first = payload["evidence"][0]["id"]
+            out = {"method": {"mode": "tef_vuln", "vuln_mode": "direct", "reason": "Attempts are counted."},
+                   "estimates": [
+                       {"factor": "tef", "min": 1, "ml": 4, "max": 12, "conf": "med", "rationale": "Four attempts.",
+                        "evidence_ids": [first], "basis": "internal"},
+                       {"factor": "vuln", "min": 2, "ml": 8, "max": 20, "conf": "low", "rationale": "Findings.",
+                        "evidence_ids": [first], "basis": "internal"},
+                       {"factor": "primary.response", "min": 50000, "ml": 150000, "max": 400000, "conf": "med",
+                        "rationale": "Response hours.", "evidence_ids": [first], "basis": "internal"},
+                       {"factor": "slef", "min": 30, "ml": 60, "max": 90, "conf": "low", "rationale": "Base rate.",
+                        "evidence_ids": [first], "basis": "external"}],
+                   "unestimated": [{"factor": "secondary.fines", "reason": "No evidence on fines.",
+                                    "data_request_id": None,
+                                    "new_request": {"team": "Legal", "question": "Which fines could apply to "
+                                                    "exposed payroll data?", "reason": "No evidence on fines."}}]}
         elif task == "library":
             out = {"entries": [{"metric": "Cost per record", "value": 169, "unit": "USD", "segment": None,
                                 "source": "IBM Cost of a Data Breach Report", "edition": "2025",

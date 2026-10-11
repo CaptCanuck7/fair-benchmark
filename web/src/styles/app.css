@@ -307,3 +307,16 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
 .domains { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 2px }
 .domains li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--line) }
 .setform .row, .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end }
+
+/* Estimates, the anchoring guard and provenance */
+.method { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 13.5px }
+.estimate { border-top: 1px solid var(--line); padding: 10px 0 4px }
+.estimate h4 { margin: 0 0 4px; font-size: 14.5px }
+.decided { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 6px 0 }
+.compare-ranges { margin-top: 8px }
+.create { border-top: 2px solid var(--line); margin-top: 14px; padding-top: 6px }
+.provenance { font-size: 12px; margin-top: 2px; color: var(--muted) }
+.provenance.agent::before { content: "◆ "; color: var(--accent) }
+.provenance.analyst::before { content: "● "; color: var(--green) }
+.fromrisk { font-size: 13.5px; margin: 6px 0 0 }
+.mitigation { margin: 0 0 10px }

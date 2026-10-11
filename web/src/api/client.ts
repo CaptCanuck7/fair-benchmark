@@ -9,6 +9,8 @@ import type {
   LibraryEntry,
   LibraryEntryInput,
   OutboundLogEntry,
+  Provenance,
+  RangeValue,
   RegisterImport,
   RegisterImportResult,
   RegisterRisk,
@@ -114,11 +116,23 @@ export const api = {
   rerunIntake: (riskId: string) =>
     json<{ runId: string | null; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/intake`),
   /** Start the scenario, vectors or evidence task for one risk. */
-  startRiskTask: (riskId: string, task: 'scenario' | 'vectors' | 'evidence') =>
+  startRiskTask: (riskId: string, task: 'scenario' | 'vectors' | 'evidence' | 'estimates') =>
     json<{ runId: string; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/${task}`),
   /** Approve, edit or reject a draft. Returns the updated risk. */
   reviewDraft: (draftId: number, action: ReviewAction, payload?: unknown) =>
     json<RegisterRiskDetail>('PUT', `/drafts/${draftId}`, payload === undefined ? { action } : { action, payload }),
+  /** Show the agent's range for a factor, sending the analyst's own range if entered. */
+  revealEstimate: (riskId: string, factor: string, analystRange: RangeValue | null) =>
+    json<RegisterRiskDetail>('POST', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}/reveal`,
+      { analystRange }),
+  decideEstimate: (riskId: string, factor: string, choice: 'agent' | 'analyst', range?: RangeValue) =>
+    json<RegisterRiskDetail>('PUT', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}`,
+      range ? { choice, range } : { choice }),
+  clearEstimate: (riskId: string, factor: string) =>
+    json<RegisterRiskDetail>('DELETE', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}`),
+  analysisFromRisk: (riskId: string) =>
+    json<{ analysisId: string; factorsPushed: string[] }>('POST', `/register/risks/${encodeURIComponent(riskId)}/create-analysis`),
+  provenance: (analysisId: string) => json<Provenance>('GET', `/analyses/${encodeURIComponent(analysisId)}/provenance`),
   /** Record an answer to a data request. Returns the updated risk. */
   answerDataRequest: (id: number, answer: string) =>
     json<RegisterRiskDetail>('PUT', `/data-requests/${id}`, { answer }),

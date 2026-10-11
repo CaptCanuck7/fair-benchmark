@@ -11,7 +11,7 @@ from app.models import AgentRunRow, DraftRow
 
 ACTIVE = ("queued", "running")
 INTAKE = ("quality", "triage", "classification")
-KINDS = INTAKE + ("scenario", "vectors")
+KINDS = INTAKE + ("scenario", "vectors", "estimate")
 
 
 class IntakeState:
@@ -57,18 +57,22 @@ def current_stages(state: IntakeState, include_rejected: bool = False) -> tuple[
     return quality, triage, classification
 
 
-def task_blocker(state: IntakeState, task: str) -> str | None:
-    """Why a scenario or vectors task can't run for this risk yet, or None."""
+def task_blocker(state: IntakeState, task: str, has_evidence: bool = False) -> str | None:
+    """Why a scenario, vectors, evidence or estimates task can't run for this
+    risk yet, or None. `has_evidence`: an evidence run has succeeded."""
     quality, triage, _ = current_stages(state)
     if not quality or quality["status"] != "ready":
         return "The quality check must find this entry ready first."
     if not triage or triage["status"] != "qualifies":
         return "Only risks that qualify in triage get a scenario. You can override triage, with a reason."
-    if task in ("vectors", "evidence"):
+    if task in ("vectors", "evidence", "estimates"):
         scenario = state.drafts.get("scenario")
-        what = "Vectors are built" if task == "vectors" else "Evidence is gathered"
+        what = {"vectors": "Vectors are built", "evidence": "Evidence is gathered",
+                "estimates": "Estimates are drafted"}[task]
         if scenario is None:
             return "Draft and approve the scenario first."
         if scenario.status not in ("approved", "edited"):
             return f"Approve or edit the scenario first. {what} from the approved scenario."
+    if task == "estimates" and not has_evidence:
+        return "Gather evidence first. Every range must rest on evidence."
     return None
