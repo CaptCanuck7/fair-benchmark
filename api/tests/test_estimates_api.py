@@ -11,6 +11,8 @@ from test_intake_pipeline import FakeAgent, import_register
 
 from app import agent_client, agent_pipeline
 from app.config import settings
+from app.db import SessionLocal
+from app.models import DraftRow
 from app.routers import agent as agent_router
 from app.routers import register as register_router
 
@@ -259,3 +261,71 @@ def test_estimates_blocked_when_the_evidence_run_found_nothing(client, fake, mon
     assert client.put(f"/api/data-requests/{req['id']}", json={"answer": "Tested in March 2026."}).status_code == 200
     assert detail(client, "TR-6")["blocked"]["estimates"] is None
     assert start(client, "TR-6", "estimates").status_code == 202
+
+
+# ---------------------------------------------------------------- AGENT_FIXES.md fix 3: stale estimates
+
+FRESH = {"scenario": False, "evidence": False}
+
+
+def test_fresh_estimates_record_what_they_rest_on(client, fake):
+    d = ready(client)
+    assert d["estimates"]["stale"] == FRESH
+    with SessionLocal() as s:
+        draft = s.get(DraftRow, d["estimates"]["draftId"])
+        based = draft.payload["basedOn"]
+    assert based["scenarioDraftId"] == d["scenario"]["id"]
+    assert based["evidenceRunId"] == d["evidenceRun"]["id"]
+    assert based["evidenceItemIds"] == sorted(e["id"] for e in d["evidence"])
+
+
+def test_editing_the_scenario_marks_estimates_stale(client, fake):
+    d = ready(client)
+    s = d["scenario"]
+    assert review(client, s["id"], "edit", {**s["payload"], "condition": "A different weakness."}).status_code == 200
+    assert detail(client, "TR-6")["estimates"]["stale"] == {"scenario": True, "evidence": False}
+
+
+def test_a_new_evidence_run_marks_estimates_stale(client, fake):
+    ready(client)
+    assert start(client, "TR-6", "evidence").status_code == 202
+    assert detail(client, "TR-6")["estimates"]["stale"] == {"scenario": False, "evidence": True}
+
+
+def test_answering_a_data_request_marks_estimates_stale(client, fake):
+    d = ready(client)
+    req = next(r for r in d["dataRequests"] if r["status"] == "open")
+    assert client.put(f"/api/data-requests/{req['id']}", json={"answer": "Tested in March 2026."}).status_code == 200
+    assert detail(client, "TR-6")["estimates"]["stale"] == {"scenario": False, "evidence": True}
+
+
+def test_create_analysis_needs_acknowledgement_when_stale(client, fake):
+    d = ready(client)
+    s = d["scenario"]
+    review(client, s["id"], "edit", {**s["payload"], "condition": "A different weakness."})
+    start(client, "TR-6", "evidence")
+    res = client.post("/api/register/risks/TR-6/create-analysis")
+    assert res.status_code == 409
+    assert "before the scenario and the evidence changed" in res.json()["detail"]
+    res = client.post("/api/register/risks/TR-6/create-analysis", json={"acknowledgeStale": True})
+    assert res.status_code == 201
+    notes = client.get(f"/api/analyses/{res.json()['analysisId']}").json()["scope"]["notes"]
+    assert notes.endswith("Estimates were drafted before the scenario and the evidence changed.")
+
+
+def test_fresh_estimates_create_without_acknowledgement(client, fake):
+    ready(client)
+    res = client.post("/api/register/risks/TR-6/create-analysis")
+    assert res.status_code == 201
+    assert "drafted before" not in client.get(f"/api/analyses/{res.json()['analysisId']}").json()["scope"]["notes"]
+
+
+def test_a_draft_without_based_on_is_never_stale(client, fake):
+    d = ready(client)
+    with SessionLocal() as s:
+        draft = s.get(DraftRow, d["estimates"]["draftId"])
+        draft.payload = {k: v for k, v in draft.payload.items() if k != "basedOn"}
+        s.commit()
+    start(client, "TR-6", "evidence")
+    assert detail(client, "TR-6")["estimates"]["stale"] == FRESH
+    assert client.post("/api/register/risks/TR-6/create-analysis").status_code == 201

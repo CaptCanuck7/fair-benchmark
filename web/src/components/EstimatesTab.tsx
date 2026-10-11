@@ -31,6 +31,22 @@ export function EstimatesTab({ risk, agent, onRisk, reload, navigate }: Props) {
   const est = risk.estimates
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // The create-analysis refusal for out-of-date estimates, offering "Create anyway".
+  const [staleBlock, setStaleBlock] = useState<string | null>(null)
+  const changed = est ? [est.stale.scenario && 'the scenario', est.stale.evidence && 'the evidence'].filter(Boolean).join(' and ') : ''
+
+  async function create(acknowledgeStale: boolean) {
+    setStaleBlock(null)
+    await act(async () => {
+      try {
+        const r = await api.analysisFromRisk(risk.riskId, acknowledgeStale)
+        navigate(`/analyses/${r.analysisId}`)
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409 && changed && !acknowledgeStale) setStaleBlock(e.message)
+        else throw e
+      }
+    })
+  }
 
   async function act(fn: () => Promise<void>) {
     setBusy(true)
@@ -74,6 +90,21 @@ export function EstimatesTab({ risk, agent, onRisk, reload, navigate }: Props) {
               ', vulnerability from threat capability and resistance strength')}
             . <span className="muted">{est.method.reason}</span>
           </div>
+          {changed && (
+            <div className="check warn" role="status">
+              <b>Out of date:</b> {changed} changed after these estimates were drafted
+              {est.stale.evidence && ' (a new evidence run, or an answered data request)'}. Your decided ranges are kept
+              and still usable.{' '}
+              <button
+                type="button"
+                className="btn quiet"
+                disabled={busy || !!risk.blocked.estimates || risk.agent.state === 'running'}
+                onClick={() => void act(async () => { await api.startRiskTask(risk.riskId, 'estimates'); reload() })}
+              >
+                Draft estimates again
+              </button>
+            </div>
+          )}
           <p className="cap">
             For each factor, read the evidence and enter your own range first. Then show the agent’s range if you want
             to compare. Only the ranges you decide are used when you create the analysis.
@@ -94,12 +125,7 @@ export function EstimatesTab({ risk, agent, onRisk, reload, navigate }: Props) {
                 type="button"
                 className="btn primary"
                 disabled={busy}
-                onClick={() =>
-                  void act(async () => {
-                    const r = await api.analysisFromRisk(risk.riskId)
-                    navigate(`/analyses/${r.analysisId}`)
-                  })
-                }
+                onClick={() => void create(false)}
               >
                 Create analysis
               </button>
@@ -116,6 +142,14 @@ export function EstimatesTab({ risk, agent, onRisk, reload, navigate }: Props) {
                 </a>
               )}
             </div>
+            {staleBlock && (
+              <div className="check warn" role="alert">
+                {staleBlock}{' '}
+                <button type="button" className="btn" disabled={busy} onClick={() => void create(true)}>
+                  Create anyway
+                </button>
+              </div>
+            )}
           </section>
         </>
       )}

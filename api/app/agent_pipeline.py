@@ -467,7 +467,41 @@ def estimates_payload(session: Session, row: RiskRow, run_id: str, state) -> dic
     }
 
 
+def estimate_basis(session: Session, risk_pk: int, state) -> dict[str, Any] | None:
+    """What estimates drafted now would rest on: the usable scenario (draft
+    and content hash), the latest evidence run, and the current evidence item
+    IDs. None when there is no usable scenario."""
+    draft = state.drafts.get("scenario")
+    content = usable(draft)
+    if content is None:
+        return None
+    run = latest_evidence_run(session, risk_pk)
+    return {
+        "scenarioDraftId": draft.id,
+        "scenarioHash": scenario_hash({k: v for k, v in content.items() if k != "basedOn"}),
+        "evidenceRunId": run.id if run else None,
+        "evidenceItemIds": sorted(e.id for e in current_evidence(session, risk_pk)[0]),
+    }
+
+
+def estimates_stale(session: Session, risk_pk: int, draft: DraftRow, state) -> dict[str, bool]:
+    """Whether an estimate draft's scenario or evidence has changed since it
+    was drafted. A draft from before `basedOn` was recorded reports neither."""
+    based = (draft.payload or {}).get("basedOn")
+    if not based:
+        return {"scenario": False, "evidence": False}
+    now = estimate_basis(session, risk_pk, state)
+    if now is None:
+        return {"scenario": True,
+                "evidence": sorted(e.id for e in current_evidence(session, risk_pk)[0]) != based["evidenceItemIds"]}
+    return {
+        "scenario": (now["scenarioDraftId"], now["scenarioHash"]) != (based["scenarioDraftId"], based["scenarioHash"]),
+        "evidence": now["evidenceItemIds"] != based["evidenceItemIds"],
+    }
+
+
 def _draft_estimates(s: Session, row: RiskRow, run: AgentRunRow, state) -> None:
+    basis = estimate_basis(s, row.id, state)
     res = _call(s, run, "estimates", estimates_payload(s, row, run.id, state))
     if res is None:
         return
@@ -482,4 +516,6 @@ def _draft_estimates(s: Session, row: RiskRow, run: AgentRunRow, state) -> None:
             s.add(req)
             s.flush()
             u["data_request_id"] = req.id
+    # What these estimates rest on, to flag them when it changes.
+    out["basedOn"] = basis
     _draft(s, row.id, "estimate", out, run)

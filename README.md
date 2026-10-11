@@ -926,6 +926,27 @@ prototype first; otherwise choose the simpler option."
       decoded; before, a blocked `ASSET%2D412` would have been logged as is
     - labels on the Settings page for `encoded_path`, `url_too_long` and
       `url_query_too_long`
+- **Fix 3: estimates are marked out of date.**
+  - **What's stored:** an estimate draft now stores `basedOn`, from
+    `agent_pipeline.estimate_basis`, captured just before the model call:
+    - the scenario draft ID and content hash (as vectors use)
+    - the evidence run ID
+    - the sorted IDs of the evidence items sent
+  - **The flags:** `estimates_stale` compares it with the current state.
+    - `scenario`: the usable scenario is a different draft, has different
+      content, or is no longer approved.
+    - `evidence`: the current evidence item IDs differ. That covers a new
+      evidence run and a newly answered data request alike.
+    - Drafts from before this change have no `basedOn` and report neither.
+    - The evidence run ID is stored for the record but not compared; the item
+      IDs already change with every run.
+  - **In the UI:** the Estimates tab shows what changed above the factors, with
+    **Draft estimates again**. Decided ranges stay usable.
+  - **Creating the analysis:** create-analysis returns 409 naming what changed
+    unless the body has `acknowledgeStale: true`, which the page's **Create
+    anyway** button sends. The new analysis's scope notes then end with
+    "Estimates were drafted before the scenario changed." (or "the evidence",
+    or "the scenario and the evidence" when both changed).
 
 ## Later extensions
 

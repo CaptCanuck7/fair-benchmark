@@ -8,11 +8,12 @@ the agent's, or enters a third; that decision is what gets pushed.
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import agent_pipeline
 from app.content.factors import CONF, F
 from app.db import get_session
 from app.engine.distributions import dist_status
@@ -106,8 +107,11 @@ def estimates_out(session: Session, row: RiskRow) -> dict | None:
                         "revealedAt": rev.revealed_at} if rev else None),
             "decision": decisions.get(key),
         })
+    state = intake_states(session, [row.id])[row.id]
     return {"draftId": draft.id, "method": payload["method"], "factors": factors,
-            "decided": sum(1 for f in factors if f["decision"]), "agentRunId": draft.agent_run_id}
+            "decided": sum(1 for f in factors if f["decision"]), "agentRunId": draft.agent_run_id,
+            # What changed since these estimates were drafted.
+            "stale": agent_pipeline.estimates_stale(session, row.id, draft, state)}
 
 
 def _draft_or_409(session: Session, row: RiskRow) -> DraftRow:
@@ -261,18 +265,36 @@ def build_analysis(session: Session, row: RiskRow, scenario: dict, estimate: Dra
     return a, provenance
 
 
+class CreateIn(BaseModel):
+    acknowledgeStale: bool = False
+
+
+def stale_what(stale: dict[str, bool]) -> str | None:
+    """'the scenario', 'the evidence', both, or None."""
+    parts = [name for name in ("scenario", "evidence") if stale.get(name)]
+    return " and ".join(f"the {p}" for p in parts) if parts else None
+
+
 @router.post("/register/risks/{risk_id}/create-analysis", status_code=201)
-def create_analysis(risk_id: str, session: Session = Depends(get_session)) -> dict:
+def create_analysis(risk_id: str, body: CreateIn | None = Body(None), session: Session = Depends(get_session)) -> dict:
     """Build an analysis from the approved scenario and the decided ranges, and
     save it through the existing create path. Undecided factors stay empty; no
-    treatment state is created."""
+    treatment state is created. Estimates drafted before the scenario or the
+    evidence changed need `acknowledgeStale`."""
     row = get_risk(session, risk_id)
     state = intake_states(session, [row.id])[row.id]
     scenario_draft = state.drafts.get("scenario")
     scenario = usable(scenario_draft)
     if scenario is None:
         raise ApiError(409, "Approve or edit the scenario first: it becomes the analysis scope.")
-    analysis, provenance = build_analysis(session, row, scenario, latest_estimate(session, row.id))
+    estimate = latest_estimate(session, row.id)
+    changed = stale_what(agent_pipeline.estimates_stale(session, row.id, estimate, state)) if estimate else None
+    if changed and not (body and body.acknowledgeStale):
+        raise ApiError(409, f"The estimates were drafted before {changed} changed. Draft them again, or create "
+                            "the analysis anyway.")
+    analysis, provenance = build_analysis(session, row, scenario, estimate)
+    if changed:
+        analysis.scope.notes = f"{analysis.scope.notes}\nEstimates were drafted before {changed} changed.".strip()
     save_new(session, analysis)
     state0 = analysis.states[0].id
     for key, d in provenance:

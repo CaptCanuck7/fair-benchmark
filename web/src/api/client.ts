@@ -131,8 +131,10 @@ export const api = {
       range ? { choice, range } : { choice }),
   clearEstimate: (riskId: string, factor: string) =>
     json<RegisterRiskDetail>('DELETE', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}`),
-  analysisFromRisk: (riskId: string) =>
-    json<{ analysisId: string; factorsPushed: string[] }>('POST', `/register/risks/${encodeURIComponent(riskId)}/create-analysis`),
+  /** Create an analysis from a risk. `acknowledgeStale` creates it even if the estimates are out of date. */
+  analysisFromRisk: (riskId: string, acknowledgeStale = false) =>
+    json<{ analysisId: string; factorsPushed: string[] }>('POST', `/register/risks/${encodeURIComponent(riskId)}/create-analysis`,
+      acknowledgeStale ? { acknowledgeStale } : undefined),
   analysisAgent: (analysisId: string) => json<AnalysisAgentView>('GET', `/analyses/${encodeURIComponent(analysisId)}/agent`),
   startReview: (analysisId: string) =>
     json<{ runId: string }>('POST', `/agent/analyses/${encodeURIComponent(analysisId)}/review`),

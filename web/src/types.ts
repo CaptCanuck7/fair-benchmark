@@ -588,6 +588,8 @@ export interface EstimatesView {
   factors: EstimateFactor[]
   decided: number
   agentRunId: string | null
+  /** What changed since these estimates were drafted. */
+  stale: { scenario: boolean; evidence: boolean }
 }
 
 export interface ProvenanceFactor {
