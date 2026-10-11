@@ -9,6 +9,7 @@ import type {
   RegisterImportResult,
   RegisterRisk,
   RegisterRiskDetail,
+  ReviewAction,
   Run,
   RunSummary,
   TriageStatus,
@@ -108,6 +109,12 @@ export const api = {
   /** Re-run the quality check, triage and classification for one risk. */
   rerunIntake: (riskId: string) =>
     json<{ runId: string | null; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/intake`),
+  /** Start the scenario or vectors task for one risk. */
+  startRiskTask: (riskId: string, task: 'scenario' | 'vectors') =>
+    json<{ runId: string; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/${task}`),
+  /** Approve, edit or reject a draft. Returns the updated risk. */
+  reviewDraft: (draftId: number, action: ReviewAction, payload?: unknown) =>
+    json<RegisterRiskDetail>('PUT', `/drafts/${draftId}`, payload === undefined ? { action } : { action, payload }),
   /** Run the intake checks for every risk not yet checked on its current entry. */
   runRegisterIntake: () => json<{ queued: string[]; agentOff: string | null }>('POST', '/agent/register/intake'),
   triageOverride: (riskId: string, body: { status: TriageStatus; reason: string }) =>

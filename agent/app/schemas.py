@@ -4,9 +4,10 @@ Output models carry the checks the API's structured-output schema can't
 express; llm.py validates every reply against them and retries once.
 """
 
+import re
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 # --- Shared input ---------------------------------------------------------------
 
@@ -125,3 +126,149 @@ class TaskResult(BaseModel):
     input_tokens: int
     output_tokens: int
     attempts: int
+
+
+# --- Scenario scoping (section 9.3) ---------------------------------------------
+
+# The analysis document's existing values (CLAUDE.md section 3).
+ThreatType = Literal["Malicious, external", "Malicious, internal", "Error (accidental)",
+                     "Failure (system or vendor)", "Natural"]
+Effect = Literal["Confidentiality", "Integrity", "Availability"]
+NON_MALICIOUS = ("Error (accidental)", "Failure (system or vendor)", "Natural")
+
+
+class ClassificationIn(BaseModel):
+    primary_type: str
+    secondary_type: str | None = None
+
+
+class ScenarioRequest(BaseModel):
+    risk: RiskEntry
+    classification: ClassificationIn | None = None
+
+
+class ScenarioControl(BaseModel):
+    control: str = Field(max_length=300, description="The baseline control, as the register names it.")
+    factor: Literal["frequency", "susceptibility", "magnitude"] = Field(
+        description="frequency: how often the threat acts; susceptibility: whether an attempt succeeds; "
+                    "magnitude: how much is lost.")
+    helps: bool = Field(description="False when the control doesn't reduce loss in this scenario.")
+    note: str | None = Field(default=None, max_length=300, description="Required when helps is false: why not.")
+
+    @model_validator(mode="after")
+    def _note_when_unhelpful(self) -> "ScenarioControl":
+        if not self.helps and not (self.note or "").strip():
+            raise ValueError("a control that doesn't help in this scenario needs a note saying why")
+        return self
+
+
+class ScenarioAlternative(BaseModel):
+    title: str = Field(max_length=150)
+    asset: str = Field(max_length=200)
+    threat_community: str = Field(max_length=200)
+    threat_type: ThreatType
+    effect: Effect
+    split_reason: Literal["threat_type_or_effect_differs", "data_exposure_differs", "mitigation_differs"]
+    reason: str = Field(max_length=400, description="Why splitting this path out would help, in plain words.")
+
+
+class Scenario(BaseModel):
+    asset: str = Field(max_length=200)
+    threat_community: str = Field(max_length=200)
+    threat_type: ThreatType
+    effect: Effect
+    condition: str = Field(max_length=600, description="The weakness, kept separate from the risk.")
+    controls: list[ScenarioControl] = Field(max_length=15)
+    scenario_sentence: str = Field(max_length=500)
+    notes: list[str] = Field(max_length=8, description="Assumptions and open questions.")
+    alternatives: list[ScenarioAlternative] = Field(max_length=4)
+
+    @model_validator(mode="after")
+    def _sentence_shape(self) -> "Scenario":
+        s = self.scenario_sentence.strip()
+        # "causes" or "cause": threat communities are often plural ("cybercriminals cause ...").
+        if not re.search(r"\bcauses?\b", s) or not re.search(r"\bthrough\b", s) or not s.endswith("."):
+            raise ValueError('scenario_sentence must read "{threat community} causes {effect} to {asset} '
+                             'through {method}."')
+        for alt in self.alternatives:
+            if alt.split_reason == "threat_type_or_effect_differs" and \
+                    (alt.threat_type, alt.effect) == (self.threat_type, self.effect):
+                raise ValueError(f"alternative '{alt.title}' gives threat_type_or_effect_differs as its reason "
+                                 "but has the same threat type and effect as the default scenario")
+        return self
+
+
+# --- Attack vectors and failure paths (section 9.4) -----------------------------
+
+# Operational detail that has no place in a risk write-up: commands, code,
+# tool names used to run attacks, and injection strings.
+OPERATIONAL = re.compile(
+    r"`|\$\(|\bsudo\b|\bcurl\s+-|\bwget\s+http|\bpowershell\s+-|\bcmd\.exe\b|\bmsfconsole\b|\bmetasploit\b|"
+    r"\bmimikatz\b|\bsqlmap\b|\bhydra\s+-|\bnmap\s+-|\bpython3?\s+-c\b|<script|\bSELECT\s+\*\s+FROM\b|"
+    r"'\s*OR\s+'?1'?\s*=\s*'?1|\bUNION\s+SELECT\b|/etc/passwd|\bchmod\s+[0-7]{3}",
+    re.IGNORECASE,
+)
+
+
+STEP_NUMBER = re.compile(r"^\s*(?:\(?\d{1,2}[.)]|step\s+\d{1,2}[:.])\s+", re.IGNORECASE)
+
+
+def operational_detail(text: str) -> str | None:
+    m = OPERATIONAL.search(text or "")
+    return m.group(0) if m else None
+
+
+class VectorsRequest(BaseModel):
+    risk: RiskEntry
+    scenario: dict  # the approved (or analyst-edited) scenario
+
+
+class PathStep(BaseModel):
+    text: str = Field(max_length=400, description="One step, at the level of a risk write-up.")
+    controls: list[str] = Field(max_length=8, description="Baseline controls that matter at this step. May be empty.")
+
+    @field_validator("text")
+    @classmethod
+    def _no_own_numbering(cls, v: str) -> str:
+        # Steps are numbered when shown; drop "1." or "(1)" the model added itself.
+        return STEP_NUMBER.sub("", v).strip()
+
+
+class ThreatPath(BaseModel):
+    title: str = Field(max_length=150)
+    origin: Literal["from_register", "agent_drafted"]
+    steps: list[PathStep] = Field(min_length=1, max_length=8)
+    # Failure paths only (non-malicious threat types).
+    what_fails: str | None = Field(default=None, max_length=300)
+    makes_worse: list[str] = Field(default_factory=list, max_length=6)
+    limits: list[str] = Field(default_factory=list, max_length=6)
+
+
+class VectorsOutput(BaseModel):
+    kind: Literal["attack_vectors", "failure_paths"]
+    paths: list[ThreatPath] = Field(min_length=1, max_length=6)
+
+    @model_validator(mode="after")
+    def _rules(self, info: ValidationInfo) -> "VectorsOutput":
+        ctx = info.context or {}
+        if "non_malicious" in ctx:
+            want = "failure_paths" if ctx["non_malicious"] else "attack_vectors"
+            if self.kind != want:
+                raise ValueError(f"kind must be {want} for this scenario's threat type")
+        if self.kind == "failure_paths":
+            for p in self.paths:
+                if not (p.what_fails or "").strip():
+                    raise ValueError(f"failure path '{p.title}' needs what_fails")
+        if "from_register" in ctx:
+            want_origin = "from_register" if ctx["from_register"] else "agent_drafted"
+            if any(p.origin != want_origin for p in self.paths):
+                raise ValueError(f"every path's origin must be {want_origin}")
+            if not ctx["from_register"] and len(self.paths) > 3:
+                raise ValueError("draft at most three paths when the register has no exploit paths")
+        for p in self.paths:
+            for text in [p.title, p.what_fails or "", *p.makes_worse, *p.limits, *(s.text for s in p.steps)]:
+                found = operational_detail(text)
+                if found:
+                    raise ValueError(f"'{p.title}' contains operational detail ({found!r}); describe steps at "
+                                     "the level of a risk write-up, with no commands, code or tool instructions")
+        return self

@@ -11,6 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app import agent_pipeline
+from app.register.drafts import usable
+from app.register.state import IntakeState, current_stages, intake_states, task_blocker
 from app.agent_client import fetch_agent_status
 from app.config import settings
 from app.db import get_session
@@ -105,34 +107,6 @@ FIELD_LABELS = {
 }
 
 
-class IntakeState:
-    """The latest intake drafts and run state for one risk."""
-
-    def __init__(self, drafts: dict[str, DraftRow], busy: bool, last_run: AgentRunRow | None):
-        self.drafts, self.busy, self.last_run = drafts, busy, last_run
-
-    def get(self, kind: str) -> dict | None:
-        d = self.drafts.get(kind)
-        return d.effective if d else None
-
-
-def intake_states(session: Session, risk_pks: list[int]) -> dict[int, IntakeState]:
-    """Latest quality, triage and classification drafts and run state, per risk."""
-    drafts: dict[int, dict[str, DraftRow]] = {pk: {} for pk in risk_pks}
-    for d in session.scalars(select(DraftRow).where(DraftRow.risk_pk.in_(risk_pks),
-                                                   DraftRow.kind.in_(agent_pipeline.TASKS)).order_by(DraftRow.id)):
-        drafts[d.risk_pk][d.kind] = d
-    runs: dict[int, list[AgentRunRow]] = {pk: [] for pk in risk_pks}
-    for r in session.scalars(select(AgentRunRow).where(AgentRunRow.risk_pk.in_(risk_pks))
-                             .order_by(AgentRunRow.started_at, AgentRunRow.id)):
-        runs[r.risk_pk].append(r)
-    return {
-        pk: IntakeState(drafts[pk], any(r.status in agent_pipeline.ACTIVE for r in runs[pk]),
-                        runs[pk][-1] if runs[pk] else None)
-        for pk in risk_pks
-    }
-
-
 def _note(quality: dict | None, triage: dict | None) -> str | None:
     """Why a risk stopped: the gaps for needs_info, the reason for screened out."""
     if quality and quality["status"] == "needs_info":
@@ -147,17 +121,6 @@ def _note(quality: dict | None, triage: dict | None) -> str | None:
             return f"Screened out by {override['by']}: {override['reason']}"
         return triage.get("reason") or triage["rule"]
     return None
-
-
-def current_stages(state: IntakeState) -> tuple[dict | None, dict | None, dict | None]:
-    """Quality, triage and classification results, counting only the stages the
-    pipeline reached for the current quality result."""
-    quality, triage, classification = state.get("quality"), state.get("triage"), state.get("classification")
-    if not quality or quality["status"] != "ready":
-        triage = classification = None
-    elif not triage or triage["status"] != "qualifies":
-        classification = None
-    return quality, triage, classification
 
 
 def risk_summary(row: RiskRow, state: IntakeState | None = None) -> dict:
@@ -231,6 +194,19 @@ def draft_out(d: DraftRow, runs: dict[str, AgentRunRow]) -> dict:
     }
 
 
+def vectors_stale(state: IntakeState) -> bool:
+    """True when the vectors were built from a scenario that has since changed."""
+    vectors, scenario = state.drafts.get("vectors"), state.drafts.get("scenario")
+    if vectors is None:
+        return False
+    based = (vectors.payload or {}).get("basedOn") or {}
+    current = usable(scenario)
+    if current is None:
+        return True
+    current = {k: v for k, v in current.items() if k != "basedOn"}
+    return based.get("scenarioDraftId") != scenario.id or         based.get("scenarioHash") != agent_pipeline.scenario_hash(current)
+
+
 def risk_detail_out(session: Session, row: RiskRow) -> dict:
     imp = session.get(RegisterImportRow, row.import_id)
     state = intake_states(session, [row.id])[row.id]
@@ -238,7 +214,8 @@ def risk_detail_out(session: Session, row: RiskRow) -> dict:
                            .order_by(AgentRunRow.started_at.desc(), AgentRunRow.id.desc())).all()
     by_id = {r.id: r for r in runs}
     drafts = session.scalars(select(DraftRow).where(DraftRow.risk_pk == row.id).order_by(DraftRow.id.desc())).all()
-    reached = dict(zip(agent_pipeline.TASKS, current_stages(state)))
+    # Rejected drafts are shown (so the analyst can see and reverse them) but not used downstream.
+    reached = dict(zip(agent_pipeline.TASKS, current_stages(state, include_rejected=True)))
     return {
         **risk_summary(row, state),
         "fields": row.fields,
@@ -257,6 +234,11 @@ def risk_detail_out(session: Session, row: RiskRow) -> dict:
         # The current intake results: only the stages the pipeline reached.
         "intake": {kind: draft_out(state.drafts[kind], by_id) if reached[kind] is not None else None
                    for kind in agent_pipeline.TASKS},
+        "scenario": draft_out(state.drafts["scenario"], by_id) if "scenario" in state.drafts else None,
+        "vectors": draft_out(state.drafts["vectors"], by_id) if "vectors" in state.drafts else None,
+        "vectorsStale": vectors_stale(state),
+        # Why each analyst-started task can't run yet (null when it can).
+        "blocked": {task: task_blocker(state, task) for task in agent_pipeline.RISK_TASKS},
         "triageThreshold": settings.triage_min_score,
         "drafts": [draft_out(d, by_id) for d in drafts],
         "runs": [run_out(r) for r in runs[:30]],

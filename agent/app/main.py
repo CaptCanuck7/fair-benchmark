@@ -14,8 +14,8 @@ from pydantic import BaseModel
 
 from app.config import not_configured_reason, settings
 from app.llm import LLM, LLMError, LLMResult
-from app.schemas import ClassifyRequest, QualityRequest, TaskResult, TriageRequest
-from app.tasks import classify, quality, triage
+from app.schemas import ClassifyRequest, QualityRequest, ScenarioRequest, TaskResult, TriageRequest, VectorsRequest
+from app.tasks import classify, quality, scenario, triage, vectors
 
 app = FastAPI(title="FAIR workbench agent", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -98,3 +98,13 @@ def task_triage(req: TriageRequest):
 @app.post("/tasks/classify", response_model=TaskResult)
 def task_classify(req: ClassifyRequest):
     return _run_task(classify.PROMPT_VERSION, lambda llm: classify.run(llm, req))
+
+
+@app.post("/tasks/scenario", response_model=TaskResult)
+def task_scenario(req: ScenarioRequest):
+    return _run_task(scenario.PROMPT_VERSION, lambda llm: scenario.run(llm, req))
+
+
+@app.post("/tasks/vectors", response_model=TaskResult)
+def task_vectors(req: VectorsRequest):
+    return _run_task(vectors.PROMPT_VERSION, lambda llm: vectors.run(llm, req))

@@ -1,0 +1,1581 @@
+{
+  "scenario": {
+    "End-of-Support OS on Customer SFTP File Transfer Servers": {
+      "asset": "Customer payroll files (employee names, national ID numbers, bank account details and pay data) held on the two customer SFTP servers, Asset-412 and Asset-413",
+      "threat_community": "External cybercriminals who can reach the servers, including through allowlisted customer networks",
+      "threat_type": "Malicious, external",
+      "effect": "Confidentiality",
+      "condition": "Both SFTP (Secure File Transfer Protocol) servers run an operating system that reached end of support in January 2026. It gets no security patches, so any newly disclosed flaw stays open. The firewall allowlist also includes several broad /16 ranges, and no SIEM alert rules exist for these servers. Migration to the managed file transfer platform is planned but not funded this quarter.",
+      "controls": [
+        {
+          "control": "Firewall allowlist limits inbound connections to registered customer IP ranges (several are broad /16 blocks)",
+          "factor": "frequency",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Key-based authentication only",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": "Stops password guessing, but does not stop pre-authentication exploits, and a stolen customer key still gives a login."
+        },
+        {
+          "control": "Files purged 7 days after pickup",
+          "factor": "magnitude",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "OS and SFTP logs forwarded to the SIEM (security information and event management), with no alert rules specific to these servers",
+          "factor": "magnitude",
+          "helps": false,
+          "note": "Logs are collected, but with no alert rules for these servers nobody is told in time to limit the loss."
+        }
+      ],
+      "scenario_sentence": "External cybercriminals cause loss of confidentiality to customer payroll files on the two customer SFTP servers through exploiting unpatched operating system flaws, reached from allowlisted ranges, with stolen customer keys, or by lateral movement from an internal foothold.",
+      "notes": [
+        "Assumed the default scenario covers all three exploit paths in the entry, since they share the same asset, threat community and effect.",
+        "Assumed the lateral movement path (3) is carried out by an external attacker who already has an internal foothold, not by a malicious insider.",
+        "The entry says a compromise exposes every customer's files on disk at that time. The amount on disk depends on the 7-day purge window and upload volume, which the entry does not give.",
+        "The entry says about 340 customers upload files, but not how many have files on disk at any one time.",
+        "Assumed the SIEM logs help with detection after the fact only, so they are marked as not reducing loss until alert rules exist.",
+        "Open question: do management ports on these servers have any extra restrictions, such as a separate network zone or an administrative jump host? The entry does not say.",
+        "Open question: is there any evidence of past attempts or compromise on these servers since January 2026?",
+        "The planned interim steps (narrower allowlist, SIEM alert rules, 3-day purge) are not treated as baseline controls here."
+      ],
+      "alternatives": [
+        {
+          "title": "Stolen customer key used to escalate privileges and read other customers' folders",
+          "asset": "Other customers' payroll files on the SFTP servers, reached from one customer's login",
+          "threat_community": "External cybercriminals holding a stolen customer SFTP key",
+          "threat_type": "Malicious, external",
+          "effect": "Confidentiality",
+          "split_reason": "mitigation_differs",
+          "reason": "Narrowing allowlist ranges does little here because the attacker uses a valid key. Key rotation or per-customer isolation would matter more. A shorter purge window and SIEM alerts would affect this path differently from remote exploit."
+        }
+      ]
+    },
+    "No MFA on Legacy Support Admin Console": {
+      "asset": "Customer tenant data held in the legacy support admin console (Asset-118, Nova environment), including the ability to view and change it",
+      "threat_community": "External attackers using stolen or guessed support engineer credentials",
+      "threat_type": "Malicious, external",
+      "effect": "Confidentiality",
+      "condition": "The legacy support admin console signs in with username and password only. It is not connected to corporate single sign-on (SSO), so multi-factor authentication (MFA) is not enforced. About 220 support engineers use it, and 35 accounts can impersonate any customer administrator.",
+      "controls": [
+        {
+          "control": "Console reachable only from the corporate network or VPN (VPN requires MFA)",
+          "factor": "frequency",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "12-character passwords with 90-day rotation",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Account lockout after 10 failed attempts",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Console activity logs retained for 90 days and reviewed only on request",
+          "factor": "magnitude",
+          "helps": false,
+          "note": "Logs are reviewed only on request, so they do not stop or limit an attack in progress. They only support later investigation."
+        },
+        {
+          "control": "Quarterly access recertification",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": null
+        }
+      ],
+      "scenario_sentence": "External attackers using stolen or guessed support engineer credentials cause loss of confidentiality to customer tenant data in the legacy support admin console through logging in with phished, sprayed or reused passwords from a compromised corporate endpoint, an active VPN session or an internal foothold.",
+      "notes": [
+        "Assumed the default effect is confidentiality because the risk statement leads with viewing customer tenant data. Changing data (integrity) is treated as a secondary effect.",
+        "Assumed the attacker first gains a foothold on the corporate network or VPN, since the console is not reachable from outside. The entry does not say how likely that step is.",
+        "Password reuse from third-party breaches (path 3) still needs network access to the console. The entry does not say whether this path depends on the same foothold.",
+        "The entry does not say how many customer tenants or records are exposed, or whether tenant data is encrypted. Please confirm for magnitude.",
+        "Lockout at 10 failed attempts is assumed to be per account, which is why password spraying can stay under it.",
+        "Logs are kept 90 days and reviewed only on request. Assumed there is no active detection today, since alerting on impersonation events is only in the mitigation plan.",
+        "The 6% phishing simulation click rate is noted as context for susceptibility to phishing. It is not a control.",
+        "Mitigation plan (SSO, MFA, disabling local login, impersonation alerting) is not treated as a baseline control."
+      ],
+      "alternatives": [
+        {
+          "title": "Malicious change of customer tenant data via impersonation",
+          "asset": "Customer tenant configuration and data changeable through the 35 impersonation-capable accounts",
+          "threat_community": "External attackers using stolen credentials of impersonation-privileged accounts",
+          "threat_type": "Malicious, external",
+          "effect": "Integrity",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "Acting as a customer administrator lets an attacker change data, not just read it. This is a different effect with different losses, such as restoring tenants and customer disputes."
+        },
+        {
+          "title": "Impersonation-privileged accounts versus ordinary support accounts",
+          "asset": "Customer tenant data reachable through the 35 impersonation-privileged accounts",
+          "threat_community": "External attackers using stolen credentials of impersonation-privileged accounts",
+          "threat_type": "Malicious, external",
+          "effect": "Confidentiality",
+          "split_reason": "mitigation_differs",
+          "reason": "The plan adds alerting on tenant impersonation events, which affects only the 35 privileged accounts. MFA and SSO apply to all 220 users. Splitting lets the analyst measure each mitigation separately."
+        }
+      ]
+    },
+    "Over-Privileged CI/CD Deployment Role in Production Cloud Account": {
+      "asset": "Production data and infrastructure in the Granite production cloud account (Asset-907, Asset-355)",
+      "threat_community": "External attackers who compromise the build pipeline, its engineer accounts, its access keys or a third-party build dependency",
+      "threat_type": "Malicious, external",
+      "effect": "Confidentiality",
+      "condition": "The deployment role used by the CI/CD (continuous integration and continuous delivery) pipeline has wildcard administrative permissions instead of deployment-scoped permissions. It uses long-lived access keys stored as pipeline variables, last rotated 14 months ago. About 60 engineers can edit pipeline definitions, and one reviewer is enough to approve a change. The posture tool has flagged the finding as high severity for 5 months without a fix.",
+      "controls": [
+        {
+          "control": "Pipeline changes require a pull request with one reviewer",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Cloud audit logging is enabled and forwarded to the SIEM (security information and event management system)",
+          "factor": "magnitude",
+          "helps": true,
+          "note": "Logging does not block access. It helps detect misuse and shorten the time the attacker has, which limits how much is lost."
+        },
+        {
+          "control": "The production account is separate from development and test accounts",
+          "factor": "magnitude",
+          "helps": false,
+          "note": "The role is over-privileged inside the production account itself, so the separation does not limit what the attacker can reach in this scenario."
+        },
+        {
+          "control": "The posture tool scans daily",
+          "factor": "frequency",
+          "helps": false,
+          "note": "The tool has flagged this finding for 5 months with no fix. It detects the weakness but does not reduce attacker success or loss."
+        }
+      ],
+      "scenario_sentence": "External attackers cause loss of confidentiality to production data and infrastructure in the Granite production cloud account through use of the over-privileged CI/CD deployment role after compromising the pipeline, its access keys or a third-party build dependency.",
+      "notes": [
+        "Assumed the default effect is confidentiality because the risk statement lists reading data first. The entry also names changing and destroying data, which would be integrity and availability losses.",
+        "Assumed Asset-907 and Asset-355 are the production data and infrastructure reachable by the deployment role. The entry does not describe them.",
+        "The entry does not say what data is held in the production account or how sensitive it is. This is needed to estimate loss magnitude.",
+        "Exploit path 1 may start with a malicious engineer. Treated here as an attacker using a compromised engineer account. A true insider would be a different threat community.",
+        "The entry does not say whether the SIEM has alerts for deployment role activity, or how fast anyone would respond.",
+        "The entry does not say whether the access keys have been seen in build logs or leaked before.",
+        "Assumed the mitigation plan is not yet in place, so all baseline controls are as described."
+      ],
+      "alternatives": [
+        {
+          "title": "Attacker destroys or alters production infrastructure and data using the deployment role",
+          "asset": "Production infrastructure and data integrity in the Granite production cloud account",
+          "threat_community": "External attackers who compromise the build pipeline or its credentials",
+          "threat_type": "Malicious, external",
+          "effect": "Availability",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "Deleting or changing infrastructure causes outage and recovery costs, not data exposure. The loss types and the response differ from the confidentiality scenario, so they should be sized separately."
+        },
+        {
+          "title": "Malicious engineer abuses pipeline edit access to run commands as the deployment role",
+          "asset": "Production data and infrastructure in the Granite production cloud account",
+          "threat_community": "Malicious insiders among the roughly 60 engineers who can edit pipeline definitions",
+          "threat_type": "Malicious, internal",
+          "effect": "Confidentiality",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "An insider has legitimate access and knows the system. The threat type, how often it happens and how well the one-reviewer check works all differ from an outside attacker."
+        },
+        {
+          "title": "Leaked pipeline access keys are used directly from outside the pipeline",
+          "asset": "Production data and infrastructure in the Granite production cloud account",
+          "threat_community": "External attackers who obtain leaked long-lived access keys",
+          "threat_type": "Malicious, external",
+          "effect": "Confidentiality",
+          "split_reason": "mitigation_differs",
+          "reason": "Moving to short-lived federated credentials mainly stops this path. The reviewer rule on pipeline changes does not affect it, so the mitigations hit the paths differently."
+        }
+      ]
+    },
+    "User Access Reviews Not Performed for Payroll Processing Application": {
+      "asset": "Payroll data in the payroll processing application (Asset-562), covering about 480 internal user accounts' access to view and change payroll records",
+      "threat_community": "Users with stale access (people who changed roles and former contractors) and attackers who take over their dormant accounts",
+      "threat_type": "Malicious, internal",
+      "effect": "Confidentiality",
+      "condition": "Quarterly user access reviews were not done for Q1 and Q2 2026 because the application owner role was vacant. A spot check of 50 accounts found 7 role changers and 2 terminated contractors who still had access. 30 local accounts sit outside single sign-on (SSO), so HR-driven deprovisioning and multi-factor authentication (MFA) do not cover them.",
+      "controls": [
+        {
+          "control": "SSO with MFA for all accounts except the 30 local accounts",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": "Does not cover the 30 local accounts. It also does not stop a user whose access is still active and approved."
+        },
+        {
+          "control": "HR-driven deprovisioning of SSO accounts on termination",
+          "factor": "frequency",
+          "helps": true,
+          "note": "Covers leavers on SSO only. It does not catch role changers, contractors missed by HR, or the 30 local accounts."
+        },
+        {
+          "control": "Role-based access inside the application",
+          "factor": "magnitude",
+          "helps": true,
+          "note": "Limits what each role can see, but stale roles from previous jobs still grant access to payroll data."
+        },
+        {
+          "control": "Application audit log records payroll changes",
+          "factor": "magnitude",
+          "helps": true,
+          "note": "Records changes only, so it may not show who viewed data. It helps detect and investigate after the event rather than prevent it."
+        }
+      ],
+      "scenario_sentence": "Users with stale access, or attackers who take over their dormant accounts, cause loss of confidentiality to payroll data in the payroll processing application through access that was never removed because reviews were not done.",
+      "notes": [
+        "Assumed the default scenario is unauthorized viewing of payroll data (confidentiality) by people with stale access, as the risk statement lists viewing first.",
+        "Assumed stale-access users acting on their own are the main threat community, and that account takeover of dormant accounts is a path within the same scenario.",
+        "The entry does not say whether the audit log records read access. This matters for detecting unauthorized viewing.",
+        "The entry does not say what the payroll data includes (for example bank details or national ID numbers). Please confirm, as this affects loss magnitude.",
+        "The spot check found 9 of 50 accounts (18%) with unneeded access. It is unknown whether this rate applies to all 480 accounts.",
+        "It is unknown whether any of the stale accounts were actually used to view or change data. Audit log review could show this.",
+        "Assumed MFA is enforced for all SSO accounts as the entry states.",
+        "The likely SOC 2 (System and Organization Controls 2) audit exception is a compliance matter. Any related losses such as audit findings or customer impact are not scoped here."
+      ],
+      "alternatives": [
+        {
+          "title": "Stale access users change payroll data without authorization",
+          "asset": "Integrity of payroll records in the payroll processing application (Asset-562)",
+          "threat_community": "Users with stale access, including role changers and terminated contractors",
+          "threat_type": "Malicious, internal",
+          "effect": "Integrity",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "Changing payroll data (for example pay or bank details) is a different effect from viewing it. Losses such as fraudulent payments and corrections differ from those of a data exposure."
+        },
+        {
+          "title": "Takeover of the 30 local accounts outside SSO",
+          "asset": "Payroll data in the payroll processing application (Asset-562)",
+          "threat_community": "External cybercriminals taking over dormant local accounts",
+          "threat_type": "Malicious, external",
+          "effect": "Confidentiality",
+          "split_reason": "mitigation_differs",
+          "reason": "The plan to migrate or remove the 30 local accounts affects this path differently from the access review of all 480 accounts. These accounts also lack MFA and HR deprovisioning, so the threat and controls differ."
+        }
+      ]
+    },
+    "Unsupported Insecure Protocol on Third-Party Benefits Integration": {
+      "asset": "Customer employee data (names, dates of birth, dependents and benefit elections) exchanged with the third-party benefits provider through the legacy integration (Asset-274, Asset-690)",
+      "threat_community": "External attackers on the network path or holding the shared integration credential",
+      "threat_type": "Malicious, external",
+      "effect": "Confidentiality",
+      "condition": "The benefits integration uses a legacy SOAP (Simple Object Access Protocol) API over TLS 1.0 with basic authentication and one shared service account. The provider no longer supports this API version and issues no security fixes for it.",
+      "controls": [
+        {
+          "control": "Firewall rules restrict integration traffic to the provider's IP ranges",
+          "factor": "frequency",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Web application firewall (WAF) on the product's public endpoints",
+          "factor": "susceptibility",
+          "helps": false,
+          "note": "It does not inspect outbound server-to-server integration traffic, so it does not reduce loss here."
+        },
+        {
+          "control": "Integration requests are logged",
+          "factor": "magnitude",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Only authenticated, authorized customer users can trigger the integration",
+          "factor": "frequency",
+          "helps": false,
+          "note": "It limits who can start the integration from the product. It does not stop network interception or use of the stolen shared credential directly against the provider."
+        }
+      ],
+      "scenario_sentence": "External attackers cause loss of confidentiality to customer employee data exchanged with the third-party benefits provider through interception of the TLS 1.0 session or theft and misuse of the shared basic-authentication credential.",
+      "notes": [
+        "Assumed the default scenario is confidentiality only, covering paths 1 and 2. Tampering in path 1 is an integrity effect and is not covered here.",
+        "Assumed an attacker on the network path is able to break or downgrade TLS 1.0. The entry does not say how likely this is.",
+        "The entry does not say where the shared credential is stored or who can read the configuration. Please confirm.",
+        "The firewall allowlist limits who can reach the provider from the product. It is unclear whether it limits where the stolen credential can be used against the provider.",
+        "Logging is assumed to help with detection and scoping after an event. The entry does not say if anyone reviews the logs or if alerts exist today.",
+        "About 1,100 customers use the feature. Please confirm how much data could be exposed in one event.",
+        "The provider has given no firm retirement date for the legacy API. This affects the path 3 timing."
+      ],
+      "alternatives": [
+        {
+          "title": "Provider retires legacy API and benefits feature stops",
+          "asset": "Availability of the benefits enrollment feature for about 1,100 customers",
+          "threat_community": "The third-party benefits provider",
+          "threat_type": "Failure (system or vendor)",
+          "effect": "Availability",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "This path is not malicious and causes loss of availability, not loss of confidentiality. It needs its own frequency and loss estimates, such as support cost and customer impact."
+        },
+        {
+          "title": "Tampering with benefit data in transit",
+          "asset": "Integrity of benefit elections and employee data exchanged with the provider",
+          "threat_community": "External attackers on the network path",
+          "threat_type": "Malicious, external",
+          "effect": "Integrity",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "Tampering corrupts data instead of exposing it. The loss types differ, such as correcting wrong enrollments, so it needs a separate estimate."
+        }
+      ]
+    },
+    "No Data Loss Prevention on Workstations Handling Customer Data Extracts": {
+      "asset": "Customer data extracts downloaded to the 85 data engineer and support analyst workstations (Asset-731, Nova environment)",
+      "threat_community": "Employees and contractors with workstation access to customer data extracts, including malware running under their accounts",
+      "threat_type": "Malicious, internal",
+      "effect": "Confidentiality",
+      "condition": "The 85 workstations have no Data Loss Prevention (DLP) agent or egress monitoring. USB mass storage and personal cloud storage are not blocked. Extracts are not tracked after download and no retention limit is enforced, so old extracts stay on workstations (9 of 20 sampled had extracts older than 90 days).",
+      "controls": [
+        {
+          "control": "Full-disk encryption on all workstations",
+          "factor": "magnitude",
+          "helps": false,
+          "note": "Encryption protects data at rest if a device is lost or stolen. It does not stop a logged-in user or malware from copying files to USB or cloud storage."
+        },
+        {
+          "control": "EDR (endpoint detection and response) agent on all workstations",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": "May detect malware activity, but it is not built to spot a user copying extracts to USB or cloud storage."
+        },
+        {
+          "control": "Acceptable use policy and annual training",
+          "factor": "frequency",
+          "helps": true,
+          "note": "Discourages deliberate or careless copying but does not technically prevent it."
+        },
+        {
+          "control": "Extract requests require ticket approval",
+          "factor": "magnitude",
+          "helps": true,
+          "note": "Limits who can get extracts and leaves a record of requests, but does not control what happens after download."
+        },
+        {
+          "control": "Web proxy logs retained for 30 days",
+          "factor": "magnitude",
+          "helps": true,
+          "note": "Supports after-the-fact detection and investigation of uploads through the proxy. It does not prevent copying and does not cover USB."
+        }
+      ],
+      "scenario_sentence": "Employees and contractors with workstation access to customer data extracts, including malware running under their accounts, cause loss of confidentiality to customer data extracts on the 85 workstations through copying to personal cloud storage or removable media.",
+      "notes": [
+        "Assumed the default is the insider path (employee or contractor acting on purpose), with malware on the workstation as a second path to the same loss.",
+        "Open question: is the insider copying deliberate or accidental? The risk statement does not say. Deliberate misuse is assumed.",
+        "Open question: how many customer records are in a typical extract, and do they include sensitive fields? The entry does not say.",
+        "Open question: does the EDR agent have any device control or upload monitoring features turned on?",
+        "Assumed the web proxy covers traffic from these workstations to cloud storage sites, but not off-network use or USB.",
+        "Assumed the 2025 audit finding (old extracts on 9 of 20 workstations) raises the amount of data exposed per event, not how often events occur.",
+        "The register entry does not say whether any past copying incidents have occurred."
+      ],
+      "alternatives": [
+        {
+          "title": "Malware on workstation exfiltrates stored extracts",
+          "asset": "Customer data extracts stored on the 85 workstations",
+          "threat_community": "External cybercriminals running malware on a workstation",
+          "threat_type": "Malicious, external",
+          "effect": "Confidentiality",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "The actor is external, not an insider. EDR matters much more here, and the likelihood and attack steps differ from deliberate insider copying."
+        },
+        {
+          "title": "Employee accidentally leaves extracts on workstations past retention",
+          "asset": "Customer data extracts older than 90 days on workstations",
+          "threat_community": "Data engineers and support analysts",
+          "threat_type": "Error (accidental)",
+          "effect": "Confidentiality",
+          "split_reason": "mitigation_differs",
+          "reason": "The planned move to a controlled analysis environment removes local extracts, which fixes this path. DLP and USB blocking mainly address deliberate copying, so the mitigations affect the paths differently."
+        }
+      ]
+    },
+    "Backup Restoration Untested for Time and Attendance Database": {
+      "asset": "Time and attendance production database (Asset-208, about 6 TB, Granite environment) and its availability to about 2,300 customers who use it for timekeeping that feeds payroll",
+      "threat_community": "Mixed causes of data loss: database corruption from a failed change or system fault, and ransomware actors, affecting the backup and recovery process",
+      "threat_type": "Failure (system or vendor)",
+      "effect": "Availability",
+      "condition": "No full restore test has been run in 19 months. The last test predates a major schema change and a storage migration. The real restore time for the 6 TB database is unknown, so the team cannot show it can meet the 8-hour recovery time objective.",
+      "controls": [
+        {
+          "control": "Nightly full and hourly log backups to a separate storage account",
+          "factor": "magnitude",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Backup job monitoring with alerts on failure",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": "It catches failed backup jobs. It does not show whether a restore works or how long it takes, so it only partly reduces the loss."
+        },
+        {
+          "control": "Immutable backup copies retained for 30 days",
+          "factor": "magnitude",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Database replicated to a secondary region",
+          "factor": "magnitude",
+          "helps": false,
+          "note": "Replication would also copy logical corruption, so it does not help recover from corruption or a bad change. It may help only with a regional outage, which the entry does not describe."
+        }
+      ],
+      "scenario_sentence": "A data-loss event on the time and attendance database (corruption, failed change or ransomware) causes loss of availability to the time and attendance production database through a restore that cannot finish within the 8-hour recovery time objective.",
+      "notes": [
+        "Assumed the default scenario is loss of availability from a slow or failed restore, not a breach of confidentiality, even though ransomware is one trigger.",
+        "Assumed threat type is Failure (system or vendor), since the entry lists corruption and a failed change alongside ransomware. The analyst may prefer to split ransomware out.",
+        "The actual restore time is unknown. Open question: what is a reasonable estimate for a 6 TB restore on the migrated storage?",
+        "Open question: has the restore procedure been checked against the new schema and storage after the migration?",
+        "Assumed SLA credits apply when the 8-hour objective is missed. The entry does not give credit amounts or contract terms.",
+        "Assumed the 24-hour recovery point objective is met by the hourly log backups. The entry does not confirm this.",
+        "The entry does not say how often corruption, failed changes or ransomware events have occurred, so frequency needs to be estimated.",
+        "Open question: is the immutable copy a full backup that can be restored on its own, and has it been tested?"
+      ],
+      "alternatives": [
+        {
+          "title": "Ransomware encrypts the time and attendance database and backups are needed",
+          "asset": "Time and attendance production database (Asset-208)",
+          "threat_community": "External ransomware operators",
+          "threat_type": "Malicious, external",
+          "effect": "Availability",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "Ransomware is a deliberate external attack, while the default covers accidental failures. Frequency and controls differ. Immutable backups matter most here, and the attacker may also try to reach backups."
+        },
+        {
+          "title": "Logical corruption or failed change replicated to the secondary region",
+          "asset": "Time and attendance production database (Asset-208)",
+          "threat_community": "Internal staff making changes, and the database system",
+          "threat_type": "Error (accidental)",
+          "effect": "Integrity",
+          "split_reason": "mitigation_differs",
+          "reason": "Replication copies bad data, so only backups and restore tests help. The restore test mitigation affects this path more than the ransomware path, where immutable copies already help."
+        }
+      ]
+    },
+    "Hardcoded Secrets in Source Code Repositories": {
+      "asset": "Production database contents and third-party service data (payments and messaging providers) reachable with the 212 hardcoded secrets in 41 source code repositories (Asset-846, Asset-129)",
+      "threat_community": "external attackers who take over a developer or contractor account with repository access",
+      "threat_type": "Malicious, external",
+      "effect": "Confidentiality",
+      "condition": "212 secrets, including 18 production database credentials and 9 third-party API keys, are hardcoded in 41 repositories and many have never been rotated. Use of the central vault is voluntary. There is no pre-commit or push-time secret scanning, and the only check is a manual scan each quarter. About 1,900 engineers and 150 contractors can read the repositories.",
+      "controls": [
+        {
+          "control": "Repositories are private and require single sign-on (SSO) with multi-factor authentication (MFA)",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": null
+        },
+        {
+          "control": "Production databases are reachable only from production network segments",
+          "factor": "frequency",
+          "helps": true,
+          "note": "Limits direct use of database credentials from outside. It does not help against third-party API keys, which work from the internet, or against an attacker already inside the production network."
+        },
+        {
+          "control": "Central secrets vault exists but use is voluntary",
+          "factor": "susceptibility",
+          "helps": false,
+          "note": "The 212 secrets are still in the code, so the vault does not reduce loss until secrets are moved into it."
+        },
+        {
+          "control": "Manual secret scan run quarterly",
+          "factor": "frequency",
+          "helps": false,
+          "note": "It finds secrets after the fact and does not stop them being committed. Old secrets stayed in history unrotated for over two years, so it has not reduced exposure."
+        }
+      ],
+      "scenario_sentence": "External attackers who take over a developer or contractor account cause loss of confidentiality to production database contents and third-party service data through harvesting hardcoded secrets from source code repositories and using them to access those systems.",
+      "notes": [
+        "Assumed the default scenario covers the attacker path where an account is compromised and secrets are harvested, then used against both databases and third-party services.",
+        "The entry does not say what data the production databases or the payments and messaging providers hold. The records and volume at stake are an open question.",
+        "The entry does not say if any secret has already been misused. Evidence of past misuse would change how often the threat acts.",
+        "Assumed Asset-846 and Asset-129 are the repository or system assets linked to this risk. The entry does not say which is which.",
+        "The entry does not say if secrets are shared across repositories or environments. If so, one stolen secret could expose more.",
+        "The entry does not say how the 1,900 engineers and 150 contractors are protected beyond SSO and MFA. For example, device checks and session limits are not mentioned.",
+        "The mitigation plan (rotation, vault, push-time scanning) is not yet in place and is not counted as a baseline control."
+      ],
+      "alternatives": [
+        {
+          "title": "Malicious insider or intruder in production network uses database credentials",
+          "asset": "Production databases holding the 18 exposed credentials",
+          "threat_community": "malicious insiders or attackers with a foothold in the production network",
+          "threat_type": "Malicious, internal",
+          "effect": "Confidentiality",
+          "split_reason": "mitigation_differs",
+          "reason": "Network segmentation does not stop someone already inside production. Rotation and vault changes would affect this path differently from the account takeover path."
+        },
+        {
+          "title": "Internet misuse of third-party API keys for fraud or data reads",
+          "asset": "Payments and messaging provider accounts and data reachable with the 9 API keys",
+          "threat_community": "external attackers using stolen API keys from the internet",
+          "threat_type": "Malicious, external",
+          "effect": "Integrity",
+          "split_reason": "threat_type_or_effect_differs",
+          "reason": "Sending fraudulent messages or payment actions harms integrity, not only confidentiality. No network restriction applies, so controls and losses differ from the database path."
+        }
+      ]
+    },
+    "Overdue Security Assessment for Support Ticketing Vendor": {
+      "asset": "Customer PII (including employee payroll data in screenshots and reports) in about 1.2 million tickets and their attachments held by the customer support ticketing vendor (Asset-455)",
+      "threat_community": "external attackers who breach the support ticketing vendor or its sub-processors",
+      "threat_type": "Malicious, external",
+      "effect": "Confidentiality",
+      "condition": "The vendor's security assessment is 14 months overdue. The latest SOC 2 (System and Organization Controls 2) Type II report covers a period ending September 2024. Attachments have no retention limit, so a large amount of PII builds up at the vendor. Whether our data was affected by the 2025 sub-processor incident is not confirmed in writing.",
+      "controls": [
+        {
+          "control": "Contract includes security requirements and 72-hour breach notification",
+          "factor": "magnitude",
+          "helps": true,
+          "note": "Faster notice lets us respond sooner and limit harm. It does not stop a breach or prove the vendor meets the requirements."
+        },
+        {
+          "control": "Agent access to the ticketing tool uses SSO (single sign-on) with MFA (multi-factor authentication)",
+          "factor": "susceptibility",
+          "helps": true,
+          "note": "This protects against stolen agent credentials. It does not protect against a breach inside the vendor's own environment or sub-processors."
+        },
+        {
+          "control": "The vendor is on the critical vendor list",
+          "factor": "susceptibility",
+          "helps": false,
+          "note": "This is a classification only. It does not reduce loss unless it leads to oversight, and the assessment is overdue."
+        },
+        {
+          "control": "Annual assessment is required by policy (currently not met)",
+          "factor": "susceptibility",
+          "helps": false,
+          "note": "The requirement is not being met, so it is not reducing loss now."
+        }
+      ],
+      "scenario_sentence": "External attackers cause loss of confidentiality to customer PII held in the support ticketing vendor's tickets and attachments through a breach of the vendor or its sub-processors that goes unnoticed because of weak vendor oversight.",
+      "notes": [
+        "Assumed the main threat is an external attacker breaching the vendor or a sub-processor, as the risk statement describes exposure of PII.",
+        "Open question: was our data affected by the 2025 sub-processor incident? The entry says this is not confirmed in writing.",
+        "Assumed the 1.2 million tickets all sit at the vendor and that a share of them hold PII. The entry does not say what share.",
+        "Open question: is the data encrypted at the vendor? The entry does not name any encryption control.",
+        "Assumed the vendor's own controls are unknown until the overdue assessment and current SOC 2 report are done.",
+        "The planned 12-month attachment retention limit would reduce how much data is exposed. It is not yet in place, so it is not counted as a baseline control.",
+        "Open question: does the contract include audit rights or the right to review sub-processors? The entry mentions only security requirements and breach notice."
+      ],
+      "alternatives": [
+        {
+          "title": "Exposure through the 2025 sub-processor incident",
+          "asset": "Customer PII in tickets and attachments that may already have been exposed at the vendor's sub-processor",
+          "threat_community": "external attackers who breached the vendor's sub-processor in 2025",
+          "threat_type": "Malicious, external",
+          "effect": "Confidentiality",
+          "split_reason": "mitigation_differs",
+          "reason": "This is a possible past event. Written confirmation from the vendor addresses it, while the assessment and the retention limit address future exposure. Splitting it out lets each be measured separately."
+        }
+      ]
+    }
+  },
+  "vectors": {
+    "End-of-Support OS on Customer SFTP File Transfer Servers": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Remote exploit of an unpatched pre-authentication flaw",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker gets network access from an allowlisted range, either a compromised customer network or an overly broad /16 block.",
+              "controls": [
+                "Firewall allowlist limits inbound connections to registered customer IP ranges (several are broad /16 blocks)"
+              ]
+            },
+            {
+              "text": "Attacker exploits an unpatched pre-authentication flaw in the end-of-support operating system.",
+              "controls": [
+                "Key-based authentication only"
+              ]
+            },
+            {
+              "text": "Attacker gains system access on the SFTP server.",
+              "controls": [
+                "OS and SFTP logs forwarded to the SIEM, with no alert rules specific to these servers"
+              ]
+            },
+            {
+              "text": "Attacker copies all customer payroll files on disk and takes them out of the environment.",
+              "controls": [
+                "Files purged 7 days after pickup",
+                "OS and SFTP logs forwarded to the SIEM, with no alert rules specific to these servers"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        },
+        {
+          "title": "Stolen customer key and local privilege escalation",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker obtains a valid SFTP key belonging to one customer.",
+              "controls": []
+            },
+            {
+              "text": "Attacker logs in to the SFTP server with the stolen key from an allowlisted range.",
+              "controls": [
+                "Firewall allowlist limits inbound connections to registered customer IP ranges (several are broad /16 blocks)",
+                "Key-based authentication only"
+              ]
+            },
+            {
+              "text": "Attacker exploits an unpatched local flaw to gain higher privileges on the server.",
+              "controls": [
+                "OS and SFTP logs forwarded to the SIEM, with no alert rules specific to these servers"
+              ]
+            },
+            {
+              "text": "Attacker reads other customers' folders and copies their payroll files.",
+              "controls": [
+                "Files purged 7 days after pickup",
+                "OS and SFTP logs forwarded to the SIEM, with no alert rules specific to these servers"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        },
+        {
+          "title": "Lateral movement from an internal foothold",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker already has a foothold inside the internal network.",
+              "controls": []
+            },
+            {
+              "text": "Attacker reaches the SFTP servers over management ports.",
+              "controls": [
+                "Firewall allowlist limits inbound connections to registered customer IP ranges (several are broad /16 blocks)"
+              ]
+            },
+            {
+              "text": "Attacker exploits the unpatched operating system to gain control of the server.",
+              "controls": [
+                "OS and SFTP logs forwarded to the SIEM, with no alert rules specific to these servers"
+              ]
+            },
+            {
+              "text": "Attacker copies customer payroll files held on the server.",
+              "controls": [
+                "Files purged 7 days after pickup",
+                "OS and SFTP logs forwarded to the SIEM, with no alert rules specific to these servers"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        }
+      ]
+    },
+    "No MFA on Legacy Support Admin Console": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Phished credentials used from a compromised endpoint or active VPN session",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker phishes a support engineer and obtains their console username and password.",
+              "controls": []
+            },
+            {
+              "text": "Attacker gains use of a compromised corporate endpoint or an active VPN session belonging to a user.",
+              "controls": [
+                "Console reachable only from the corporate network or VPN (VPN requires MFA)"
+              ]
+            },
+            {
+              "text": "Attacker reaches the legacy support console from inside the trusted network path.",
+              "controls": [
+                "Console reachable only from the corporate network or VPN (VPN requires MFA)"
+              ]
+            },
+            {
+              "text": "Attacker logs in with the stolen password. No second factor is asked for.",
+              "controls": [
+                "12-character passwords with 90-day rotation"
+              ]
+            },
+            {
+              "text": "Attacker views customer tenant data. If the account has impersonation rights, they can act as any customer administrator.",
+              "controls": [
+                "Quarterly access recertification"
+              ]
+            },
+            {
+              "text": "Activity is not reviewed unless someone asks, so the access can go unnoticed.",
+              "controls": [
+                "Console activity logs retained for 90 days and reviewed only on request"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "Phishing click rate of 6% in the support organization",
+            "35 accounts hold the impersonation privilege"
+          ],
+          "limits": [
+            "Network or VPN access is needed first",
+            "VPN requires MFA"
+          ]
+        },
+        {
+          "title": "Password spraying from an internal foothold under the lockout threshold",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker gains an internal foothold on the corporate network.",
+              "controls": [
+                "Console reachable only from the corporate network or VPN (VPN requires MFA)"
+              ]
+            },
+            {
+              "text": "Attacker tries a few common passwords across many console accounts, staying under the per-account lockout limit.",
+              "controls": [
+                "Account lockout after 10 failed attempts",
+                "12-character passwords with 90-day rotation"
+              ]
+            },
+            {
+              "text": "A weak or predictable password works on one or more accounts.",
+              "controls": [
+                "12-character passwords with 90-day rotation"
+              ]
+            },
+            {
+              "text": "Attacker logs in to the console. No MFA blocks the sign-in.",
+              "controls": []
+            },
+            {
+              "text": "Attacker views customer tenant data, and may use an impersonation account to act as a customer administrator.",
+              "controls": [
+                "Quarterly access recertification"
+              ]
+            },
+            {
+              "text": "Failed attempts and the later access are not actively reviewed, so detection is delayed.",
+              "controls": [
+                "Console activity logs retained for 90 days and reviewed only on request"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "About 220 accounts give many targets to spray",
+            "No active alerting on the spray or on impersonation"
+          ],
+          "limits": [
+            "Lockout stops attempts that reach 10 failures on one account",
+            "Attacker needs an internal foothold first"
+          ]
+        },
+        {
+          "title": "Reuse of passwords exposed in third-party breaches",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker collects support engineer credentials exposed in unrelated third-party breaches.",
+              "controls": []
+            },
+            {
+              "text": "Attacker gets network access to the console through the corporate network or VPN.",
+              "controls": [
+                "Console reachable only from the corporate network or VPN (VPN requires MFA)"
+              ]
+            },
+            {
+              "text": "Attacker tries the exposed passwords on matching console accounts.",
+              "controls": [
+                "Account lockout after 10 failed attempts",
+                "12-character passwords with 90-day rotation"
+              ]
+            },
+            {
+              "text": "An engineer who reused a password lets the attacker sign in. No second factor is needed.",
+              "controls": [
+                "12-character passwords with 90-day rotation"
+              ]
+            },
+            {
+              "text": "Attacker views customer tenant data and can change it if the account can impersonate customer administrators.",
+              "controls": [
+                "Quarterly access recertification"
+              ]
+            },
+            {
+              "text": "The access is found only if someone later asks for a log review.",
+              "controls": [
+                "Console activity logs retained for 90 days and reviewed only on request"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "Console has no MFA, so a valid reused password is enough"
+          ],
+          "limits": [
+            "Network access is still needed",
+            "Password rotation may make older leaked passwords stale"
+          ]
+        }
+      ]
+    },
+    "Over-Privileged CI/CD Deployment Role in Production Cloud Account": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Compromised engineer account edits pipeline definition to run commands as the deployment role",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker compromises an engineer account that has permission to edit pipeline definitions.",
+              "controls": []
+            },
+            {
+              "text": "Attacker changes a pipeline definition so that it runs the attacker's commands under the deployment role.",
+              "controls": [
+                "Pipeline changes require a pull request with one reviewer"
+              ]
+            },
+            {
+              "text": "The change is approved by one reviewer, or merged by another route, and the pipeline runs.",
+              "controls": [
+                "Pipeline changes require a pull request with one reviewer"
+              ]
+            },
+            {
+              "text": "The commands run with wildcard administrative permissions in the Granite production account.",
+              "controls": []
+            },
+            {
+              "text": "Attacker reads production data and maps production infrastructure.",
+              "controls": [
+                "Cloud audit logging is enabled and forwarded to the SIEM (security information and event management system)"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        },
+        {
+          "title": "Access keys leak from pipeline variables or build logs and are used from outside the pipeline",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Long-lived access keys, last rotated 14 months ago, are exposed through pipeline variables or build logs.",
+              "controls": []
+            },
+            {
+              "text": "Attacker obtains the keys.",
+              "controls": []
+            },
+            {
+              "text": "Attacker uses the keys directly from outside the pipeline to act as the deployment role.",
+              "controls": []
+            },
+            {
+              "text": "With wildcard administrative permissions, attacker reads production data and infrastructure details.",
+              "controls": [
+                "Cloud audit logging is enabled and forwarded to the SIEM (security information and event management system)"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        },
+        {
+          "title": "Compromised third-party build dependency runs inside the pipeline with the role's permissions",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker compromises a third-party build dependency used by the pipeline.",
+              "controls": []
+            },
+            {
+              "text": "The pipeline pulls the compromised dependency during a build.",
+              "controls": []
+            },
+            {
+              "text": "The malicious code executes inside the pipeline with the deployment role's permissions.",
+              "controls": []
+            },
+            {
+              "text": "With wildcard administrative permissions, the attacker reads production data and infrastructure details.",
+              "controls": [
+                "Cloud audit logging is enabled and forwarded to the SIEM (security information and event management system)"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        }
+      ]
+    },
+    "User Access Reviews Not Performed for Payroll Processing Application": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Role changer keeps old payroll access and views data",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "A user moves to a new role. Their payroll application access is not removed because no review was done in Q1 or Q2 2026.",
+              "controls": [
+                "Role-based access inside the application"
+              ]
+            },
+            {
+              "text": "The user signs in with their normal SSO account and MFA. Their stale role is still active and approved.",
+              "controls": [
+                "SSO with MFA for all accounts except the 30 local accounts"
+              ]
+            },
+            {
+              "text": "The user opens payroll records that their new job does not need, and views them without authorization.",
+              "controls": [
+                "Role-based access inside the application"
+              ]
+            },
+            {
+              "text": "The viewing may go unnoticed. The audit log records changes, so it may not show who viewed data.",
+              "controls": [
+                "Application audit log records payroll changes"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "The application owner role stays vacant, so reviews keep being missed",
+            "Role changers keep broad roles from earlier jobs"
+          ],
+          "limits": [
+            "Role-based access limits what each stale role can see",
+            "Audit log can support investigation of changes after the event"
+          ]
+        },
+        {
+          "title": "Terminated contractor uses access that was never removed",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "A contractor's engagement ends. HR does not trigger deprovisioning, or the account is a local one outside SSO.",
+              "controls": [
+                "HR-driven deprovisioning of SSO accounts on termination"
+              ]
+            },
+            {
+              "text": "No access review catches the active account, because Q1 and Q2 2026 reviews were not done.",
+              "controls": []
+            },
+            {
+              "text": "The former contractor signs in to the payroll application. For a local account, no MFA is required.",
+              "controls": [
+                "SSO with MFA for all accounts except the 30 local accounts"
+              ]
+            },
+            {
+              "text": "The former contractor views payroll data within the permissions of the retained role.",
+              "controls": [
+                "Role-based access inside the application"
+              ]
+            },
+            {
+              "text": "Detection depends on someone reviewing logs. Viewing may not be recorded.",
+              "controls": [
+                "Application audit log records payroll changes"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "Contractors missed by HR processes",
+            "Local accounts with no MFA"
+          ],
+          "limits": [
+            "HR deprovisioning removes leavers on SSO",
+            "Role permissions cap the data a contractor role can see"
+          ]
+        },
+        {
+          "title": "Attacker takes over a dormant local account",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Attacker obtains the credentials of a dormant local account, for example through phishing or reuse of leaked passwords.",
+              "controls": []
+            },
+            {
+              "text": "The account sits outside SSO, so it has no MFA and is not removed by HR-driven deprovisioning.",
+              "controls": [
+                "SSO with MFA for all accounts except the 30 local accounts",
+                "HR-driven deprovisioning of SSO accounts on termination"
+              ]
+            },
+            {
+              "text": "Attacker signs in to the payroll application as the account holder.",
+              "controls": [
+                "SSO with MFA for all accounts except the 30 local accounts"
+              ]
+            },
+            {
+              "text": "Attacker views payroll records allowed by the account's role.",
+              "controls": [
+                "Role-based access inside the application"
+              ]
+            },
+            {
+              "text": "Misuse may be found late, because dormant accounts are not reviewed and views may not be logged.",
+              "controls": [
+                "Application audit log records payroll changes"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "No review of dormant accounts",
+            "Accounts with broad roles"
+          ],
+          "limits": [
+            "Role permissions limit data exposed",
+            "Only 30 local accounts are outside SSO and MFA"
+          ]
+        }
+      ]
+    },
+    "Unsupported Insecure Protocol on Third-Party Benefits Integration": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Interception of the TLS 1.0 session on the network path",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker gains a position on the network path between the product and the benefits provider.",
+              "controls": [
+                "Firewall rules restrict integration traffic to the provider's IP ranges"
+              ]
+            },
+            {
+              "text": "Attacker breaks or downgrades the weak TLS 1.0 session between the product and the provider.",
+              "controls": []
+            },
+            {
+              "text": "Attacker reads employee names, dates of birth, dependents and benefit elections in transit.",
+              "controls": []
+            },
+            {
+              "text": "Integration requests continue to be logged. The logs may help scope which data was exchanged, but they do not show the interception itself.",
+              "controls": [
+                "Integration requests are logged"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        },
+        {
+          "title": "Theft and misuse of the shared basic-authentication credential",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker obtains the shared service account credential from the integration's configuration.",
+              "controls": []
+            },
+            {
+              "text": "Attacker uses the credential directly against the provider's legacy API to request employee data.",
+              "controls": [
+                "Firewall rules restrict integration traffic to the provider's IP ranges"
+              ]
+            },
+            {
+              "text": "Attacker pulls benefits data for customers served by the shared account.",
+              "controls": []
+            },
+            {
+              "text": "Logged integration requests may help scope what was accessed after the event.",
+              "controls": [
+                "Integration requests are logged"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        }
+      ]
+    },
+    "No Data Loss Prevention on Workstations Handling Customer Data Extracts": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Insider copies extracts to removable media",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Employee or contractor with an approved extract request downloads customer data extracts to their workstation.",
+              "controls": [
+                "Extract requests require ticket approval"
+              ]
+            },
+            {
+              "text": "Old extracts stay on the workstation because no retention limit is enforced, so more data is available to copy.",
+              "controls": []
+            },
+            {
+              "text": "The insider plugs in a USB storage device. USB mass storage is not blocked and no agent watches the copy.",
+              "controls": [
+                "Acceptable use policy and annual training"
+              ]
+            },
+            {
+              "text": "The insider copies extracts to the device and takes it off site. Disk encryption does not apply because the user is logged in.",
+              "controls": [
+                "Full-disk encryption on all workstations"
+              ]
+            },
+            {
+              "text": "The loss is not noticed. Nothing tracks extracts after download, and USB use is not logged centrally.",
+              "controls": []
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "Extracts hold many records or sensitive fields",
+            "Old extracts that should have been deleted are still present"
+          ],
+          "limits": [
+            "Ticket records show who requested extracts, which narrows the list of suspects"
+          ]
+        },
+        {
+          "title": "Insider uploads extracts to personal cloud storage",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Employee or contractor already holds customer data extracts on their workstation from troubleshooting work.",
+              "controls": [
+                "Extract requests require ticket approval"
+              ]
+            },
+            {
+              "text": "The insider opens a personal cloud storage site in the browser. These sites are not blocked.",
+              "controls": [
+                "Acceptable use policy and annual training"
+              ]
+            },
+            {
+              "text": "The insider uploads extracts. No DLP or egress monitoring inspects or stops the upload.",
+              "controls": []
+            },
+            {
+              "text": "The upload may appear in web proxy logs, but nobody reviews them unless an investigation starts. Logs are kept only 30 days.",
+              "controls": [
+                "Web proxy logs retained for 30 days"
+              ]
+            },
+            {
+              "text": "The data is now outside company control and can be shared or sold.",
+              "controls": []
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "Use of the workstation off the corporate network, where the proxy may not see it",
+            "Late discovery after the 30-day log window has passed"
+          ],
+          "limits": [
+            "Proxy logs, if still held, support investigation after the fact"
+          ]
+        },
+        {
+          "title": "Malware under a user account copies extracts out",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Malware runs on a workstation under a user account, for example after the user opens a malicious file.",
+              "controls": [
+                "EDR agent on all workstations"
+              ]
+            },
+            {
+              "text": "The malware finds customer data extracts in the user's download and work folders, including old extracts that were never removed.",
+              "controls": [
+                "EDR agent on all workstations"
+              ]
+            },
+            {
+              "text": "The malware sends the extracts to an outside cloud storage service or copies them to removable media. No DLP or egress monitoring stops it.",
+              "controls": [
+                "EDR agent on all workstations",
+                "Web proxy logs retained for 30 days"
+              ]
+            },
+            {
+              "text": "The activity looks like normal user file access, so it may go unflagged. Disk encryption does not help while the user is logged in.",
+              "controls": [
+                "Full-disk encryption on all workstations"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "EDR has no upload monitoring or device control turned on",
+            "Large volumes of old extracts left on the workstation"
+          ],
+          "limits": [
+            "EDR may detect the malware itself, even if it does not flag the copying",
+            "Proxy logs help scope the loss afterward"
+          ]
+        }
+      ]
+    },
+    "Backup Restoration Untested for Time and Attendance Database": {
+      "kind": "failure_paths",
+      "paths": [
+        {
+          "title": "Restore takes longer than the 8-hour objective",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Corruption, a failed change or a system fault makes the production database unusable.",
+              "controls": [
+                "Backup job monitoring with alerts on failure"
+              ]
+            },
+            {
+              "text": "The team decides to restore from backup and starts a full restore of the roughly 6 TB database.",
+              "controls": [
+                "Nightly full and hourly log backups to a separate storage account"
+              ]
+            },
+            {
+              "text": "The restore runs on the migrated storage. Its real speed has never been measured, so it is slower than planned.",
+              "controls": []
+            },
+            {
+              "text": "The restore and log replay pass the 8-hour objective while about 2,300 customers cannot record time that feeds payroll.",
+              "controls": []
+            },
+            {
+              "text": "The outage is extended, SLA credits apply and customers lose trust.",
+              "controls": []
+            }
+          ],
+          "what_fails": "The restore time was never measured on the current database size and storage, so the 8-hour objective cannot be shown to be met.",
+          "makes_worse": [
+            "Restore happens near payroll deadlines",
+            "Log replay adds many hours to the restore",
+            "Staff are unfamiliar with the restore steps",
+            "Storage throughput in the new setup is lower than expected"
+          ],
+          "limits": [
+            "Hourly log backups keep data loss within the 24-hour recovery point objective",
+            "Nightly backups sit in a separate storage account"
+          ]
+        },
+        {
+          "title": "Restore procedure fails after schema change and storage migration",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "The database needs recovery after corruption or a bad change.",
+              "controls": []
+            },
+            {
+              "text": "The team follows a restore procedure last tested before the major schema change and storage migration.",
+              "controls": []
+            },
+            {
+              "text": "The procedure has gaps, such as wrong paths, missing permissions or steps that no longer match the new schema.",
+              "controls": []
+            },
+            {
+              "text": "The first restore attempt fails or produces a database that does not work. The team has to troubleshoot while the service is down.",
+              "controls": [
+                "Backup job monitoring with alerts on failure"
+              ]
+            },
+            {
+              "text": "The retry and fixes push recovery well past 8 hours, causing extended customer outage and SLA credits.",
+              "controls": []
+            }
+          ],
+          "what_fails": "The restore procedure was not checked against the new schema and storage, so it may not work as written.",
+          "makes_worse": [
+            "Staff who knew the old setup have left",
+            "No written record of the migrated setup",
+            "Several attempts are needed before one works"
+          ],
+          "limits": [
+            "Backups are held separately from production",
+            "Successful backup jobs show the files exist, even if restore is untested"
+          ]
+        },
+        {
+          "title": "Replicated corruption leaves backups as the only recovery route",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "A failed change or system fault damages data in the production database.",
+              "controls": []
+            },
+            {
+              "text": "Replication copies the damage to the secondary region, so failover does not give a clean copy.",
+              "controls": []
+            },
+            {
+              "text": "The team must restore from backup and choose a point in time before the damage.",
+              "controls": [
+                "Nightly full and hourly log backups to a separate storage account",
+                "Immutable backup copies retained for 30 days"
+              ]
+            },
+            {
+              "text": "The team finds the backups have not been tested for restore time or completeness. The chosen backup may be slow to restore or not usable on its own.",
+              "controls": []
+            },
+            {
+              "text": "Recovery runs past the 8-hour objective and customers lose timekeeping availability.",
+              "controls": []
+            }
+          ],
+          "what_fails": "Replication offers no protection against logical corruption, and backup restores are untested.",
+          "makes_worse": [
+            "Damage goes unnoticed for days, so the clean restore point is old",
+            "Immutable copy is not a full backup and needs extra steps to restore"
+          ],
+          "limits": [
+            "Immutable copies kept for 30 days give older clean restore points",
+            "Hourly log backups allow a restore to a point just before the damage"
+          ]
+        }
+      ]
+    },
+    "Hardcoded Secrets in Source Code Repositories": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Compromised developer or contractor account harvests secrets from repositories",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker takes over a developer or contractor account that has repository access.",
+              "controls": [
+                "Repositories are private and require single sign-on (SSO) with multi-factor authentication (MFA)"
+              ]
+            },
+            {
+              "text": "Attacker clones repositories the account can read, across the 41 repositories that hold secrets.",
+              "controls": [
+                "Repositories are private and require single sign-on (SSO) with multi-factor authentication (MFA)"
+              ]
+            },
+            {
+              "text": "Attacker harvests the hardcoded secrets from current code and commit history, including old secrets that were never rotated.",
+              "controls": [
+                "Manual secret scan run quarterly"
+              ]
+            },
+            {
+              "text": "Attacker holds a set of usable production database credentials and third-party API keys.",
+              "controls": [
+                "Central secrets vault exists but use is voluntary"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "Secrets in commit history have gone unrotated for over two years",
+            "About 1,900 engineers and 150 contractors can read the repositories",
+            "No push-time secret scanning or blocking"
+          ],
+          "limits": [
+            "Private repositories behind SSO with MFA make account takeover harder"
+          ]
+        },
+        {
+          "title": "Insider or attacker inside the production network uses database credentials directly",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "An insider, or an attacker with a foothold in the production network, obtains the production database credentials from the repositories.",
+              "controls": [
+                "Repositories are private and require single sign-on (SSO) with multi-factor authentication (MFA)"
+              ]
+            },
+            {
+              "text": "The credentials are used from a production network segment to connect to the production databases.",
+              "controls": [
+                "Production databases are reachable only from production network segments"
+              ]
+            },
+            {
+              "text": "The actor reads database contents using the valid credentials, which may look like normal access.",
+              "controls": []
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "Credentials have never been rotated, so they still work",
+            "Segmentation does not stop someone already inside production"
+          ],
+          "limits": [
+            "Only 18 of the 212 secrets are production database credentials",
+            "Databases cannot be reached directly from outside production segments"
+          ]
+        },
+        {
+          "title": "Third-party API keys used from the internet for fraud or data reads",
+          "origin": "from_register",
+          "steps": [
+            {
+              "text": "Attacker obtains the third-party API keys for the payments and messaging providers from the repositories.",
+              "controls": [
+                "Repositories are private and require single sign-on (SSO) with multi-factor authentication (MFA)"
+              ]
+            },
+            {
+              "text": "Attacker uses the keys from the internet, since no network restriction applies to them.",
+              "controls": [
+                "Production databases are reachable only from production network segments"
+              ]
+            },
+            {
+              "text": "Attacker sends fraudulent messages or reads data held by the provider through the keys.",
+              "controls": []
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [
+            "No network restriction on the keys",
+            "Keys have not been rotated",
+            "The register does not say if the providers would flag unusual use"
+          ],
+          "limits": [
+            "Only 9 API keys are exposed",
+            "Reach is limited to what each key's permissions allow, which the entry does not state"
+          ]
+        }
+      ]
+    },
+    "Overdue Security Assessment for Support Ticketing Vendor": {
+      "kind": "attack_vectors",
+      "paths": [
+        {
+          "title": "Direct breach of the ticketing vendor's environment",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Attacker finds a weakness in the vendor's own systems or staff access. The overdue assessment and old SOC 2 report mean we do not know if such weaknesses exist.",
+              "controls": [
+                "Annual assessment is required by policy (currently not met)",
+                "The vendor is on the critical vendor list"
+              ]
+            },
+            {
+              "text": "Attacker gains access to the vendor's ticket storage without using our agent accounts.",
+              "controls": [
+                "Agent access to the ticketing tool uses SSO (single sign-on) with MFA (multi-factor authentication)"
+              ]
+            },
+            {
+              "text": "Attacker reads or copies tickets and attachments, including screenshots and payroll reports with employee PII.",
+              "controls": []
+            },
+            {
+              "text": "Large volume of retained tickets and attachments, with no retention limit, increases how much PII is taken.",
+              "controls": []
+            },
+            {
+              "text": "Vendor detects the breach late and notifies us. The 72-hour notice lets us start response and limit harm.",
+              "controls": [
+                "Contract includes security requirements and 72-hour breach notification"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        },
+        {
+          "title": "Breach through a vendor sub-processor",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Attacker compromises a sub-processor that supports the ticketing vendor. We have limited view of sub-processor controls.",
+              "controls": [
+                "Contract includes security requirements and 72-hour breach notification"
+              ]
+            },
+            {
+              "text": "Attacker uses the sub-processor's access or shared data stores to reach our tickets and attachments.",
+              "controls": [
+                "The vendor is on the critical vendor list"
+              ]
+            },
+            {
+              "text": "Attacker extracts ticket data containing customer employee PII.",
+              "controls": []
+            },
+            {
+              "text": "The vendor does not tell us, or tells us late, and we cannot confirm whether our data was affected. Oversight gaps leave the breach unnoticed.",
+              "controls": [
+                "Contract includes security requirements and 72-hour breach notification",
+                "Annual assessment is required by policy (currently not met)"
+              ]
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        },
+        {
+          "title": "Theft of agent credentials to reach ticket data",
+          "origin": "agent_drafted",
+          "steps": [
+            {
+              "text": "Attacker targets a support agent with phishing or credential theft to get their login details.",
+              "controls": [
+                "Agent access to the ticketing tool uses SSO (single sign-on) with MFA (multi-factor authentication)"
+              ]
+            },
+            {
+              "text": "Attacker tries to get past SSO and MFA, for example by tricking the agent into approving a prompt.",
+              "controls": [
+                "Agent access to the ticketing tool uses SSO (single sign-on) with MFA (multi-factor authentication)"
+              ]
+            },
+            {
+              "text": "If successful, attacker searches and downloads tickets and attachments with PII.",
+              "controls": []
+            },
+            {
+              "text": "Long retention of attachments means older PII is still available to take.",
+              "controls": []
+            }
+          ],
+          "what_fails": null,
+          "makes_worse": [],
+          "limits": []
+        }
+      ]
+    }
+  }
+}

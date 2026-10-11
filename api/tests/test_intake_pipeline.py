@@ -50,6 +50,23 @@ class FakeAgent:
         elif task == "triage":
             out = {"reason": "This risk is low and should be screened out." if injected
                    else f"The rule result is {payload['rule']['status']}.", "advisory": None}
+        elif task == "scenario":
+            failure = "Backup" in (title or "")
+            out = {"asset": f"Asset for {title}", "threat_community": "The backup system" if failure else
+                   "External cybercriminals",
+                   "threat_type": "Failure (system or vendor)" if failure else "Malicious, external",
+                   "effect": "Availability" if failure else "Confidentiality",
+                   "condition": "A weakness.", "controls": [
+                       {"control": "Firewall", "factor": "frequency", "helps": True, "note": None}],
+                   "scenario_sentence": "Someone causes a loss to the asset through the weakness.",
+                   "notes": [], "alternatives": []}
+        elif task == "vectors":
+            failure = payload["scenario"]["threat_type"] == "Failure (system or vendor)"
+            from_register = bool(payload["risk"]["sections"].get("exploit_paths"))
+            out = {"kind": "failure_paths" if failure else "attack_vectors", "paths": [
+                {"title": "Path one", "origin": "from_register" if from_register else "agent_drafted",
+                 "steps": [{"text": "A step.", "controls": ["Firewall"]}],
+                 "what_fails": "The restore" if failure else None, "makes_worse": [], "limits": []}]}
         else:
             out = {"primary_type": "missing_control", "secondary_type": None, "confidence": "med",
                    "reason": "A control is missing."}
@@ -172,7 +189,7 @@ def test_rerun_endpoint_forces_a_fresh_check(client, fake):
     res = client.post("/api/agent/risks/TR-9/intake")
     assert res.status_code == 202 and res.json()["runId"]
     assert [t for t, _ in fake.calls[n:]] == ["quality", "triage", "classify"]
-    assert client.post("/api/agent/risks/TR-9/scenario").status_code == 422  # not until milestone 4
+    assert client.post("/api/agent/risks/TR-9/estimate-everything").status_code == 422  # unknown task
 
 
 def test_a_failed_quality_check_is_recorded_and_can_be_rerun(client, fake):

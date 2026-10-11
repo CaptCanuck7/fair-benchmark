@@ -268,3 +268,25 @@ table.reg .wrapcell { white-space: normal; min-width: 220px }
 table.runs-tbl { min-width: 560px }
 table.runs-tbl th, table.runs-tbl td { text-align: left; vertical-align: top; white-space: normal }
 table.runs-tbl .num { text-align: right; white-space: nowrap }
+
+/* Scenario and vectors drafts, and review controls */
+.draftlabel.rejected { border-style: solid; border-color: var(--red); background: var(--red-soft); color: var(--ink) }
+.draftactions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px }
+.sentence { margin: 6px 0 12px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--field); border-radius: 0 7px 7px 0; font-size: 15px; max-width: 74ch }
+table.ctl { min-width: 0; table-layout: fixed }
+table.ctl th:first-child { width: 38% }
+table.ctl th:nth-child(2) { width: 24% }
+table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space: normal }
+.alts { list-style: none; padding: 0; margin: 0 }
+.alts li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px }
+.path { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px }
+.path h4 { font-size: 14px; margin: 0 0 6px }
+.steps { margin: 0 0 6px; padding-left: 22px; font-size: 13.5px; max-width: 74ch }
+.steps li { margin: 0 0 6px }
+.editor { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 6px 0 }
+.editor fieldset.rows { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0; min-width: 0 }
+.editor legend { font-weight: 700; font-size: 13.5px; padding: 0 4px }
+.ctlrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; align-items: end; padding: 8px 0; border-bottom: 1px dashed var(--line) }
+.ctlrow .wide { grid-column: 1 / -1 }
+.check-inline { display: flex; gap: 6px; align-items: center; font-size: 13.5px; min-height: 38px }
+.editor .row { display: flex; flex-wrap: wrap; gap: 8px }

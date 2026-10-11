@@ -56,9 +56,21 @@ current model), and uses a throwaway in-memory database, not your saved data.
 docker compose exec api pytest -m live -s
 ```
 
-To refresh the recorded fixture from a live run, add
-`-e RECORD_DIR=/tmp` after `exec`, then copy it out with
-`docker compose exec api cat /tmp/intake_recorded.json > api/tests/fixtures/intake_recorded.json`.
+That runs two evaluations:
+
+- **`test_live_eval.py`:** the intake checks on all 13 test risks (about
+  60,000 input and 7,000 output tokens).
+- **`test_live_eval_scenarios.py`:** scenario and vectors for the 9 qualifying
+  risks, approving each scenario first as an analyst would (about 66,000 input
+  and 21,000 output tokens). It replays the recorded intake results rather than
+  paying for them again.
+
+Run one by naming its file after `-s`.
+
+To refresh the recorded fixtures from a live run, add
+`-e RECORD_DIR=/tmp` after `exec`, then copy each one out, for example
+`docker compose exec api cat /tmp/intake_recorded.json > api/tests/fixtures/intake_recorded.json`
+(and `scenario_recorded.json` the same way).
 In Git Bash, run `export MSYS_NO_PATHCONV=1` first so `/tmp` isn't rewritten.
 
 ## Using it
@@ -115,6 +127,37 @@ Everything the agent writes is labeled **Agent draft**. A risk's Quality tab
 shows each result, the agent runs behind it (model, prompt version and tokens),
 and **Run checks again**. Importing the same register again doesn't re-check
 risks whose entries haven't changed.
+
+**Scenario and vectors.** For a risk that is ready and qualifies, you start
+these yourself from the risk's tabs:
+
+- **Scenario:** one loss-event scenario. It gives the asset, threat community,
+  threat type and effect, and the condition behind the risk. It maps each
+  baseline control to the part of the risk it affects (how often the threat
+  acts, whether an attempt succeeds, or how much is lost), and says when a
+  control doesn't help. It also lists assumptions, and suggests separate
+  scenarios to split out where a path has a different effect or threat type,
+  exposes very different amounts of data, or would be fixed differently.
+- **Vectors:** the ways loss could happen, as numbered steps with the controls
+  that matter at each step. They are drafted only from an approved scenario.
+  Exploit paths in the register are restructured, and marked "From the
+  register". Otherwise the agent drafts up to three. For accidental, failure or
+  natural threats you get failure paths instead: what fails, how it becomes a
+  loss, what makes it worse and what limits the damage. Steps stay at the level
+  of a risk write-up, with no commands or exploit code.
+
+**Reviewing drafts.** Each draft has **Approve**, **Edit** and **Reject**.
+
+- **Edit** opens a form. Your version is saved beside the agent's, and counts
+  as approved.
+- **Approve** is recorded with your name (`ANALYST_NAME`) and the date. The
+  label changes from "Agent draft" to "Approved by … on …".
+- **Reject** keeps the draft visible but stops anything from using it.
+- Later steps use only approved or edited drafts. If you change a scenario
+  after its vectors were drafted, the vectors are flagged as out of date.
+- Triage is approved or changed through its override, which needs a reason.
+- The quality check can be approved or rejected; to change it, run the
+  checks again.
 
 **Test data only.** Do not load real register data until your organization has
 approved this use. When the agent runs, risk text is sent to the Claude API.
@@ -491,6 +534,53 @@ prototype first; otherwise choose the simpler option."
 - **Unit tests can't reach the agent.** An automatic fixture makes the agent
   read as off and runs jobs inline in every api test except those marked
   `live`, so importing a register in a test never calls the Claude API.
+
+**Scenario, vectors and the approval workflow** (`AGENT_BUILD.md`, milestone 4)
+- **Scenario and vectors start only when you ask**, as section 6 says. A risk
+  must be ready and qualify (an override counts) before it can get a scenario.
+  Vectors need an approved or edited scenario. The risk page shows why a task
+  can't run yet. The same check runs again when a queued job starts, in case
+  the drafts changed meanwhile.
+- **What each review does.**
+  - Approve accepts the version shown, so approving an edited draft keeps your
+    edit.
+  - Edit stores your version beside the agent's, which is never overwritten,
+    and counts as approval.
+  - Reject keeps the draft on screen but nothing downstream uses it, including
+    a rejected condition type, which is no longer passed to the scenario.
+  - Reviews can be reversed, for example approving a draft you rejected.
+  - Triage accepts only approve: changing it goes through the override, which
+    records a reason. The quality check accepts approve or reject.
+- **Edits are validated** against the same shape the agent must produce. Unknown
+  fields are refused. Failure paths must still say what fails. Vectors you add
+  yourself are marked "Added by the analyst".
+- **Out-of-date vectors.** Each vectors draft records which scenario draft it was
+  built from, and a hash of that scenario's content. Changing the scenario
+  afterwards flags the vectors on the risk page.
+- **The vectors rules are checked in code**, with the usual single corrective
+  retry:
+  - failure paths for "Error (accidental)", "Failure (system or vendor)" and
+    "Natural"; attack vectors otherwise
+  - every path marked "from register" when the register has exploit paths,
+    otherwise at most three drafted paths
+  - at most eight steps per path
+  - a screen that rejects commands, code, injection strings and attack-tool
+    names
+  Step numbers the model adds itself ("1.", "(2)") are removed, since steps are
+  numbered when shown.
+- **Scenario checks.**
+  - The sentence must follow the "{threat community} causes {effect} to {asset}
+    through {method}." pattern, accepting "cause" for plural communities.
+  - A control marked as not helping needs a note.
+  - A suggested split that cites a different threat type or effect must
+    actually have one.
+- **Model inputs.** The approved condition type is passed to the scenario task
+  as a hint. The approved scenario is passed to the vectors task inside
+  `<scenario>` tags, which the system prompt treats as data like register text.
+  Both tasks use the "medium" effort level.
+- **No treatment state is created.** The register's mitigation plan is shown on
+  the Scenario tab for reference, as section 10 asks. It will sit beside "Add
+  treatment option" once milestone 6 creates analyses.
 
 ## Later extensions
 

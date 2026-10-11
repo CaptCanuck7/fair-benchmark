@@ -30,17 +30,28 @@ def _require_agent() -> None:
 
 
 @router.post("/risks/{risk_id}/{task}", status_code=202)
-def start_risk_task(risk_id: str, task: Literal["intake"], session: Session = Depends(get_session)) -> dict:
-    """Start an agent task for one risk. `intake` re-runs the quality check,
-    triage and classification even if the entry hasn't changed. (Scenario,
-    vectors, evidence and estimates arrive with later milestones.)"""
+def start_risk_task(risk_id: str, task: Literal["intake", "scenario", "vectors"],
+                    session: Session = Depends(get_session)) -> dict:
+    """Start an agent task for one risk and return its run ID; the UI polls.
+
+    - `intake` re-runs the quality check, triage and classification, even if
+      the entry hasn't changed.
+    - `scenario` drafts the default scenario (the risk must be ready and qualify).
+    - `vectors` drafts attack vectors or failure paths from the approved scenario.
+    """
     row = get_risk(session, risk_id)
     _require_agent()
-    if agent_pipeline.is_busy(session, row.id):
-        raise ApiError(409, "Checks are already running for this risk.")
-    agent_pipeline.queue_intake(session, [row], force=True)
-    run = agent_pipeline.latest_run(session, row.id, "quality")
-    return {"runId": run.id if run else None, "riskId": row.risk_id}
+    if task == "intake":
+        if agent_pipeline.is_busy(session, row.id):
+            raise ApiError(409, "Checks are already running for this risk.")
+        agent_pipeline.queue_intake(session, [row], force=True)
+        run = agent_pipeline.latest_run(session, row.id, "quality")
+        return {"runId": run.id if run else None, "riskId": row.risk_id}
+    try:
+        run_id = agent_pipeline.queue_risk_task(session, row, task)
+    except agent_pipeline.TaskBlocked as exc:
+        raise ApiError(409, str(exc)) from exc
+    return {"runId": run_id, "riskId": row.risk_id}
 
 
 @router.post("/register/intake", status_code=202)

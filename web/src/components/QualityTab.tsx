@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import type {
   AgentRun,
   AgentStatus,
+  ClassificationResult,
   Draft,
   QualityResult,
   RegisterRiskDetail,
@@ -10,7 +11,8 @@ import type {
 } from '../types'
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
-import { CONFIDENCE, conditionLabel, gapFieldLabel, QUALITY, TRIAGE } from '../lib/register'
+import { CONDITION, CONFIDENCE, conditionLabel, gapFieldLabel, QUALITY, TRIAGE } from '../lib/register'
+import { DraftActions, DraftLabel, ReviewError, useReview } from './DraftControls'
 
 interface Props {
   risk: RegisterRiskDetail
@@ -20,7 +22,13 @@ interface Props {
   reload: () => void
 }
 
-const TASK_LABEL: Record<string, string> = { quality: 'Quality check', triage: 'Triage', classification: 'Condition type' }
+const TASK_LABEL: Record<string, string> = {
+  quality: 'Quality check',
+  triage: 'Triage',
+  classification: 'Condition type',
+  scenario: 'Scenario',
+  vectors: 'Vectors',
+}
 
 /** The quality check, triage and condition type for one risk (pipeline steps 1 to 3). */
 export function QualityTab({ risk, agent, onRisk, reload }: Props) {
@@ -73,7 +81,7 @@ export function QualityTab({ risk, agent, onRisk, reload }: Props) {
       )}
 
       <h3>Quality check</h3>
-      {quality ? <QualityView draft={quality} /> : <p className="muted">Not run yet.</p>}
+      {quality ? <QualityView draft={quality} onRisk={onRisk} /> : <p className="muted">Not run yet.</p>}
 
       <h3>Triage</h3>
       {triage ? (
@@ -86,18 +94,7 @@ export function QualityTab({ risk, agent, onRisk, reload }: Props) {
 
       <h3>Condition type</h3>
       {classification ? (
-        <>
-          <DraftLabel draft={classification} />
-          <p>
-            <b>{conditionLabel(classification.effective.primary_type)}</b>
-            {classification.effective.secondary_type && (
-              <> and {conditionLabel(classification.effective.secondary_type).toLowerCase()}</>
-            )}
-            <span className="muted"> · {CONFIDENCE[classification.effective.confidence]} confidence</span>
-          </p>
-          <p>{classification.effective.reason}</p>
-          <p className="cap">The condition type decides where evidence gathering looks first.</p>
-        </>
+        <ClassificationView draft={classification} onRisk={onRisk} />
       ) : (triage && triage.effective.status !== 'qualifies') || quality?.effective.status === 'needs_info' ? (
         <p className="muted">Not run. Only risks that are ready and qualify go on to classification.</p>
       ) : (
@@ -109,20 +106,9 @@ export function QualityTab({ risk, agent, onRisk, reload }: Props) {
   )
 }
 
-function DraftLabel({ draft }: { draft: Draft<unknown> }) {
-  if (draft.status === 'approved' || draft.status === 'edited') {
-    return (
-      <p className="draftlabel ok">
-        {draft.status === 'edited' ? 'Changed' : 'Approved'} by {draft.reviewer}
-        {draft.reviewedAt ? ` on ${dateTime(draft.reviewedAt)}` : ''}
-      </p>
-    )
-  }
-  return <p className="draftlabel">Agent draft</p>
-}
-
-function QualityView({ draft }: { draft: Draft<QualityResult> }) {
+function QualityView({ draft, onRisk }: { draft: Draft<QualityResult>; onRisk: (r: RegisterRiskDetail) => void }) {
   const q = draft.effective
+  const r = useReview(onRisk)
   const checks: [boolean, string][] = [
     [q.checks.namesAsset, 'what is at risk'],
     [q.checks.namesCondition, 'the weakness behind the risk'],
@@ -174,6 +160,116 @@ function QualityView({ draft }: { draft: Draft<QualityResult> }) {
           </ol>
         </>
       )}
+      <DraftActions
+        draft={draft}
+        actions={['approve', 'reject']}
+        busy={r.busy}
+        onAction={(a) => void r.review(draft.id, a)}
+      />
+      <ReviewError error={r.error} fieldErrors={r.fieldErrors} />
+    </>
+  )
+}
+
+function ClassificationView({
+  draft,
+  onRisk,
+}: {
+  draft: Draft<ClassificationResult>
+  onRisk: (r: RegisterRiskDetail) => void
+}) {
+  const c = draft.effective
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState<ClassificationResult>(c)
+  const r = useReview((x) => {
+    onRisk(x)
+    setEditing(false)
+  })
+  return (
+    <>
+      <DraftLabel draft={draft} />
+      {editing ? (
+        <form
+          className="editor"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void r.review(draft.id, 'edit', { ...form, secondary_type: form.secondary_type || null })
+          }}
+        >
+          <div className="grid2">
+            <label className="fld">
+              <span>Condition type</span>
+              <select value={form.primary_type} onChange={(e) => setForm({ ...form, primary_type: e.target.value })}>
+                {Object.entries(CONDITION).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="fld">
+              <span>Also (optional)</span>
+              <select
+                value={form.secondary_type ?? ''}
+                onChange={(e) => setForm({ ...form, secondary_type: e.target.value || null })}
+              >
+                <option value="">None</option>
+                {Object.entries(CONDITION).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="fld">
+              <span>Confidence</span>
+              <select
+                value={form.confidence}
+                onChange={(e) => setForm({ ...form, confidence: e.target.value as ClassificationResult['confidence'] })}
+              >
+                {Object.entries(CONFIDENCE).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="fld">
+            <span>Reason</span>
+            <textarea rows={2} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+          </label>
+          <div className="row">
+            <button type="submit" className="btn primary" disabled={r.busy}>
+              Save and approve
+            </button>
+            <button type="button" className="btn quiet" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <p>
+            <b>{conditionLabel(c.primary_type)}</b>
+            {c.secondary_type && <> and {conditionLabel(c.secondary_type).toLowerCase()}</>}
+            <span className="muted"> · {CONFIDENCE[c.confidence]} confidence</span>
+          </p>
+          <p>{c.reason}</p>
+          <p className="cap">The condition type decides where evidence gathering looks first.</p>
+          <DraftActions
+            draft={draft}
+            actions={['approve', 'edit', 'reject']}
+            busy={r.busy}
+            onAction={(a) => void r.review(draft.id, a)}
+            onEdit={() => {
+              setForm(c)
+              setEditing(true)
+            }}
+          />
+        </>
+      )}
+      <ReviewError error={r.error} fieldErrors={r.fieldErrors} />
     </>
   )
 }
@@ -188,6 +284,7 @@ function TriageView({
   onRisk: (r: RegisterRiskDetail) => void
 }) {
   const t = draft.effective
+  const r = useReview(onRisk)
   const other: TriageStatus = t.status === 'qualifies' ? 'screened_out' : 'qualifies'
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
@@ -242,9 +339,16 @@ function TriageView({
       )}
       {note && <p className="muted small">{note}</p>}
       {!open ? (
-        <button type="button" className="btn quiet" onClick={() => setOpen(true)}>
-          Override triage
-        </button>
+        <div className="draftactions">
+          {draft.status === 'drafted' && (
+            <button type="button" className="btn primary" disabled={r.busy} onClick={() => void r.review(draft.id, 'approve')}>
+              Approve
+            </button>
+          )}
+          <button type="button" className="btn quiet" onClick={() => setOpen(true)}>
+            Override triage
+          </button>
+        </div>
       ) : (
         <form className="override" onSubmit={(e) => void submit(e)}>
           <p>
@@ -275,6 +379,7 @@ function TriageView({
           </div>
         </form>
       )}
+      <ReviewError error={r.error} fieldErrors={r.fieldErrors} />
     </>
   )
 }

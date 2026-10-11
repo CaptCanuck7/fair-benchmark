@@ -28,8 +28,10 @@ from app.agent_client import AgentCallError
 from app.config import settings
 from app.db import SessionLocal
 from app.models import AgentRunRow, DraftRow, RiskRow
+from app.register.drafts import usable
 from app.register.parser import score_input
 from app.register.quality import combine, rule_gaps
+from app.register.state import ACTIVE, INTAKE, intake_states, task_blocker
 from app.register.triage import triage, would_qualify
 from app.schemas import new_id
 
@@ -41,8 +43,7 @@ def now_iso() -> str:
 
 log = logging.getLogger(__name__)
 
-TASKS = ("quality", "triage", "classification")
-ACTIVE = ("queued", "running")
+TASKS = INTAKE
 INTERRUPTED = "Stopped when the api restarted. Run the checks again."
 
 _executor = ThreadPoolExecutor(max_workers=settings.agent_workers, thread_name_prefix="agent-job")
@@ -262,3 +263,62 @@ def fail_interrupted(session: Session) -> int:
         _finish(run, "failed", error=INTERRUPTED)
     session.commit()
     return len(runs)
+
+
+# --- Scenario and vectors (pipeline step 4, started by the analyst) -------------
+
+RISK_TASKS = ("scenario", "vectors")
+
+
+class TaskBlocked(Exception):
+    """A risk task that can't start yet. The message says why, for the analyst."""
+
+
+def scenario_hash(scenario: dict[str, Any]) -> str:
+    return input_hash("scenario-content", scenario)
+
+
+def queue_risk_task(session: Session, row: RiskRow, task: str) -> str:
+    """Queue `scenario` or `vectors` for one risk, after checking it may run."""
+    state = intake_states(session, [row.id])[row.id]
+    if state.busy:
+        raise TaskBlocked("The agent is already working on this risk. Try again when it finishes.")
+    reason = task_blocker(state, task)
+    if reason:
+        raise TaskBlocked(reason)
+    run = _new_run(session, row.id, task)
+    session.commit()
+    submit(run_risk_task, row.id, run.id)
+    return run.id
+
+
+def run_risk_task(risk_pk: int, run_id: str) -> None:
+    with SessionLocal() as s:
+        row, run = s.get(RiskRow, risk_pk), s.get(AgentRunRow, run_id)
+        if row is None or run is None:
+            return
+        state = intake_states(s, [risk_pk])[risk_pk]
+        # Re-check: the drafts may have changed while the job was queued.
+        reason = task_blocker(state, run.task)
+        if reason:
+            _finish(run, "failed", error=reason)
+            s.commit()
+            return
+        if run.task == "scenario":
+            classification = state.get("classification")
+            payload = {"risk": risk_entry(row), "classification": (
+                {"primary_type": classification["primary_type"],
+                 "secondary_type": classification.get("secondary_type")} if classification else None)}
+            res = _call(s, run, "scenario", payload)
+            if res is not None:
+                _draft(s, risk_pk, "scenario", res.output, run)
+        else:
+            scenario_draft = state.drafts["scenario"]
+            scenario = {k: v for k, v in usable(scenario_draft).items() if k != "basedOn"}
+            res = _call(s, run, "vectors", {"risk": risk_entry(row), "scenario": scenario})
+            if res is not None:
+                _draft(s, risk_pk, "vectors", {
+                    **res.output,
+                    # Which approved scenario these were built from, to flag them if it changes.
+                    "basedOn": {"scenarioDraftId": scenario_draft.id, "scenarioHash": scenario_hash(scenario)},
+                }, run)

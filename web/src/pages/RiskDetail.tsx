@@ -3,6 +3,8 @@ import type { AgentStatus, RegisterRiskDetail } from '../types'
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
 import { QualityTab } from '../components/QualityTab'
+import { ScenarioTab } from '../components/ScenarioTab'
+import { VectorsTab } from '../components/VectorsTab'
 import { TestDataNotice } from '../components/TestDataNotice'
 
 interface Props {
@@ -237,6 +239,10 @@ export function RiskDetail({ riskId, navigate }: Props) {
                 <p className="lede">{active[2]}</p>
                 {active[0] === 'quality' ? (
                   <QualityTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
+                ) : active[0] === 'scenario' ? (
+                  <ScenarioTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
+                ) : active[0] === 'vectors' ? (
+                  <VectorsTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
                 ) : (
                   <p className="muted">Not run yet.</p>
                 )}

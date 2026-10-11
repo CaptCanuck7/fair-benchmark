@@ -278,6 +278,12 @@ export interface RegisterRiskDetail extends RegisterRisk {
     triage: Draft<TriageResult> | null
     classification: Draft<ClassificationResult> | null
   }
+  scenario: Draft<ScenarioDraft> | null
+  vectors: Draft<VectorsDraft> | null
+  /** The vectors were built from a scenario that has since changed. */
+  vectorsStale: boolean
+  /** Why each analyst-started task can't run yet; null when it can. */
+  blocked: { scenario: string | null; vectors: string | null }
   triageThreshold: number
   drafts: Draft<unknown>[]
   runs: AgentRun[]
@@ -399,3 +405,67 @@ export interface OutboundLogEntry {
   blockedReason: string | null
   at: string
 }
+
+// --- Scenario and vectors drafts (mirror agent/app/schemas.py) ---
+
+export const THREAT_TYPES_LIST = [
+  'Malicious, external',
+  'Malicious, internal',
+  'Error (accidental)',
+  'Failure (system or vendor)',
+  'Natural',
+] as const
+export const EFFECTS_LIST = ['Confidentiality', 'Integrity', 'Availability'] as const
+
+export type ControlFactor = 'frequency' | 'susceptibility' | 'magnitude'
+
+export interface ScenarioControl {
+  control: string
+  factor: ControlFactor
+  helps: boolean
+  note: string | null
+}
+
+export interface ScenarioAlternative {
+  title: string
+  asset: string
+  threat_community: string
+  threat_type: string
+  effect: string
+  split_reason: 'threat_type_or_effect_differs' | 'data_exposure_differs' | 'mitigation_differs'
+  reason: string
+}
+
+export interface ScenarioDraft {
+  asset: string
+  threat_community: string
+  threat_type: string
+  effect: string
+  condition: string
+  controls: ScenarioControl[]
+  scenario_sentence: string
+  notes: string[]
+  alternatives: ScenarioAlternative[]
+}
+
+export interface PathStep {
+  text: string
+  controls: string[]
+}
+
+export interface ThreatPath {
+  title: string
+  origin: 'from_register' | 'agent_drafted' | 'analyst'
+  steps: PathStep[]
+  what_fails: string | null
+  makes_worse: string[]
+  limits: string[]
+}
+
+export interface VectorsDraft {
+  kind: 'attack_vectors' | 'failure_paths'
+  paths: ThreatPath[]
+  basedOn?: { scenarioDraftId: number; scenarioHash: string }
+}
+
+export type ReviewAction = 'approve' | 'edit' | 'reject'
