@@ -283,12 +283,14 @@ export interface RegisterRiskDetail extends RegisterRisk {
   /** The vectors were built from a scenario that has since changed. */
   vectorsStale: boolean
   /** Why each analyst-started task can't run yet; null when it can. */
-  blocked: { scenario: string | null; vectors: string | null }
+  blocked: { scenario: string | null; vectors: string | null; evidence: string | null }
   triageThreshold: number
   drafts: Draft<unknown>[]
   runs: AgentRun[]
-  evidence: unknown[]
-  dataRequests: unknown[]
+  evidence: EvidenceItem[]
+  dataRequests: DataRequest[]
+  /** The latest successful evidence run, or null. */
+  evidenceRun: EvidenceRun | null
 }
 
 export type DraftStatus = 'drafted' | 'approved' | 'edited' | 'rejected'
@@ -469,3 +471,78 @@ export interface VectorsDraft {
 }
 
 export type ReviewAction = 'approve' | 'edit' | 'reject'
+
+// --- Evidence, data requests, settings and the reference library ---
+
+export type FactorGroup = 'frequency' | 'susceptibility' | 'primary' | 'secondary'
+
+export interface EvidenceItem {
+  id: number
+  origin: 'internal' | 'external'
+  sourceType: string
+  sourceName: string
+  /** A sheet and record ID, a URL, or "Data request answered by …". */
+  citation: string
+  publishedAt: string | null
+  retrievedAt: string
+  summary: string
+  value: number | null
+  unit: string | null
+  factors: string[]
+  stale: boolean
+  groups: FactorGroup[]
+  /** Set when the item is an answer to this data request. */
+  fromDataRequest: number | null
+}
+
+export interface DataRequest {
+  id: number
+  team: string
+  question: string
+  factor: string
+  reason: string
+  status: 'open' | 'answered'
+  answer: string | null
+  answeredBy: string | null
+  answeredAt: string | null
+  groups: FactorGroup[]
+}
+
+export interface EvidenceRun {
+  id: string
+  finishedAt: string | null
+  model: string | null
+  toolCalls: number | null
+  /** Items dropped because no tool returned their citation. */
+  rejected: { citation: string; summary?: string; reason: string }[]
+  notes: { toolsOffered?: string[]; cveLookupsOffered?: boolean; cveLookupsMade?: number; backstopGroups?: string[] }
+}
+
+export interface AppSettings {
+  analystName: string | null
+  triageMinScore: number
+  /** null: follow .env (AGENT_EXTERNAL_ENABLED). */
+  externalEnabled: boolean | null
+  extraDomains: string[]
+  removedDomains: string[]
+}
+
+export interface LibraryEntry {
+  id: number
+  metric: string
+  value: number
+  unit: string
+  segment: string | null
+  source: string
+  edition: string
+  url: string
+  page: string | null
+  retrievedAt: string
+  approvedBy: string | null
+  status: 'proposed' | 'approved' | 'rejected'
+  quote: string | null
+  agentRunId: string | null
+  citation: string
+}
+
+export type LibraryEntryInput = Pick<LibraryEntry, 'metric' | 'value' | 'unit' | 'segment' | 'source' | 'edition' | 'url' | 'page' | 'quote'>

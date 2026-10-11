@@ -200,3 +200,98 @@ class OutboundLogRow(Base):
     allowed: Mapped[bool] = mapped_column(Boolean)
     blocked_reason: Mapped[str | None] = mapped_column(String(128), nullable=True)
     at: Mapped[str] = mapped_column(String(32), index=True)
+
+
+# --- Evidence gathering (AGENT_BUILD.md sections 5 and 7) ---
+
+
+class EvidenceItemRow(Base):
+    """A cited piece of evidence for one risk's FAIR factors.
+
+    Agent-gathered items belong to the evidence run that found them; an answered
+    data request adds an internal item with no run (`data_request_id` set).
+    """
+
+    __tablename__ = "evidence_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    risk_pk: Mapped[int] = mapped_column(ForeignKey("risks.id", ondelete="CASCADE"), index=True)
+    agent_run_id: Mapped[str | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True, index=True)
+    data_request_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    origin: Mapped[str] = mapped_column(String(16))  # internal | external
+    source_type: Mapped[str] = mapped_column(String(32))
+    source_name: Mapped[str] = mapped_column(Text)
+    citation: Mapped[str] = mapped_column(Text)
+    published_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    retrieved_at: Mapped[str] = mapped_column(String(32))
+    summary: Mapped[str] = mapped_column(Text)
+    value: Mapped[float | None] = mapped_column(nullable=True)
+    unit: Mapped[str | None] = mapped_column(Text, nullable=True)
+    factors: Mapped[list] = mapped_column(JSON)
+    stale: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class DataRequestRow(Base):
+    """A question for another team, raised where a required factor has no evidence."""
+
+    __tablename__ = "data_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    risk_pk: Mapped[int] = mapped_column(ForeignKey("risks.id", ondelete="CASCADE"), index=True)
+    agent_run_id: Mapped[str | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True, index=True)
+    team: Mapped[str] = mapped_column(String(64))
+    question: Mapped[str] = mapped_column(Text)
+    factor: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | answered
+    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answered_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answered_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+
+class ReferenceLibraryRow(Base):
+    """A figure from an annual report (DBIR, Cost of a Data Breach, IRIS).
+
+    It ships empty. Entries are proposed by the library refresh task or added by
+    hand; only approved entries are used as evidence.
+    """
+
+    __tablename__ = "reference_library"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    metric: Mapped[str] = mapped_column(Text)
+    value: Mapped[float] = mapped_column()
+    unit: Mapped[str] = mapped_column(Text)
+    segment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(Text)
+    edition: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text)
+    page: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    retrieved_at: Mapped[str] = mapped_column(String(32))
+    approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # proposed | approved | rejected
+    status: Mapped[str] = mapped_column(String(16), default="proposed", index=True)
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_run_id: Mapped[str | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+
+
+class AppSettingRow(Base):
+    """Analyst-editable settings that override .env defaults (Settings page)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[dict | list | str | int | bool | None] = mapped_column(JSON, nullable=True)
+
+
+class EvidenceRunRow(Base):
+    """What one evidence run did beyond its items: tool calls made, items the
+    citation check rejected, and the condition-type routing used."""
+
+    __tablename__ = "evidence_runs"
+
+    agent_run_id: Mapped[str] = mapped_column(ForeignKey("agent_runs.id"), primary_key=True)
+    risk_pk: Mapped[int] = mapped_column(ForeignKey("risks.id", ondelete="CASCADE"), index=True)
+    tool_calls: Mapped[int] = mapped_column(Integer, default=0)
+    rejected: Mapped[list] = mapped_column(JSON, default=list)
+    notes: Mapped[dict] = mapped_column(JSON, default=dict)

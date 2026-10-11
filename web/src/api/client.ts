@@ -1,9 +1,13 @@
 import type {
+  AgentRun,
   AgentStatus,
+  AppSettings,
   Analysis,
   AnalysisListItem,
   Check,
   Content,
+  LibraryEntry,
+  LibraryEntryInput,
   OutboundLogEntry,
   RegisterImport,
   RegisterImportResult,
@@ -109,12 +113,23 @@ export const api = {
   /** Re-run the quality check, triage and classification for one risk. */
   rerunIntake: (riskId: string) =>
     json<{ runId: string | null; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/intake`),
-  /** Start the scenario or vectors task for one risk. */
-  startRiskTask: (riskId: string, task: 'scenario' | 'vectors') =>
+  /** Start the scenario, vectors or evidence task for one risk. */
+  startRiskTask: (riskId: string, task: 'scenario' | 'vectors' | 'evidence') =>
     json<{ runId: string; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/${task}`),
   /** Approve, edit or reject a draft. Returns the updated risk. */
   reviewDraft: (draftId: number, action: ReviewAction, payload?: unknown) =>
     json<RegisterRiskDetail>('PUT', `/drafts/${draftId}`, payload === undefined ? { action } : { action, payload }),
+  /** Record an answer to a data request. Returns the updated risk. */
+  answerDataRequest: (id: number, answer: string) =>
+    json<RegisterRiskDetail>('PUT', `/data-requests/${id}`, { answer }),
+  agentRun: (id: string) => json<AgentRun & { riskId: string | null }>('GET', `/agent/runs/${encodeURIComponent(id)}`),
+  getSettings: () => json<AppSettings>('GET', '/settings'),
+  putSettings: (changes: Partial<AppSettings>) => json<AppSettings>('PUT', '/settings', changes),
+  listLibrary: () => json<LibraryEntry[]>('GET', '/library'),
+  addLibraryEntry: (entry: LibraryEntryInput) => json<LibraryEntry>('POST', '/library', entry),
+  reviewLibraryEntry: (id: number, action: 'approve' | 'reject' | 'edit', entry?: LibraryEntryInput) =>
+    json<LibraryEntry>('PUT', `/library/${id}`, entry === undefined ? { action } : { action, entry }),
+  refreshLibrary: () => json<{ runId: string }>('POST', '/library/refresh'),
   /** Run the intake checks for every risk not yet checked on its current entry. */
   runRegisterIntake: () => json<{ queued: string[]; agentOff: string | null }>('POST', '/agent/register/intake'),
   triageOverride: (riskId: string, body: { status: TriageStatus; reason: string }) =>

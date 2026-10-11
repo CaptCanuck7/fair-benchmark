@@ -36,7 +36,7 @@ class FakeAgent:
 
     def __call__(self, task: str, payload: dict) -> TaskResult:
         self.calls.append((task, payload))
-        title = payload["risk"]["title"]
+        title = (payload.get("risk") or {}).get("title")
         if (task, title) in self.fail:
             raise AgentCallError("The model's output failed validation twice.",
                                  {"model": "claude-sonnet-5-5", "prompt_version": f"{task}.v1",
@@ -60,6 +60,28 @@ class FakeAgent:
                        {"control": "Firewall", "factor": "frequency", "helps": True, "note": None}],
                    "scenario_sentence": "Someone causes a loss to the asset through the weakness.",
                    "notes": [], "alternatives": []}
+        elif task == "evidence":
+            self.evidence_runs = getattr(self, "evidence_runs", 0) + 1
+            out = {"items": [
+                {"origin": "internal", "source_type": "incident", "source_name": "Incident History",
+                 "citation": "Incident History INC-2026-021", "published_at": "2026-04-09",
+                 "retrieved_at": "2026-10-10T00:00:00Z", "summary": f"An attempt, run {self.evidence_runs}.",
+                 "value": 1, "unit": "attempts / 12 months", "factors": ["tef"], "stale": False},
+                {"origin": "external", "source_type": "report", "source_name": "Old report",
+                 "citation": "https://www.verizon.com/old", "published_at": "2019-01-01",
+                 "retrieved_at": "2026-10-10T00:00:00Z", "summary": "An old base rate.", "value": None,
+                 "unit": None, "factors": ["slef", "secondary.response"], "stale": True}],
+                "data_requests": [{"team": "Vulnerability Management", "factor": "vuln",
+                                   "question": "When were these servers last penetration tested?",
+                                   "reason": "No test results found."}],
+                "rejected": [{"citation": "Made up", "summary": "x", "reason": "No tool returned this citation."}],
+                "tool_calls": 4, "notes": {"cveLookupsOffered": True, "cveLookupsMade": 1}}
+        elif task == "library":
+            out = {"entries": [{"metric": "Cost per record", "value": 169, "unit": "USD", "segment": None,
+                                "source": "IBM Cost of a Data Breach Report", "edition": "2025",
+                                "url": "https://www.ibm.com/reports/data-breach", "page": None,
+                                "quote": "USD 169 per record", "retrieved_at": "2026-10-10T00:00:00Z"}],
+                   "rejected": [], "tool_calls": 3}
         elif task == "vectors":
             failure = payload["scenario"]["threat_type"] == "Failure (system or vendor)"
             from_register = bool(payload["risk"]["sections"].get("exploit_paths"))
@@ -74,7 +96,7 @@ class FakeAgent:
                           input_tokens=100, output_tokens=20)
 
     def tasks_for(self, title_fragment: str) -> list[str]:
-        return [t for t, p in self.calls if title_fragment in (p["risk"]["title"] or "")]
+        return [t for t, p in self.calls if title_fragment in ((p.get("risk") or {}).get("title") or "")]
 
 
 @pytest.fixture

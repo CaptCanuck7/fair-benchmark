@@ -272,3 +272,92 @@ class VectorsOutput(BaseModel):
                     raise ValueError(f"'{p.title}' contains operational detail ({found!r}); describe steps at "
                                      "the level of a risk write-up, with no commands, code or tool instructions")
         return self
+
+
+# --- Evidence gathering (section 9.5) -------------------------------------------
+
+FactorKey = Literal["lef", "tef", "cf", "poa", "vuln", "tcap", "rs", "primary.productivity", "primary.response",
+                    "primary.replacement", "slef", "secondary.response", "secondary.fines", "secondary.competitive",
+                    "secondary.reputation"]
+Team = Literal["SOC", "Asset Management", "Vulnerability Management", "IAM", "Internal Audit", "Third-Party Risk",
+               "Finance", "Legal"]
+
+# The four groups of factors evidence gathering must cover, each with evidence
+# or a data request.
+FACTOR_GROUPS: dict[str, tuple[str, ...]] = {
+    "frequency": ("lef", "tef", "cf", "poa"),
+    "susceptibility": ("vuln", "tcap", "rs"),
+    "primary": ("primary.productivity", "primary.response", "primary.replacement"),
+    "secondary": ("slef", "secondary.response", "secondary.fines", "secondary.competitive", "secondary.reputation"),
+}
+
+# FAIR terms a team without FAIR knowledge can't answer. Data request
+# questions must use plain words instead.
+FAIR_JARGON = re.compile(
+    r"\b(threat event frequency|loss event frequency|contact frequency|probability of action|threat capability|"
+    r"resistance strength|loss magnitude|secondary loss|primary loss|susceptibility|TEF|LEF|SLEF|PERT|FAIR)\b",
+    re.IGNORECASE,
+)
+
+
+class EvidenceRequest(BaseModel):
+    agent_run_id: str | None = None
+    risk: RiskEntry
+    scenario: dict
+    vectors: dict | None = None
+    classification: ClassificationIn | None = None
+
+
+class EvidenceItemOut(BaseModel):
+    citation: str = Field(max_length=500, description="Exactly as a tool returned it.")
+    summary: str = Field(max_length=500, description="One or two sentences in your own words.")
+    value: float | None = None
+    unit: str | None = Field(default=None, max_length=100)
+    factors: list[FactorKey] = Field(min_length=1, max_length=6)
+
+
+class DataRequestOut(BaseModel):
+    team: Team
+    question: str = Field(min_length=15, max_length=400)
+    factor: FactorKey
+    reason: str = Field(max_length=400)
+
+    @model_validator(mode="after")
+    def _plain_question(self) -> "DataRequestOut":
+        m = FAIR_JARGON.search(self.question)
+        if m:
+            raise ValueError(f"the question uses the FAIR term '{m.group(0)}'; ask in words the {self.team} team "
+                             "uses, about counts, dates, costs or test results")
+        return self
+
+
+class EvidenceOutput(BaseModel):
+    items: list[EvidenceItemOut] = Field(max_length=40)
+    data_requests: list[DataRequestOut] = Field(max_length=12)
+
+
+# --- Reference library refresh (section 7) --------------------------------------
+
+LibrarySource = Literal["Verizon Data Breach Investigations Report", "IBM Cost of a Data Breach Report",
+                        "Cyentia Information Risk Insights Study"]
+
+
+class LibraryRequest(BaseModel):
+    agent_run_id: str | None = None
+    existing: list[dict] = Field(default_factory=list)
+
+
+class LibraryEntryOut(BaseModel):
+    metric: str = Field(min_length=3, max_length=300)
+    value: float
+    unit: str = Field(min_length=1, max_length=100)
+    segment: str | None = Field(default=None, max_length=200)
+    source: LibrarySource
+    edition: str = Field(min_length=4, max_length=100, description="For example '2025'.")
+    url: str = Field(max_length=500, description="The page you read the figure on, exactly as fetched.")
+    page: str | None = Field(default=None, max_length=32)
+    quote: str = Field(min_length=10, max_length=600, description="The sentence on that page stating the figure.")
+
+
+class LibraryOutput(BaseModel):
+    entries: list[LibraryEntryOut] = Field(max_length=25)

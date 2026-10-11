@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { AgentStatus, RegisterRiskDetail } from '../types'
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
+import { DataRequestsTab } from '../components/DataRequestsTab'
+import { EvidenceTab } from '../components/EvidenceTab'
 import { QualityTab } from '../components/QualityTab'
 import { ScenarioTab } from '../components/ScenarioTab'
 import { VectorsTab } from '../components/VectorsTab'
@@ -243,6 +245,10 @@ export function RiskDetail({ riskId, navigate }: Props) {
                   <ScenarioTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
                 ) : active[0] === 'vectors' ? (
                   <VectorsTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
+                ) : active[0] === 'evidence' ? (
+                  <EvidenceTab risk={risk} agent={agent} reload={load} onShowRequests={() => setTab('requests')} />
+                ) : active[0] === 'requests' ? (
+                  <DataRequestsTab risk={risk} onRisk={setRisk} />
                 ) : (
                   <p className="muted">Not run yet.</p>
                 )}

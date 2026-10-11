@@ -18,7 +18,20 @@ from app.errors import (
     request_validation_handler,
 )
 from app.evidence import EVIDENCE_FILE, load_evidence
-from app.routers import agent, analyses, drafts, internal_evidence, internal_guard, io, register, simulate
+from app import app_settings
+from app.routers import (
+    agent,
+    analyses,
+    data_requests,
+    drafts,
+    internal_evidence,
+    internal_guard,
+    io,
+    library,
+    register,
+    settings as settings_router,
+    simulate,
+)
 from app.routers.analyses import HASH_HEADER
 
 
@@ -87,6 +100,8 @@ async def lifespan(_app: FastAPI):
     with SessionLocal() as session:
         load_evidence(session, settings.agent_data_dir / EVIDENCE_FILE)
         agent_pipeline.fail_interrupted(session)
+        app_settings.apply(session)
+        library.seed_library(session, settings.agent_data_dir)
     yield
 
 
@@ -122,6 +137,10 @@ app.include_router(internal_evidence.router)
 app.include_router(internal_guard.router)
 app.include_router(agent.router)
 app.include_router(drafts.router)
+app.include_router(data_requests.router)
+app.include_router(library.router)
+app.include_router(library.internal)
+app.include_router(settings_router.router)
 
 
 @app.get("/api/health")

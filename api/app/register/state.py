@@ -64,10 +64,11 @@ def task_blocker(state: IntakeState, task: str) -> str | None:
         return "The quality check must find this entry ready first."
     if not triage or triage["status"] != "qualifies":
         return "Only risks that qualify in triage get a scenario. You can override triage, with a reason."
-    if task == "vectors":
+    if task in ("vectors", "evidence"):
         scenario = state.drafts.get("scenario")
+        what = "Vectors are built" if task == "vectors" else "Evidence is gathered"
         if scenario is None:
             return "Draft and approve the scenario first."
         if scenario.status not in ("approved", "edited"):
-            return "Approve or edit the scenario first. Vectors are built from the approved scenario."
+            return f"Approve or edit the scenario first. {what} from the approved scenario."
     return None

@@ -17,7 +17,16 @@ from app.agent_client import fetch_agent_status
 from app.config import settings
 from app.db import get_session
 from app.errors import ApiError
-from app.models import AgentRunRow, DraftRow, RegisterImportRow, RiskMonitoringRow, RiskRow
+from app.models import (
+    AgentRunRow,
+    DataRequestRow,
+    DraftRow,
+    EvidenceItemRow,
+    EvidenceRunRow,
+    RegisterImportRow,
+    RiskMonitoringRow,
+    RiskRow,
+)
 from app.register.parser import ParsedRegister, parse_workbook
 from app.schemas import new_id, now_iso
 from app.xlsx import WorkbookError
@@ -207,6 +216,58 @@ def vectors_stale(state: IntakeState) -> bool:
     return based.get("scenarioDraftId") != scenario.id or         based.get("scenarioHash") != agent_pipeline.scenario_hash(current)
 
 
+FACTOR_GROUPS = {
+    "frequency": ("lef", "tef", "cf", "poa"),
+    "susceptibility": ("vuln", "tcap", "rs"),
+    "primary": ("primary.productivity", "primary.response", "primary.replacement"),
+    "secondary": ("slef", "secondary.response", "secondary.fines", "secondary.competitive", "secondary.reputation"),
+}
+
+
+def evidence_item_out(e: EvidenceItemRow) -> dict:
+    return {
+        "id": e.id, "origin": e.origin, "sourceType": e.source_type, "sourceName": e.source_name,
+        "citation": e.citation, "publishedAt": e.published_at, "retrievedAt": e.retrieved_at, "summary": e.summary,
+        "value": e.value, "unit": e.unit, "factors": e.factors, "stale": e.stale,
+        "groups": [g for g, keys in FACTOR_GROUPS.items() if any(f in keys for f in e.factors)],
+        "fromDataRequest": e.data_request_id,
+    }
+
+
+def data_request_out(r: DataRequestRow) -> dict:
+    return {
+        "id": r.id, "team": r.team, "question": r.question, "factor": r.factor, "reason": r.reason,
+        "status": r.status, "answer": r.answer, "answeredBy": r.answered_by, "answeredAt": r.answered_at,
+        "groups": [g for g, keys in FACTOR_GROUPS.items() if r.factor in keys],
+    }
+
+
+def evidence_out(session: Session, row: RiskRow) -> dict:
+    """The latest evidence run's items and data requests, plus every answered
+    request (answers outlive a re-run) and the evidence each answer created."""
+    latest = session.scalars(select(AgentRunRow).where(AgentRunRow.risk_pk == row.id, AgentRunRow.task == "evidence",
+                                                      AgentRunRow.status == "succeeded")
+                             .order_by(AgentRunRow.started_at.desc()).limit(1)).first()
+    run_id = latest.id if latest else None
+    requests = session.scalars(select(DataRequestRow).where(DataRequestRow.risk_pk == row.id).order_by(DataRequestRow.id)).all()
+    shown = [r for r in requests if r.agent_run_id == run_id or r.status == "answered"]
+    shown_ids = {r.id for r in shown}
+    items = session.scalars(select(EvidenceItemRow).where(EvidenceItemRow.risk_pk == row.id)
+                            .order_by(EvidenceItemRow.id)).all()
+    items = [e for e in items if (run_id and e.agent_run_id == run_id) or (e.data_request_id in shown_ids)]
+    summary = session.get(EvidenceRunRow, run_id) if run_id else None
+    return {
+        "evidence": [evidence_item_out(e) for e in items],
+        "dataRequests": [data_request_out(r) for r in shown],
+        "evidenceRun": None if latest is None else {
+            "id": latest.id, "finishedAt": latest.finished_at, "model": latest.model,
+            "toolCalls": summary.tool_calls if summary else None,
+            "rejected": summary.rejected if summary else [],
+            "notes": summary.notes if summary else {},
+        },
+    }
+
+
 def risk_detail_out(session: Session, row: RiskRow) -> dict:
     imp = session.get(RegisterImportRow, row.import_id)
     state = intake_states(session, [row.id])[row.id]
@@ -242,9 +303,7 @@ def risk_detail_out(session: Session, row: RiskRow) -> dict:
         "triageThreshold": settings.triage_min_score,
         "drafts": [draft_out(d, by_id) for d in drafts],
         "runs": [run_out(r) for r in runs[:30]],
-        # Filled in by the evidence milestone.
-        "evidence": [],
-        "dataRequests": [],
+        **evidence_out(session, row),
     }
 
 

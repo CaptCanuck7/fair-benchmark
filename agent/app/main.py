@@ -12,10 +12,25 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app import api_client
+from app.api_client import fetch_config
 from app.config import not_configured_reason, settings
+from app.guard import OutboundClient
 from app.llm import LLM, LLMError, LLMResult
-from app.schemas import ClassifyRequest, QualityRequest, ScenarioRequest, TaskResult, TriageRequest, VectorsRequest
-from app.tasks import classify, quality, scenario, triage, vectors
+from app.schemas import (
+    NON_MALICIOUS,
+    ClassifyRequest,
+    EvidenceRequest,
+    LibraryRequest,
+    QualityRequest,
+    ScenarioRequest,
+    TaskResult,
+    TriageRequest,
+    VectorsRequest,
+)
+from app.tasks import classify, evidence, library, quality, scenario, triage, vectors
+from app.tools.base import Registry
+from app.tools.toolbox import Toolbox
 
 app = FastAPI(title="FAIR workbench agent", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -32,8 +47,9 @@ def status() -> dict:
         "configured": reason is None,
         "reason": reason,
         "model": settings.anthropic_model or None,
-        "externalEnabled": settings.external_enabled,
-        "allowedDomains": list(settings.allowed_domains),
+        # .env values with the Settings page's overrides applied.
+        "externalEnabled": (cfg := fetch_config()).external_enabled,
+        "allowedDomains": list(cfg.allowed_domains),
     }
 
 
@@ -108,3 +124,36 @@ def task_scenario(req: ScenarioRequest):
 @app.post("/tasks/vectors", response_model=TaskResult)
 def task_vectors(req: VectorsRequest):
     return _run_task(vectors.PROMPT_VERSION, lambda llm: vectors.run(llm, req))
+
+
+def make_toolbox(llm: LLM, *, agent_run_id: str | None, asset_ids: list[str], threat_type: str | None,
+                 mode: str) -> Toolbox:
+    """Tools for one task, behind a guard built for this task: the current
+    register identifiers and Settings-page values, logging under its run ID.
+    Replaced in tests."""
+    config = fetch_config()
+    outbound = OutboundClient(api_client.build_guard(config=config), api_client.write_log, agent_run_id=agent_run_id)
+    return Toolbox(
+        registry=Registry(), outbound=outbound, asset_ids=asset_ids, external=config.external_enabled,
+        cve_allowed=threat_type not in NON_MALICIOUS, client=llm.client, model=llm.model,
+        allowed_domains=config.allowed_domains, mode=mode,
+    )
+
+
+@app.post("/tasks/evidence", response_model=TaskResult)
+def task_evidence(req: EvidenceRequest):
+    def go(llm: LLM) -> LLMResult:
+        box = make_toolbox(llm, agent_run_id=req.agent_run_id, asset_ids=req.risk.asset_ids,
+                           threat_type=req.scenario.get("threat_type"), mode="evidence")
+        return evidence.run(llm, req, box)
+
+    return _run_task(evidence.PROMPT_VERSION, go)
+
+
+@app.post("/tasks/library", response_model=TaskResult)
+def task_library(req: LibraryRequest):
+    def go(llm: LLM) -> LLMResult:
+        box = make_toolbox(llm, agent_run_id=req.agent_run_id, asset_ids=[], threat_type=None, mode="library")
+        return library.run(llm, req, box)
+
+    return _run_task(library.PROMPT_VERSION, go)

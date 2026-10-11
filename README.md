@@ -56,7 +56,7 @@ current model), and uses a throwaway in-memory database, not your saved data.
 docker compose exec api pytest -m live -s
 ```
 
-That runs two evaluations:
+That runs three evaluations:
 
 - **`test_live_eval.py`:** the intake checks on all 13 test risks (about
   60,000 input and 7,000 output tokens).
@@ -64,6 +64,11 @@ That runs two evaluations:
   risks, approving each scenario first as an analyst would (about 66,000 input
   and 21,000 output tokens). It replays the recorded intake results rather than
   paying for them again.
+- **`test_live_eval_evidence.py`:** evidence gathering for the 9 qualifying
+  risks, with the intake and scenarios replayed. It uses the public feeds and
+  allowlisted web search, so it also costs web searches ($10 per 1,000), and it
+  takes several minutes. The agent writes its outbound log to the running app,
+  so this run's requests appear on the Settings page.
 
 Run one by naming its file after `-s`.
 
@@ -159,13 +164,39 @@ these yourself from the risk's tabs:
 - The quality check can be approved or rejected; to change it, run the
   checks again.
 
+**Evidence and data requests.** Once a risk's scenario is approved, **Gather
+evidence** on its Evidence tab sends the agent through the internal records
+(the mock evidence workbook), the reference library and, with external
+sources on, the public feeds (NVD, CISA's exploited-vulnerabilities catalog,
+EPSS, MITRE ATT&CK) and allowlisted web search. It has a budget of 12 tool
+calls and 120 seconds per risk.
+
+- **Grouping:** evidence is grouped by frequency, susceptibility, primary loss
+  and secondary loss.
+- **Labels:** each item is labeled internal or external, and flagged stale when
+  its source is more than 24 months old.
+- **Citations:** each item cites a record ("Incident History INC-2026-021") or
+  a web address, which a tool must have returned in that run.
+- **Data requests:** where a part of the risk has no evidence, the agent raises
+  a data request for the right team, in plain language. Answer it on the Data
+  requests tab and the answer becomes internal evidence, cited as "Data request
+  answered by {team} on {date}".
+
 **Test data only.** Do not load real register data until your organization has
 approved this use. When the agent runs, risk text is sent to the Claude API.
 People's names from the register (analyst, owner, managers) are not sent.
 
-**Settings** (from the register page) shows whether the agent is on, the
-triage threshold, the reviewer name, and the log of every outbound request the
-agent attempted.
+**Settings** (from the register page) is where you set your name (recorded on
+approvals), the triage threshold, whether external sources are on, and which
+sites the agent may reach. These override `.env`. It also holds the
+**reference library** and the log of every outbound request the agent
+attempted, allowed or blocked.
+
+**Reference library.** It starts empty. **Refresh from the report sites** has
+the agent read the Verizon, IBM and Cyentia report pages and propose figures,
+each with its page and the sentence that states it. Approve or reject each
+proposal; only approved figures are used as evidence. You can also add
+figures by hand.
 
 ### The agent
 
@@ -581,6 +612,61 @@ prototype first; otherwise choose the simpler option."
 - **No treatment state is created.** The register's mitigation plan is shown on
   the Scenario tab for reference, as section 10 asks. It will sit beside "Add
   treatment option" once milestone 6 creates analyses.
+
+**Evidence gathering, the library and settings** (`AGENT_BUILD.md`, milestone 5)
+- **Evidence needs an approved scenario**, as section 6 says. Approved vectors
+  are passed along when there are any, but aren't required.
+- **The loop is enforced in code.** After 12 tool calls or 120 seconds, further
+  calls get an error result and the next turn sets `tool_choice` to "none", so
+  the model has to answer. The final JSON has the usual single corrective retry.
+- **Citations are checked against a registry.** Every tool records each source
+  it returns. An item whose citation isn't in the registry is dropped and
+  listed as rejected on the Evidence tab.
+  - Origin, source type, source name and publication date come from the tool,
+    not the model.
+  - Stale means published more than 24 months ago. A source with an unknown
+    date isn't flagged.
+- **Every factor group ends with evidence or a data request.** The four groups
+  are frequency, susceptibility, primary loss and secondary loss. If the model
+  leaves a group with neither, code adds a plain-language request for that group
+  and says it was added automatically.
+- **Data request questions can't use FAIR terms** ("threat event frequency",
+  "susceptibility" and the like). Validation rejects them, with one retry, so a
+  team without FAIR knowledge can answer.
+- **No CVE tools for non-malicious threats.** For "Error (accidental)",
+  "Failure (system or vendor)" and "Natural" scenarios, the NVD, KEV and EPSS
+  tools aren't offered at all, so no CVE lookup can happen.
+- **Web search runs as a separate, minimal Claude call.**
+  - The guard checks and logs the exact query first.
+  - Only then does a fresh request run the Claude API's web search tool
+    (`web_search_20250305`, one use, `allowed_domains` set to the allowlist),
+    with nothing in its context but the query.
+  - If the search ran different wording, that is checked and logged too, and
+    the results are dropped if it fails.
+  - Pages are fetched by the agent itself through the guard, as plain text
+    (PDFs aren't read). cisa.gov refuses automated page requests, though its
+    JSON feed works.
+- **Feeds.**
+  - NVD is searched by product keyword and returns the newest matches, which
+    takes a second request because NVD lists oldest first.
+  - The KEV feed is cached for a day.
+  - The MITRE ATT&CK Enterprise bundle (about 40 MB) is downloaded once per
+    agent start and searched locally, so search words never leave the agent.
+- **Data request answers survive a new evidence run**, with their evidence.
+  Unanswered requests and agent-found items are replaced by the new run's.
+- **Settings-page values override `.env`.** They are stored in an
+  `app_settings` table. The api applies the analyst name and triage threshold
+  at startup and on every change. The agent fetches the external-sources
+  switch and the domain additions and removals at the start of each task, and
+  its status shows the effective values.
+- **The library refresh proposes only figures it can show.** Each proposal's
+  page must have been fetched in that run, its quote must appear on the page,
+  and its value must appear in the quote; anything else is dropped. Approved
+  entries are cited as "{report} {edition}, p. {page}: {url}". The seed file
+  `agent-data/reference_library.json` is loaded once, into an empty library.
+- **Vendor-specific searches.** The mock data names no vendors, so the guard's
+  vendor list is empty, and nothing asks for per-query approval yet. The guard
+  already blocks a vendor name in a query unless that exact query was approved.
 
 ## Later extensions
 

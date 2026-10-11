@@ -1,0 +1,1849 @@
+{
+  "evidence": {
+    "End-of-Support OS on Customer SFTP File Transfer Servers": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-412",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "Asset-412 is an internet-facing (IP allowlist) Tier 1 server holding names, national IDs, bank details and pay data for about 410,000 individuals. It supports about 340 customers. Asset-413 holds the same figures, so the two servers likely hold overlapping data, and the counts should not be added.",
+          "value": 410000.0,
+          "unit": "individuals with records",
+          "factors": [
+            "secondary.response",
+            "secondary.fines",
+            "secondary.reputation",
+            "slef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-413",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "Asset-413 is a second server with the same data types, record count and customer dependency, so one compromise could expose the full set of records. It is unclear whether the two servers hold the same records or split them.",
+          "value": 340.0,
+          "unit": "customers dependent",
+          "factors": [
+            "secondary.competitive",
+            "secondary.reputation",
+            "slef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 2",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "Firewall blocked about 1.84M connections from non-allowlisted IPs in 12 months. These were background scanning that never reached the service, so they show the internet scanning level and not attacks that got through.",
+          "value": 1840000.0,
+          "unit": "blocked connections / 12 months",
+          "factors": [
+            "tef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 3",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "2,150 failed key authentications from allowlisted ranges in 12 months, mostly customer misconfiguration. This is a weak signal of hostile activity.",
+          "value": 2150.0,
+          "unit": "events / 12 months",
+          "factors": [
+            "tef",
+            "cf"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 4",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "The IDS raised 14 exploit-signature alerts from allowlisted ranges in 12 months. Each is a probable exploit attempt against the SFTP service or OS, and none succeeded.",
+          "value": 14.0,
+          "unit": "alerts / 12 months",
+          "factors": [
+            "tef",
+            "lef",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 5",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "No confirmed compromises of these servers in 36 months. This is weak evidence of low frequency, not proof of zero, and the OS only went out of support in January 2026.",
+          "value": 0.0,
+          "unit": "confirmed compromises / 36 months",
+          "factors": [
+            "lef",
+            "vuln"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2026-021",
+          "published_at": "2026-04-09",
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "On 2026-04-09 a compromised customer network was used to guess keys against these servers. It gave no access and no records were affected. It cost 45 response hours, or $6,750, and needed no customer notification. It shows that the allowlisted-customer-network route is used in practice.",
+          "value": 6750.0,
+          "unit": "USD per incident (no loss event)",
+          "factors": [
+            "tef",
+            "cf",
+            "poa",
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "The loaded labor rate is $150 an hour. Use it to cost response hours, for example the 45 hours in INC-2026-021 come to $6,750.",
+          "value": 150.0,
+          "unit": "USD per hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-1041",
+          "published_at": "2026-02-02",
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "The OS has had no vendor patches since January 2026, and the finding is open and rated Critical. Six vulnerabilities have been published since: 2 critical and 1 with a public exploit. No CVE IDs are given, so KEV and EPSS lookups were not possible.",
+          "value": 6.0,
+          "unit": "unpatched vulnerabilities since end of support",
+          "factors": [
+            "vuln",
+            "tcap",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-1042",
+          "published_at": "2026-02-02",
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "The SFTP service is 3 releases behind. Vendor fixes exist but cannot be installed on the unsupported OS, which adds to the exposure.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-1107",
+          "published_at": "2026-03-18",
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "The allowlist has 9 ranges of /16 or larger. This widens the set of networks that can reach the servers, which raises the chance of an attack coming from an allowlisted range.",
+          "value": 9.0,
+          "unit": "allowlist ranges /16 or larger",
+          "factors": [
+            "tef",
+            "cf",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "pen_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments PT-061",
+          "published_at": "2025-09-18",
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "The September 2025 external pen test found nothing, but it was run only from a non-allowlisted address and the service was not reachable. It has not been repeated since the OS went out of support, so it says little about the exposure from allowlisted ranges.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:37:41Z",
+          "summary": "9 corporate accounts were compromised by credential phishing in 12 months, all contained before lateral movement. This gives context for the internal-foothold path (path 3).",
+          "value": 9.0,
+          "unit": "accounts / 12 months",
+          "factors": [
+            "tef",
+            "cf"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "Vulnerability Management",
+          "question": "Please list the CVE IDs for the 6 vulnerabilities published since end of support that affect this OS and the SFTP service. For each, say whether it is exploitable before authentication or only locally, and whether a public exploit exists.",
+          "factor": "tcap",
+          "reason": "CVE IDs are needed to check CISA KEV and EPSS data for exploit likelihood and attacker capability."
+        },
+        {
+          "team": "Asset Management",
+          "question": "What is the average and maximum volume of customer files on the SFTP servers at one time, and how many individuals' records and how many customers are covered by files on disk under the 7-day purge window?",
+          "factor": "primary.replacement",
+          "reason": "The exposed amount depends on the files held on disk, not the total records ever handled."
+        },
+        {
+          "team": "Legal",
+          "question": "What do customer contracts and applicable breach laws require after payroll data exposure (notification deadlines, credit monitoring, indemnity or penalty clauses)? Have any regulator fines or customer claims followed past incidents?",
+          "factor": "secondary.fines",
+          "reason": "No fine or contract data was found to size secondary loss."
+        },
+        {
+          "team": "Finance",
+          "question": "What was the cost of past data breach responses at the company, including notification, credit monitoring, legal fees and customer credits or churn? What is the annual revenue from the 340 dependent customers?",
+          "factor": "secondary.response",
+          "reason": "No internal figures or library cost-per-record data exist to size response and customer loss."
+        },
+        {
+          "team": "IAM",
+          "question": "How many customer SFTP keys exist, when were they last rotated, and are customer accounts isolated from one another on the servers?",
+          "factor": "vuln",
+          "reason": "This shows how likely and how far the stolen-key escalation path (path 2) would go."
+        },
+        {
+          "team": "SOC",
+          "question": "Are there any restrictions on management ports for these servers, such as a separate network zone or jump host? Have there been any signs of compromise since January 2026?",
+          "factor": "poa",
+          "reason": "This is needed to assess the lateral movement path (path 3) and the likelihood of attack."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 3,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, external",
+        "backstopGroups": []
+      }
+    },
+    "No MFA on Legacy Support Admin Console": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-118",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "The console gives access to all Nova customer tenant data. It is Restricted, Tier 1, and not internet facing. About 9.5M individuals have records and about 3,100 customers depend on it.",
+          "value": 9500000.0,
+          "unit": "individuals with records",
+          "factors": [
+            "secondary.response",
+            "secondary.fines",
+            "secondary.reputation",
+            "secondary.competitive",
+            "slef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 6",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "There were 9,400 failed console logins in 12 months. Logs are pulled only on request and nothing alerts on them.",
+          "value": 9400.0,
+          "unit": "failed logins / 12 months",
+          "factors": [
+            "tef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 7",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "There were 310 account lockouts in 12 months. This shows that guessing attempts are happening and that lockout triggers.",
+          "value": 310.0,
+          "unit": "lockouts / 12 months",
+          "factors": [
+            "tef",
+            "vuln"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 8",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "A retrospective review found 3 suspected password-spraying bursts in 12 months, none tied to a successful login. The review was one-off, so coverage is limited.",
+          "value": 3.0,
+          "unit": "spraying bursts / 12 months",
+          "factors": [
+            "tef",
+            "lef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 9",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "No unauthorized console logins were confirmed in 36 months. Detection coverage is low, so this is weak evidence that the true frequency is zero.",
+          "value": 0.0,
+          "unit": "confirmed events / 36 months",
+          "factors": [
+            "lef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "9 corporate accounts were compromised through credential phishing in 12 months, 2 of them support engineers. All were contained before lateral movement. This shows how often the foothold step happens.",
+          "value": 9.0,
+          "unit": "accounts / 12 months",
+          "factors": [
+            "tef",
+            "poa",
+            "cf"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-0988",
+          "published_at": "2025-11-10",
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "The finding that the console is password-only and not behind SSO is rated High and is in progress. 140 of 220 users have moved to MFA as of September 2026, so exposure is shrinking.",
+          "value": 140.0,
+          "unit": "of 220 users on MFA",
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "pen_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments PT-058",
+          "published_at": "2026-03-05",
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "An internal pen test in March 2026 got valid console credentials by password spraying from an internal position in 2 of 3 attempts. The testers then reached tenant data.",
+          "value": 2.0,
+          "unit": "successes / 3 attempts",
+          "factors": [
+            "vuln",
+            "tcap",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "external",
+          "source_type": "framework",
+          "source_name": "MITRE ATT&CK",
+          "citation": "https://attack.mitre.org/techniques/T1110/003",
+          "published_at": "2025-10-24",
+          "retrieved_at": "2026-10-11T14:38:01Z",
+          "summary": "Password spraying is a known technique that tries a few common passwords across many accounts. It avoids per-account lockout, which matches exploit path 2.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "tcap",
+            "vuln"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "external",
+          "source_type": "framework",
+          "source_name": "MITRE ATT&CK",
+          "citation": "https://attack.mitre.org/techniques/T1078",
+          "published_at": "2026-05-12",
+          "retrieved_at": "2026-10-11T14:38:01Z",
+          "summary": "Valid-account abuse covers the use of phished or reused credentials for initial access. It matches exploit paths 1 and 3.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "tcap",
+            "tef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:00Z",
+          "summary": "The loaded labor rate is $150 per hour. It can be used to cost response hours once the hours are known.",
+          "value": 150.0,
+          "unit": "USD per hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "SOC",
+          "question": "For a comparable credential-compromise incident, how many responder hours and how many people were needed for investigation, containment and customer notification?",
+          "factor": "primary.response",
+          "reason": "There are no incident records for this asset, so response cost cannot be costed."
+        },
+        {
+          "team": "Finance",
+          "question": "What would it cost to restore or rebuild affected customer tenants and cover support staff downtime after a tenant data breach or change?",
+          "factor": "primary.replacement",
+          "reason": "No replacement or productivity cost data exists for this asset."
+        },
+        {
+          "team": "Legal",
+          "question": "What are the breach notification obligations, regulator fine history and contractual penalty or credit terms for the roughly 3,100 customers on this console?",
+          "factor": "secondary.fines",
+          "reason": "No fines or contract terms were found, and the library has no cost-per-record figures."
+        },
+        {
+          "team": "Third-Party Risk",
+          "question": "What share of the 3,100 dependent customers have contracts with security-breach termination or service credit clauses, and what is their annual revenue?",
+          "factor": "secondary.competitive",
+          "reason": "Customer loss and competitive impact cannot be sized without contract and revenue data."
+        },
+        {
+          "team": "SOC",
+          "question": "How many console logins in the last 12 months came from unusual locations or endpoints, and how many of the 35 impersonation accounts were used?",
+          "factor": "lef",
+          "reason": "Detection coverage is low, so we need better evidence of actual unauthorized access."
+        },
+        {
+          "team": "IAM",
+          "question": "How many of the 35 impersonation-privileged accounts are among the 80 users still without MFA, and when will migration finish?",
+          "factor": "vuln",
+          "reason": "This shows how much exposure remains and how quickly it is falling."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 3,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, external",
+        "backstopGroups": []
+      }
+    },
+    "Over-Privileged CI/CD Deployment Role in Production Cloud Account": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-355",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "The production cloud account is classified Restricted. It holds time and attendance data for about 3.4 million individuals and supports about 2,300 dependent customers. This sizes secondary loss and confidentiality exposure.",
+          "value": 3400000.0,
+          "unit": "individuals with records",
+          "factors": [
+            "slef",
+            "secondary.response",
+            "secondary.fines",
+            "secondary.reputation",
+            "secondary.competitive"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-907",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "The CI/CD platform holds build definitions and deployment credentials. It is Tier 1 and not internet facing. About 2,300 customers depend on it.",
+          "value": 2300.0,
+          "unit": "dependent customers",
+          "factors": [
+            "primary.productivity",
+            "secondary.competitive",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-1220",
+          "published_at": "2026-04-20",
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "The deployment role has a wildcard admin policy, and the finding has been open and rated High since 2026-04-20. The role used only 23 distinct actions in 90 days out of several thousand permitted, so a scoped policy would cut the exposure without much disruption.",
+          "value": 23.0,
+          "unit": "distinct actions used / 90 days",
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-1221",
+          "published_at": "2026-04-20",
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "Long-lived access keys 14 months old are stored as pipeline variables. This finding is open and rated High, and it supports the leaked-key path.",
+          "value": 14.0,
+          "unit": "months key age",
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "pen_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments PT-064",
+          "published_at": "2026-05-27",
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "In a May 2026 penetration test, a tester with a standard engineer account edited a pipeline definition and gained admin access to production. The single reviewer approved the change without noticing. This shows the one-reviewer control did not stop the attack and that the skill needed is low.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "vuln",
+            "tcap",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "Nine corporate accounts were confirmed compromised through credential phishing in 12 months, and 2 belonged to support engineers. All were contained before lateral movement. This is a base rate for engineer account compromise, which is the first exploit path.",
+          "value": 9.0,
+          "unit": "accounts / 12 months",
+          "factors": [
+            "tef",
+            "lef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 11",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "The pipeline definition was changed 1,260 times in 12 months. Each change is a chance for a malicious edit to hide among normal activity and be approved.",
+          "value": 1260.0,
+          "unit": "changes / 12 months",
+          "factors": [
+            "tef",
+            "cf",
+            "vuln"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 12",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:15Z",
+          "summary": "The SIEM raised 2 alerts in 12 months for the deployment role being used from outside the pipeline address range. Both were closed as benign engineer testing. This shows the detection works but is not evidence of zero attacks.",
+          "value": 2.0,
+          "unit": "alerts / 12 months",
+          "factors": [
+            "tef",
+            "lef",
+            "rs"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "Finance",
+          "question": "What would the business expect to spend on breach response for a confidentiality breach affecting about 3.4 million individuals, covering notification, credit monitoring, forensics and legal? Do any past breach costs exist for comparison?",
+          "factor": "primary.response",
+          "reason": "No incident history or cost-per-record figures exist for these assets, so direct response cost cannot be sized."
+        },
+        {
+          "team": "Legal",
+          "question": "Which regulations and customer contracts require breach notification or carry penalties for exposure of the time and attendance data of about 3.4 million individuals? What fines or contract penalties have applied in past cases?",
+          "factor": "secondary.fines",
+          "reason": "No fine or contract-term evidence was found, and the reference library has no entries."
+        },
+        {
+          "team": "SOC",
+          "question": "In the last 12 months, how many attempts were made to log in to or use the CI/CD platform or deployment role from unfamiliar locations, and has a pipeline key ever appeared in build logs or been reported as leaked?",
+          "factor": "tef",
+          "reason": "Telemetry covers only the 2 benign alerts, and no data shows outside attacker activity against the pipeline or leaked keys."
+        },
+        {
+          "team": "SOC",
+          "question": "Do SIEM alerts exist for deployment role actions such as listing or reading data stores, and how long did past alerts on this role take to be triaged?",
+          "factor": "rs",
+          "reason": "Detection and response speed limit how long an attacker has and how much data is lost."
+        },
+        {
+          "team": "Vulnerability Management",
+          "question": "Do the third-party build dependencies used in the pipeline use pinned versions or integrity checks, and how many were updated or flagged in the last 12 months?",
+          "factor": "poa",
+          "reason": "The third-party dependency path has no supporting evidence."
+        },
+        {
+          "team": "Finance",
+          "question": "What is the revenue per hour or day of the time and attendance service, and what is the expected recovery time and cost if production is rebuilt?",
+          "factor": "primary.replacement",
+          "reason": "No replacement or outage cost data exists for the production account."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 3,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, external",
+        "backstopGroups": []
+      }
+    },
+    "User Access Reviews Not Performed for Payroll Processing Application": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-562",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:32Z",
+          "summary": "The payroll application holds employee pay, tax and bank data classed Restricted. About 2.1M individuals have records and 1,450 customers depend on it. It is not internet facing. This sets the scale of secondary loss.",
+          "value": 2100000.0,
+          "unit": "individuals with records",
+          "factors": [
+            "secondary.response",
+            "secondary.fines",
+            "secondary.reputation",
+            "slef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2024-077",
+          "published_at": "2024-10-02",
+          "retrieved_at": "2026-10-11T14:38:32Z",
+          "summary": "In Oct 2024 a terminated contractor kept access for 5 weeks through a local account and viewed 14 employee records. This is a prior loss event on this asset. It was not notified to customers and cost 9,000 USD in total.",
+          "value": 9000.0,
+          "unit": "USD total cost, 1 event",
+          "factors": [
+            "lef",
+            "tef",
+            "poa",
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2024-077",
+          "published_at": "2024-10-02",
+          "retrieved_at": "2026-10-11T14:38:32Z",
+          "summary": "Response took 60 hours. At the 150 USD/hour loaded rate that is 9,000 USD, which matches the recorded total. There were no other direct costs.",
+          "value": 60.0,
+          "unit": "response hours",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:32Z",
+          "summary": "The loaded labor rate for costing response hours is 150 USD per hour.",
+          "value": 150.0,
+          "unit": "USD/hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "control_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments CT-311",
+          "published_at": "2026-07-10",
+          "retrieved_at": "2026-10-11T14:38:32Z",
+          "summary": "The SOC 2 quarterly access review test failed. Q1 and Q2 2026 reviews were not done. In a 50-account sample, 9 (7 role changers, 2 terminated contractors) still had access, an 18% rate.",
+          "value": 18.0,
+          "unit": "% of sampled accounts with stale access",
+          "factors": [
+            "vuln",
+            "cf",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "control_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments CT-312",
+          "published_at": "2026-07-10",
+          "retrieved_at": "2026-10-11T14:38:32Z",
+          "summary": "SSO leaver deprovisioning worked in 40 of 40 samples, with accounts disabled within 24 hours. Local accounts are not covered by the process, which is the gap that enabled the 2024 incident.",
+          "value": 40.0,
+          "unit": "of 40 samples passed (SSO only)",
+          "factors": [
+            "vuln",
+            "rs",
+            "lef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:32Z",
+          "summary": "Organization-wide, 9 corporate accounts were confirmed compromised through credential phishing in 12 months. All were contained before lateral movement. This is context for takeover of dormant accounts, not specific to this asset.",
+          "value": 9.0,
+          "unit": "accounts compromised / 12 months",
+          "factors": [
+            "tef",
+            "tcap"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "SOC",
+          "question": "Does the payroll application audit log record read or view access to payroll records? Have any of the 9 stale accounts or 30 local accounts been used to view or change data in the last 12 months?",
+          "factor": "lef",
+          "reason": "Shows whether stale access was actually used and whether viewing can be detected."
+        },
+        {
+          "team": "SOC",
+          "question": "How many login attempts or failed logins hit the 30 local accounts and the stale accounts in the last 12 months, and from where?",
+          "factor": "tef",
+          "reason": "No asset-specific telemetry exists on threat activity against this application."
+        },
+        {
+          "team": "Legal",
+          "question": "What notification obligations, regulatory fines or contract penalties would apply if employee pay, tax and bank data for these records were viewed without authorization? Were any incurred in past incidents?",
+          "factor": "secondary.fines",
+          "reason": "No fines or notification cost records were found and the reference library had no entries."
+        },
+        {
+          "team": "Finance",
+          "question": "What are the cost per notified individual for breach notification, credit monitoring and customer-contract credits at this company?",
+          "factor": "secondary.response",
+          "reason": "No cost-per-record figure is available in the library."
+        },
+        {
+          "team": "IAM",
+          "question": "How many of the 480 accounts are role changers or contractors with stale access, and how many of the 30 local accounts are active and used? Is MFA enforced on local accounts?",
+          "factor": "vuln",
+          "reason": "The 18% spot check may not represent all 480 accounts."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 2,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, internal",
+        "backstopGroups": []
+      }
+    },
+    "Unsupported Insecure Protocol on Third-Party Benefits Integration": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-274",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:44Z",
+          "summary": "The benefits integration service holds employee names, dates of birth, dependents and benefit elections for about 780,000 individuals. About 1,100 customers depend on it. It is outbound only.",
+          "value": 780000.0,
+          "unit": "individuals with records",
+          "factors": [
+            "secondary.response",
+            "secondary.fines",
+            "slef",
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-690",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:44Z",
+          "summary": "The provider-hosted legacy API holds the same data, about 780,000 individuals across 1,100 customers. It is internet-facing.",
+          "value": 1100.0,
+          "unit": "customers dependent",
+          "factors": [
+            "secondary.reputation",
+            "secondary.competitive",
+            "slef",
+            "tef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 13",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:44Z",
+          "summary": "All integration sessions (100%) negotiate TLS 1.0. No network inspection exists on this path, so interception attempts would not be visible. Absence of observed attacks is therefore weak evidence.",
+          "value": 100.0,
+          "unit": "percent of sessions at TLS 1.0",
+          "factors": [
+            "vuln",
+            "tef",
+            "lef",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-1150",
+          "published_at": "2026-05-12",
+          "retrieved_at": "2026-10-11T14:38:44Z",
+          "summary": "An architecture review rated this High and it is still open. It found TLS 1.0 and basic authentication with a shared account, first seen 2026-05-12. These weaknesses are confirmed, with no exploit-probability data.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "vuln",
+            "rs",
+            "tcap"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "vendor",
+          "source_name": "Vendor Assessments",
+          "citation": "Vendor Assessments Asset-690",
+          "published_at": "2025-12-12",
+          "retrieved_at": "2026-10-11T14:38:44Z",
+          "summary": "The provider confirms the legacy API gets no security fixes and is outside its SOC 2 scope. No incidents have been disclosed, which is weak evidence of low frequency. The contract requires breach notification within 72 hours.",
+          "value": 72.0,
+          "unit": "hours contractual breach notification",
+          "factors": [
+            "vuln",
+            "lef",
+            "slef",
+            "secondary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:44Z",
+          "summary": "Nine corporate accounts were confirmed compromised through credential phishing in 12 months, two of them support engineers. This is organization-wide context on how credentials get stolen and does not concern this integration directly.",
+          "value": 9.0,
+          "unit": "accounts / 12 months",
+          "factors": [
+            "tef",
+            "tcap",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:44Z",
+          "summary": "The loaded labor rate for costing response hours is $150 per hour. No incident history exists for these assets to give hours.",
+          "value": 150.0,
+          "unit": "USD per hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "SOC",
+          "question": "Is the shared integration credential stored in configuration, and who can read it? Have there been any anomalous logins or requests from outside the provider's IP ranges using that account in the last 12 months?",
+          "factor": "tef",
+          "reason": "No telemetry exists on attempts against the credential or the network path."
+        },
+        {
+          "team": "Vulnerability Management",
+          "question": "Has any penetration test or TLS configuration scan been run against this integration? Can a TLS 1.0 session with these cipher suites be downgraded or decrypted in practice?",
+          "factor": "tcap",
+          "reason": "There are no control tests, and attacker capability against TLS 1.0 is assumed."
+        },
+        {
+          "team": "Third-Party Risk",
+          "question": "Does the provider restrict use of the shared credential to our IP ranges? Does it log and alert on use from other locations?",
+          "factor": "poa",
+          "reason": "This determines whether a stolen credential can be used directly against the provider."
+        },
+        {
+          "team": "Finance",
+          "question": "What were the costs of notifying individuals, credit monitoring, and legal support in past breaches of similar size, per record or in total?",
+          "factor": "secondary.response",
+          "reason": "The reference library has no cost-per-record figures and there is no incident history."
+        },
+        {
+          "team": "Legal",
+          "question": "Which regulations and customer contracts would apply if benefits data on about 780,000 individuals were exposed? What fines or penalty clauses would follow?",
+          "factor": "secondary.fines",
+          "reason": "No fine or contract-penalty evidence is available."
+        },
+        {
+          "team": "SOC",
+          "question": "How many staff hours would incident response, log review and scoping take for a breach of this integration, based on similar past incidents?",
+          "factor": "primary.response",
+          "reason": "No incident history exists for these assets to give response effort."
+        },
+        {
+          "team": "Asset Management",
+          "question": "What is the cost and effort to replace the legacy integration with the REST API, and what is the cost of rotating the credential?",
+          "factor": "primary.replacement",
+          "reason": "The entry estimates two sprints but gives no cost."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 3,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, external",
+        "backstopGroups": []
+      }
+    },
+    "No Data Loss Prevention on Workstations Handling Customer Data Extracts": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-731",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:58Z",
+          "summary": "The asset is a group of 85 workstations classed Restricted and holding customer data extracts. The contents vary, and the inventory gives no record or customer counts.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "primary.response",
+            "secondary.fines",
+            "secondary.reputation"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 15",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "The web proxy logged 420 uploads to personal cloud storage domains in 30 days from 37 distinct users on these workstations. Upload content is not visible, so these are possible exposure paths and not confirmed losses.",
+          "value": 420.0,
+          "unit": "uploads to personal cloud / 30 days",
+          "factors": [
+            "tef",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2025-090",
+          "published_at": "2025-11-06",
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "In Nov 2025 a support analyst emailed an extract of 5,100 records to a personal address. It was recovered, and one customer was notified. This is one confirmed loss event on this asset and shows the insider path is real.",
+          "value": 1.0,
+          "unit": "confirmed loss events (Asset-731 history)",
+          "factors": [
+            "lef",
+            "tef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2025-090",
+          "published_at": "2025-11-06",
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "The incident cost 47,000 USD in total. That is 180 response hours (27,000 USD at the 150 USD/hour loaded rate) plus 20,000 USD of other direct costs.",
+          "value": 47000.0,
+          "unit": "USD per incident",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "The loaded labor rate is 150 USD per hour, used to cost response hours.",
+          "value": 150.0,
+          "unit": "USD/hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2025-090",
+          "published_at": "2025-11-06",
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "The incident affected 5,100 records and led to notification of one customer. This gives a scale for secondary loss from a single extract.",
+          "value": 5100.0,
+          "unit": "records affected",
+          "factors": [
+            "slef",
+            "secondary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "control_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments CT-275",
+          "published_at": "2025-10-15",
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "The Oct 2025 internal audit of data handling failed. 9 of 20 sampled workstations held customer extracts older than 90 days, so more data is exposed per event.",
+          "value": 9.0,
+          "unit": "of 20 sampled workstations with extracts older than 90 days",
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 14",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "EDR detected 11 malware events on the 85 workstations in 12 months. All were blocked or remediated. This is context for the malware path and shows EDR is working against malware.",
+          "value": 11.0,
+          "unit": "detections / 12 months",
+          "factors": [
+            "tef",
+            "vuln",
+            "tcap"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "9 corporate accounts were compromised by credential phishing in 12 months, 2 of them support engineers. All were contained before lateral movement. This is context for malware or account misuse reaching extracts.",
+          "value": 9.0,
+          "unit": "accounts / 12 months",
+          "factors": [
+            "tef",
+            "cf"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "external",
+          "source_type": "framework",
+          "source_name": "MITRE ATT&CK",
+          "citation": "https://attack.mitre.org/techniques/T1567/002",
+          "published_at": "2026-05-12",
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "MITRE ATT&CK T1567.002 describes exfiltration to cloud storage, the technique matching the cloud upload path.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "poa",
+            "tcap"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "external",
+          "source_type": "framework",
+          "source_name": "MITRE ATT&CK",
+          "citation": "https://attack.mitre.org/techniques/T1052",
+          "published_at": "2025-10-24",
+          "retrieved_at": "2026-10-11T14:38:59Z",
+          "summary": "MITRE ATT&CK T1052 describes exfiltration over a physical medium such as USB. This is the removable media path, which the web proxy does not cover.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "poa",
+            "tcap"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "SOC",
+          "question": "How many USB mass storage device connections occurred on the 85 workstations in the last 12 months, and does the EDR agent have device control or upload monitoring enabled?",
+          "factor": "tef",
+          "reason": "No telemetry covers the USB path, and it is unclear whether EDR can see it."
+        },
+        {
+          "team": "SOC",
+          "question": "Of the 420 uploads to personal cloud storage in 30 days, how many were reviewed, and how many involved file types or sizes consistent with data extracts?",
+          "factor": "lef",
+          "reason": "Upload content is not visible, so it is unclear how many uploads are actual loss events."
+        },
+        {
+          "team": "Asset Management",
+          "question": "How many customer records, and which sensitive fields, does a typical extract on these workstations hold? What is the largest extract in the last 12 months?",
+          "factor": "secondary.response",
+          "reason": "The inventory has no record counts, which are needed to size notification and cost-per-record loss."
+        },
+        {
+          "team": "Legal",
+          "question": "What contract notification clauses, regulatory notification duties and past fines or penalties apply to customer data extracts of this kind?",
+          "factor": "secondary.fines",
+          "reason": "There is no evidence on fines or contract terms."
+        },
+        {
+          "team": "Finance",
+          "question": "What customer credits, churn or lost revenue followed the notified customer incident in Nov 2025?",
+          "factor": "secondary.competitive",
+          "reason": "No evidence exists on competitive or reputation loss."
+        },
+        {
+          "team": "Internal Audit",
+          "question": "Do the audit results show how many extracts were found per workstation and how large they were? Was any user found to have copied extracts to USB or cloud storage?",
+          "factor": "vuln",
+          "reason": "This would give the amount of data exposed and show how often controls are bypassed."
+        },
+        {
+          "team": "Finance",
+          "question": "What is the productivity cost, in staff hours or lost output, of an incident that disrupts analyst work, such as workstation reimaging or access suspension?",
+          "factor": "primary.productivity",
+          "reason": "There is no productivity loss evidence."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 3,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, internal",
+        "backstopGroups": []
+      }
+    },
+    "Backup Restoration Untested for Time and Attendance Database": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2025-046",
+          "published_at": "2025-06-11",
+          "retrieved_at": "2026-10-11T14:39:18Z",
+          "summary": "A failed schema change corrupted the tables on this database in June 2025. The restore from log backups took 5.5 hours, inside the 8-hour objective, and SLA credits were still paid. This is one event in the records provided, so it is weak evidence of frequency.",
+          "value": 1.0,
+          "unit": "loss events on Asset-208 (since 2025-06)",
+          "factors": [
+            "lef",
+            "tef",
+            "slef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2025-046",
+          "published_at": "2025-06-11",
+          "retrieved_at": "2026-10-11T14:39:18Z",
+          "summary": "The failed-change event cost $199,000 in total. That is 380 response hours (about $57,000 at the $150 per hour loaded rate) plus $142,000 in other direct costs, which include SLA credits.",
+          "value": 199000.0,
+          "unit": "USD per event",
+          "factors": [
+            "primary.response",
+            "primary.productivity",
+            "secondary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:18Z",
+          "summary": "The loaded labor rate is $150 per hour. It is used to cost response hours.",
+          "value": 150.0,
+          "unit": "USD per hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "control_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments CT-340",
+          "published_at": "2025-02-26",
+          "retrieved_at": "2026-10-11T14:39:18Z",
+          "summary": "The last full restore test, in February 2025, took 6.2 hours on a 3.9 TB database and passed. It predates the schema change and storage migration, and the database is now about 6 TB. Scaling linearly would give roughly 9.5 hours, which is over the 8-hour objective, but the real time is unknown.",
+          "value": 6.2,
+          "unit": "hours to restore 3.9 TB",
+          "factors": [
+            "vuln",
+            "rs",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-208",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:18Z",
+          "summary": "The asset is a Tier 1 database holding restricted employee timekeeping records for about 3.4 million individuals. About 2,300 customers depend on it. An availability outage affects many customers, and SLA credits and notifications follow.",
+          "value": 2300.0,
+          "unit": "dependent customers",
+          "factors": [
+            "slef",
+            "secondary.response",
+            "secondary.reputation",
+            "secondary.competitive"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:18Z",
+          "summary": "Nine corporate accounts were confirmed compromised through credential phishing in 12 months, all contained before lateral movement. This is organization-wide context for the ransomware path only and says nothing about corruption or failed changes.",
+          "value": 9.0,
+          "unit": "accounts / 12 months",
+          "factors": [
+            "tef"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "SOC",
+          "question": "How many database corruption, failed change or ransomware events affected production databases in the last 36 months, and how many needed a restore from backup?",
+          "factor": "lef",
+          "reason": "Only one event is on record for this asset, so a base rate is needed."
+        },
+        {
+          "team": "Internal Audit",
+          "question": "Has the restore procedure been tested or reviewed since the schema change and storage migration? Has the immutable backup copy ever been restored, and how long did it take?",
+          "factor": "vuln",
+          "reason": "The current restore time against the 8-hour objective and the usability of the immutable copy are unknown."
+        },
+        {
+          "team": "Legal",
+          "question": "What SLA credit terms apply when the 8-hour recovery time is missed, and are there any penalty or notification obligations for an extended payroll-related outage?",
+          "factor": "secondary.fines",
+          "reason": "The register gives no credit amounts or contract terms."
+        },
+        {
+          "team": "Finance",
+          "question": "What was the breakdown of the $142,000 in other direct costs for the 2025 failed change, including SLA credits paid and any customer churn afterwards?",
+          "factor": "secondary.response",
+          "reason": "Separating SLA credits from other direct costs sizes secondary loss."
+        },
+        {
+          "team": "Vulnerability Management",
+          "question": "Has the security team or any exercise recorded ransomware attempts that reached or tried to reach backup storage in the last 12 months?",
+          "factor": "tcap",
+          "reason": "There is no telemetry on threats to backups for this asset."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 2,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": false,
+        "cveLookupsMade": 0,
+        "threatType": "Failure (system or vendor)",
+        "backstopGroups": []
+      }
+    },
+    "Hardcoded Secrets in Source Code Repositories": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2025-012",
+          "published_at": "2025-02-20",
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "In Feb 2025 a messaging provider API key found in a repository was used from the internet to send about 40,000 spam SMS messages. This is a prior loss event of the same kind, with no records affected and no customer notification.",
+          "value": 1.0,
+          "unit": "leaked-secret loss events (since 2025-02)",
+          "factors": [
+            "lef",
+            "tef",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2025-012",
+          "published_at": "2025-02-20",
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "The incident cost 61,000 USD in total. That is 200 response hours (30,000 USD at the 150 USD/hour loaded rate) plus 31,000 USD of other direct costs.",
+          "value": 61000.0,
+          "unit": "USD per event",
+          "factors": [
+            "primary.response",
+            "primary.replacement",
+            "primary.productivity"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "The loaded labor rate for costing response hours is 150 USD per hour.",
+          "value": 150.0,
+          "unit": "USD/hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "Nine corporate accounts were confirmed compromised through credential phishing in 12 months, two of them support engineers. All were contained before lateral movement. This is a base rate for account takeover, not specific to repository users.",
+          "value": 9.0,
+          "unit": "accounts compromised / 12 months",
+          "factors": [
+            "tef",
+            "lef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 16",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "There were four alerts for unusually large repository clone volume in 12 months. Three were benign and one, on a contractor account, is unresolved. This is weak evidence of possible harvesting.",
+          "value": 4.0,
+          "unit": "alerts / 12 months",
+          "factors": [
+            "tef",
+            "lef",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "finding",
+          "source_name": "Findings",
+          "citation": "Findings FND-1302",
+          "published_at": "2026-06-01",
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "The scanner found 212 hardcoded secrets in 41 repositories. 27 high-sensitivity secrets were rotated in August 2026 and 185 remain, so exposure is reduced but still large.",
+          "value": 185.0,
+          "unit": "secrets still unrotated",
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "control_test",
+          "source_name": "Control Tests and Assessments",
+          "citation": "Control Tests and Assessments CT-298",
+          "published_at": "2026-06-03",
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "The Internal Audit secrets management review failed. Vault use is voluntary and only 38% of services use it, so the vault is a weak resistance control.",
+          "value": 38.0,
+          "unit": "% services using vault",
+          "factors": [
+            "vuln",
+            "rs"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-129",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "The production database cluster holds customer and employee records for about 5.2 million individuals. It is Restricted, Tier 1, and about 2,900 customers depend on it. It is not internet facing.",
+          "value": 5200000.0,
+          "unit": "individuals with records",
+          "factors": [
+            "slef",
+            "secondary.response",
+            "secondary.fines",
+            "secondary.reputation",
+            "secondary.competitive"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-846",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "The source code platform is internet facing behind SSO and MFA, and is Confidential and Tier 1. It holds source code and embedded secrets, so an account takeover reaches the secrets directly.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "tef",
+            "vuln",
+            "tcap"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "external",
+          "source_type": "framework",
+          "source_name": "MITRE ATT&CK",
+          "citation": "https://attack.mitre.org/techniques/T1552/001",
+          "published_at": "2026-05-12",
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "MITRE ATT&CK T1552.001 (Credentials In Files) covers adversaries harvesting passwords embedded in source code and config files. This matches the exploit path in the scenario.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "tcap",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "external",
+          "source_type": "framework",
+          "source_name": "MITRE ATT&CK",
+          "citation": "https://attack.mitre.org/techniques/T1213/003",
+          "published_at": "2026-05-12",
+          "retrieved_at": "2026-10-11T14:39:30Z",
+          "summary": "MITRE ATT&CK T1213.003 (Code Repositories) covers adversaries collecting data from internal code repositories. This matches the clone-and-harvest step.",
+          "value": null,
+          "unit": null,
+          "factors": [
+            "tcap",
+            "poa"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "SOC",
+          "question": "Was the unresolved contractor account clone-volume alert investigated? Were any of the 212 secrets used from unusual locations or IPs in the last 12 months, in database or provider logs?",
+          "factor": "tef",
+          "reason": "This would show whether the secrets have already been harvested or misused beyond the one known incident."
+        },
+        {
+          "team": "Vulnerability Management",
+          "question": "Of the 185 remaining secrets, how many are production database credentials and third-party API keys? Are any shared across repositories or environments, and what is the oldest unrotated age?",
+          "factor": "vuln",
+          "reason": "This sizes how much one stolen secret exposes and how resistant the current state is."
+        },
+        {
+          "team": "Internal Audit",
+          "question": "Do any recent tests or red-team exercises show an attacker taking over a developer or contractor account and reaching repositories despite SSO and MFA? Are device checks or session limits enforced?",
+          "factor": "tcap",
+          "reason": "There is no test evidence on how likely repository account takeover is to succeed."
+        },
+        {
+          "team": "Legal",
+          "question": "What notification duties, regulatory fines, or contract penalties would apply if the 5.2 million records in the production database were exposed? Have past incidents led to any?",
+          "factor": "secondary.fines",
+          "reason": "The library has no cost-per-record figures and there is no internal fine or notification history."
+        },
+        {
+          "team": "Finance",
+          "question": "What was the cost of customer churn, credits, or reputation work after past security incidents? What is the revenue of the 2,900 dependent customers?",
+          "factor": "secondary.reputation",
+          "reason": "There is no evidence on secondary loss from customers or the market."
+        },
+        {
+          "team": "Third-Party Risk",
+          "question": "What data do the payments and messaging providers hold for us? What are the contract liability terms and any provider-side IP restrictions on API keys?",
+          "factor": "secondary.response",
+          "reason": "No vendor assessment exists for these providers, and it is unclear what an API key exposes."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 3,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, external",
+        "backstopGroups": []
+      }
+    },
+    "Overdue Security Assessment for Support Ticketing Vendor": {
+      "items": [
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "Asset Inventory",
+          "citation": "Asset Inventory Asset-455",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:45Z",
+          "summary": "The ticketing SaaS is vendor-hosted and internet-facing. It holds confidential tickets and attachments that include employee PII. About 4,200 customers depend on it. The inventory gives no record count and no PII share.",
+          "value": 4200.0,
+          "unit": "dependent customers (approx.)",
+          "factors": [
+            "secondary.response",
+            "slef",
+            "poa"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "incident",
+          "source_name": "Incident History",
+          "citation": "Incident History INC-2026-008",
+          "published_at": "2026-01-22",
+          "retrieved_at": "2026-10-11T14:39:45Z",
+          "summary": "In January 2026 the vendor reported a sub-processor incident. Impact on our data is still unconfirmed in writing, and the loss event is recorded as Unknown. Response took 90 hours and cost $13,500 in total. No customer notification was made.",
+          "value": 13500.0,
+          "unit": "USD total response cost",
+          "factors": [
+            "lef",
+            "primary.response",
+            "slef"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "vendor",
+          "source_name": "Vendor Assessments",
+          "citation": "Vendor Assessments Asset-455",
+          "published_at": "2025-05-30",
+          "retrieved_at": "2026-10-11T14:39:46Z",
+          "summary": "The last security assessment was 2025-05-30 and the latest SOC 2 period ended 2024-09-30. The assessment is 14 months overdue and the vendor ignored two requests for a newer SOC 2 report. Three assessment findings are open. Contract breach notification is 72 hours.",
+          "value": 3.0,
+          "unit": "open assessment findings",
+          "factors": [
+            "vuln",
+            "rs",
+            "tcap"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "asset",
+          "source_name": "About",
+          "citation": "About Loaded labor rate (USD per hour)",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:46Z",
+          "summary": "The loaded labor rate is $150 per hour. At that rate the 90 response hours on INC-2026-008 come to $13,500, which matches the recorded total. This gives a basis for costing the response to a future vendor breach.",
+          "value": 150.0,
+          "unit": "USD per hour",
+          "factors": [
+            "primary.response"
+          ],
+          "stale": false
+        },
+        {
+          "origin": "internal",
+          "source_type": "telemetry",
+          "source_name": "Security Telemetry",
+          "citation": "Security Telemetry Row 10",
+          "published_at": null,
+          "retrieved_at": "2026-10-11T14:39:45Z",
+          "summary": "Nine corporate accounts were compromised through credential phishing in 12 months, and 2 belonged to support engineers. All were contained. This is context for credential-theft threat activity and does not measure attacks on the vendor itself.",
+          "value": 9.0,
+          "unit": "accounts / 12 months",
+          "factors": [
+            "tef"
+          ],
+          "stale": false
+        }
+      ],
+      "data_requests": [
+        {
+          "team": "Third-Party Risk",
+          "question": "Has the vendor confirmed in writing whether our tickets or attachments were affected by the January 2026 sub-processor incident? Please also share the vendor's incident notice and the sub-processor's name and role.",
+          "factor": "lef",
+          "reason": "Shows whether a loss event has already happened and how often the vendor chain is breached."
+        },
+        {
+          "team": "Asset Management",
+          "question": "How many tickets and attachments are held at the vendor, and what share contain employee PII such as payroll data? How many individuals do the records cover?",
+          "factor": "secondary.response",
+          "reason": "The inventory has no record counts, so notification and cost-per-record exposure cannot be sized."
+        },
+        {
+          "team": "Third-Party Risk",
+          "question": "What are the 3 open assessment findings? Does the vendor encrypt data at rest, and does our contract give audit rights or sub-processor review rights?",
+          "factor": "vuln",
+          "reason": "Vendor control strength is unknown and is needed to judge susceptibility."
+        },
+        {
+          "team": "SOC",
+          "question": "How many security alerts, attempted intrusions or vendor-reported events have involved the ticketing vendor in the last 12 months?",
+          "factor": "tef",
+          "reason": "No telemetry exists for attacks on this vendor."
+        },
+        {
+          "team": "Legal",
+          "question": "Which breach notification laws and contract terms apply to customer employee PII in these tickets? Have fines, notification costs or customer claims arisen from past vendor incidents?",
+          "factor": "secondary.fines",
+          "reason": "No evidence on regulatory or contractual secondary loss."
+        },
+        {
+          "team": "Finance",
+          "question": "What would it cost to notify and offer credit monitoring to affected individuals, and what customer contract credits or revenue loss might follow a vendor PII breach?",
+          "factor": "secondary.reputation",
+          "reason": "No secondary loss cost evidence is available, and the reference library has no matching entries."
+        },
+        {
+          "team": "Finance",
+          "question": "What would it cost to replace the ticketing vendor or move the ticket data, and what productivity loss would come from a multi-day outage of the tool?",
+          "factor": "primary.replacement",
+          "reason": "No evidence on replacement or productivity loss."
+        }
+      ],
+      "rejected": [],
+      "tool_calls": 3,
+      "notes": {
+        "toolsOffered": [
+          "internal_records",
+          "library_lookup",
+          "attack_techniques",
+          "nvd_search",
+          "kev_check",
+          "epss_scores",
+          "web_search",
+          "web_fetch"
+        ],
+        "cveLookupsOffered": true,
+        "cveLookupsMade": 0,
+        "threatType": "Malicious, external",
+        "backstopGroups": []
+      }
+    }
+  }
+}

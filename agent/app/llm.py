@@ -13,6 +13,8 @@ fallback model. The model that actually answered is recorded on the result.
 """
 
 import re
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
@@ -78,6 +80,7 @@ class LLMResult(Generic[T]):
     output: T
     usage: Usage
     attempts: int
+    tool_calls: int = 0
 
     @property
     def model(self) -> str:
@@ -148,3 +151,84 @@ class LLM:
                     )},
                 ]
         raise AssertionError("unreachable")
+
+    def tool_loop(
+        self,
+        system: str,
+        user: str,
+        output: type[T],
+        tools: list[dict],
+        execute: Callable[[str, dict], tuple[str, bool]],
+        *,
+        max_calls: int = 12,
+        max_seconds: float = 120.0,
+        effort: str | None = None,
+        context: Callable[[], dict[str, Any]] | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> LLMResult[T]:
+        """A bounded tool-use loop that ends in JSON matching `output`.
+
+        `execute(name, input)` runs one tool and returns (result text, is_error).
+        Once `max_calls` tool calls have run or `max_seconds` have passed, any
+        further calls get an error result and the next turn sets tool_choice
+        "none", so the model has to answer. The final JSON gets the same single
+        corrective retry as `structured`. `context()` is passed to validation.
+        """
+        schema = anthropic.transform_schema(output)
+        system = f"{system.strip()}\n\n{UNTRUSTED_RULE}"
+        messages: list = [{"role": "user", "content": user}]
+        usage = Usage()
+        started, calls, attempts = clock(), 0, 0
+
+        def out_of_budget() -> bool:
+            return calls >= max_calls or clock() - started >= max_seconds
+
+        while True:
+            kwargs: dict[str, Any] = {"tools": tools}
+            if out_of_budget():
+                kwargs["tool_choice"] = {"type": "none"}
+            try:
+                response = self.client.beta.messages.create(
+                    model=self.model, max_tokens=self.max_tokens, system=system, messages=messages,
+                    output_config={"effort": effort or self.effort, "format": {"type": "json_schema", "schema": schema}},
+                    betas=[FALLBACK_BETA], fallbacks="default", **kwargs,
+                )
+            except anthropic.APIError as exc:
+                raise LLMError(f"The Claude API returned an error: {exc.__class__.__name__}.", usage) from exc
+            usage.add(response)
+            if response.stop_reason == "refusal":
+                category = getattr(getattr(response, "stop_details", None), "category", None)
+                raise LLMRefusal(f"The model declined this request (category: {category or 'unspecified'}).", usage)
+            if response.stop_reason == "max_tokens":
+                raise LLMError("The model's answer was cut off at the output limit.", usage)
+
+            # A new list each turn, so a request already sent isn't changed by later turns.
+            messages = [*messages, {"role": "assistant", "content": response.content}]
+            if response.stop_reason == "tool_use":
+                results = []
+                for block in response.content:
+                    if getattr(block, "type", None) != "tool_use":
+                        continue
+                    if out_of_budget():
+                        text, is_error = ("The tool budget for this task is used up. Don't call more tools: "
+                                          "return the final JSON with what you have."), True
+                    else:
+                        calls += 1
+                        text, is_error = execute(block.name, dict(block.input or {}))
+                    results.append({"type": "tool_result", "tool_use_id": block.id, "content": text,
+                                    **({"is_error": True} if is_error else {})})
+                messages = [*messages, {"role": "user", "content": results}]
+                continue
+
+            attempts += 1
+            try:
+                parsed = output.model_validate_json(_text(response), context=context() if context else None)
+                return LLMResult(output=parsed, usage=usage, attempts=attempts, tool_calls=calls)
+            except ValidationError as exc:
+                if attempts >= 2:
+                    raise LLMError(f"The model's output failed validation twice:\n{_short(exc)}", usage) from exc
+                messages = [*messages, {"role": "user", "content": (
+                    "Your JSON did not pass validation:\n"
+                    f"{_short(exc)}\n"
+                    "Return the complete corrected JSON, following the same schema."
+                )}]

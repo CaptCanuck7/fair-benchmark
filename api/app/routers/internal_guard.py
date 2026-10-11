@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_session
+from app import app_settings
 from app.identifiers import build_identifiers
 from app.models import OutboundLogRow
 from app.schemas import now_iso
@@ -32,3 +33,9 @@ def write_outbound_log(entry: OutboundLogIn, session: Session = Depends(get_sess
     session.add(row)
     session.commit()
     return {"id": row.id}
+
+
+@router.get("/guard/agent-config")
+def agent_config(session: Session = Depends(get_session)) -> dict:
+    """Settings-page overrides the agent merges with its .env values."""
+    return app_settings.agent_overrides(session)

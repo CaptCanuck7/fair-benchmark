@@ -290,3 +290,20 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
 .ctlrow .wide { grid-column: 1 / -1 }
 .check-inline { display: flex; gap: 6px; align-items: center; font-size: 13.5px; min-height: 38px }
 .editor .row { display: flex; flex-wrap: wrap; gap: 8px }
+
+/* Evidence, data requests, settings and the reference library */
+.evgroup { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px }
+.evgroup h3 { margin: 8px 0 0 }
+.evlist { list-style: none; padding: 0; margin: 6px 0 }
+.evitem { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px; background: var(--panel) }
+.evitem p { margin: 4px 0; font-size: 13.5px; max-width: 74ch }
+.evhead { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline }
+.evitem .mono { overflow-wrap: anywhere }
+.answer { border-left: 3px solid var(--green); padding-left: 10px; margin-top: 6px }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit }
+.setform { display: grid; gap: 12px; margin: 10px 0 }
+.setform fieldset.rows { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 0; min-width: 0 }
+.setform legend { font-weight: 700; font-size: 13.5px; padding: 0 4px }
+.domains { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 2px }
+.domains li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--line) }
+.setform .row, .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end }

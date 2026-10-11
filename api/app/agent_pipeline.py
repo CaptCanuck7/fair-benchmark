@@ -27,7 +27,15 @@ from app import agent_client
 from app.agent_client import AgentCallError
 from app.config import settings
 from app.db import SessionLocal
-from app.models import AgentRunRow, DraftRow, RiskRow
+from app.models import (
+    AgentRunRow,
+    DataRequestRow,
+    DraftRow,
+    EvidenceItemRow,
+    EvidenceRunRow,
+    ReferenceLibraryRow,
+    RiskRow,
+)
 from app.register.drafts import usable
 from app.register.parser import score_input
 from app.register.quality import combine, rule_gaps
@@ -267,7 +275,7 @@ def fail_interrupted(session: Session) -> int:
 
 # --- Scenario and vectors (pipeline step 4, started by the analyst) -------------
 
-RISK_TASKS = ("scenario", "vectors")
+RISK_TASKS = ("scenario", "vectors", "evidence")
 
 
 class TaskBlocked(Exception):
@@ -312,6 +320,8 @@ def run_risk_task(risk_pk: int, run_id: str) -> None:
             res = _call(s, run, "scenario", payload)
             if res is not None:
                 _draft(s, risk_pk, "scenario", res.output, run)
+        elif run.task == "evidence":
+            _gather_evidence(s, row, run, state)
         else:
             scenario_draft = state.drafts["scenario"]
             scenario = {k: v for k, v in usable(scenario_draft).items() if k != "basedOn"}
@@ -322,3 +332,85 @@ def run_risk_task(risk_pk: int, run_id: str) -> None:
                     # Which approved scenario these were built from, to flag them if it changes.
                     "basedOn": {"scenarioDraftId": scenario_draft.id, "scenarioHash": scenario_hash(scenario)},
                 }, run)
+
+
+# --- Evidence gathering (pipeline step 5) ---------------------------------------
+
+
+def evidence_payload(row: RiskRow, run_id: str, state) -> dict[str, Any]:
+    scenario = {k: v for k, v in usable(state.drafts["scenario"]).items() if k != "basedOn"}
+    vectors = usable(state.drafts.get("vectors"))
+    classification = state.get("classification")
+    return {
+        "agent_run_id": run_id,
+        "risk": risk_entry(row),
+        "scenario": scenario,
+        "vectors": {k: v for k, v in vectors.items() if k != "basedOn"} if vectors else None,
+        "classification": ({"primary_type": classification["primary_type"],
+                            "secondary_type": classification.get("secondary_type")} if classification else None),
+    }
+
+
+def _gather_evidence(s: Session, row: RiskRow, run: AgentRunRow, state) -> None:
+    res = _call(s, run, "evidence", evidence_payload(row, run.id, state))
+    if res is None:
+        return
+    out = res.output
+    for item in out["items"]:
+        s.add(EvidenceItemRow(
+            risk_pk=row.id, agent_run_id=run.id, origin=item["origin"], source_type=item["source_type"],
+            source_name=item["source_name"], citation=item["citation"], published_at=item.get("published_at"),
+            retrieved_at=item["retrieved_at"], summary=item["summary"], value=item.get("value"),
+            unit=item.get("unit"), factors=item["factors"], stale=bool(item.get("stale")),
+        ))
+    for req in out["data_requests"]:
+        s.add(DataRequestRow(risk_pk=row.id, agent_run_id=run.id, team=req["team"], question=req["question"],
+                             factor=req["factor"], reason=req["reason"], status="open"))
+    s.add(EvidenceRunRow(agent_run_id=run.id, risk_pk=row.id, tool_calls=int(out.get("tool_calls") or 0),
+                         rejected=out.get("rejected") or [], notes=out.get("notes") or {}))
+    s.commit()
+
+
+# --- Reference library refresh ---------------------------------------------------
+
+
+def queue_library_refresh(session: Session) -> str:
+    busy = session.scalars(select(AgentRunRow.id).where(AgentRunRow.task == "library",
+                                                        AgentRunRow.status.in_(ACTIVE)).limit(1)).first()
+    if busy:
+        raise TaskBlocked("A library refresh is already running.")
+    run = AgentRunRow(id=new_id(), risk_pk=None, task="library", status="queued", started_at=now_iso(),
+                      input_tokens=0, output_tokens=0)
+    session.add(run)
+    session.commit()
+    # No risk: the job guard fails this run (risk_pk IS NULL) if the job crashes.
+    submit(_library_job, None, run.id)
+    return run.id
+
+
+def _library_job(_risk_pk: None, run_id: str) -> None:
+    run_library_refresh(run_id)
+
+
+def run_library_refresh(run_id: str) -> None:
+    with SessionLocal() as s:
+        run = s.get(AgentRunRow, run_id)
+        if run is None:
+            return
+        existing = [{"metric": r.metric, "edition": r.edition, "url": r.url}
+                    for r in s.scalars(select(ReferenceLibraryRow))]
+        res = _call(s, run, "library", {"agent_run_id": run_id, "existing": existing})
+        if res is None:
+            return
+        seen = {(e["metric"].lower(), e["edition"].lower(), e["url"]) for e in existing}
+        for e in res.output["entries"]:
+            key = (e["metric"].lower(), e["edition"].lower(), e["url"])
+            if key in seen:
+                continue
+            seen.add(key)
+            s.add(ReferenceLibraryRow(
+                metric=e["metric"], value=e["value"], unit=e["unit"], segment=e.get("segment"), source=e["source"],
+                edition=e["edition"], url=e["url"], page=e.get("page"), retrieved_at=e["retrieved_at"],
+                quote=e.get("quote"), status="proposed", agent_run_id=run_id,
+            ))
+        s.commit()
