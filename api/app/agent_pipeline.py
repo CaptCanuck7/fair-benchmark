@@ -291,7 +291,7 @@ def queue_risk_task(session: Session, row: RiskRow, task: str) -> str:
     state = intake_states(session, [row.id])[row.id]
     if state.busy:
         raise TaskBlocked("The agent is already working on this risk. Try again when it finishes.")
-    reason = task_blocker(state, task, has_evidence=latest_evidence_run(session, row.id) is not None)
+    reason = task_blocker(state, task, *evidence_gate(session, row.id))
     if reason:
         raise TaskBlocked(reason)
     run = _new_run(session, row.id, task)
@@ -307,7 +307,7 @@ def run_risk_task(risk_pk: int, run_id: str) -> None:
             return
         state = intake_states(s, [risk_pk])[risk_pk]
         # Re-check: the drafts may have changed while the job was queued.
-        reason = task_blocker(state, run.task, has_evidence=latest_evidence_run(s, risk_pk) is not None)
+        reason = task_blocker(state, run.task, *evidence_gate(s, risk_pk))
         if reason:
             _finish(run, "failed", error=reason)
             s.commit()
@@ -425,6 +425,11 @@ def latest_evidence_run(session: Session, risk_pk: int) -> AgentRunRow | None:
     return session.scalars(select(AgentRunRow).where(AgentRunRow.risk_pk == risk_pk, AgentRunRow.task == "evidence",
                                                      AgentRunRow.status == "succeeded")
                            .order_by(AgentRunRow.started_at.desc()).limit(1)).first()
+
+
+def evidence_gate(session: Session, risk_pk: int) -> tuple[bool, int]:
+    """For task_blocker: whether an evidence run succeeded, and how many current evidence items there are."""
+    return latest_evidence_run(session, risk_pk) is not None, len(current_evidence(session, risk_pk)[0])
 
 
 def current_evidence(session: Session, risk_pk: int) -> tuple[list[EvidenceItemRow], list[DataRequestRow]]:

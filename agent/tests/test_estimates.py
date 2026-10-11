@@ -140,3 +140,27 @@ def test_injected_text_stays_delimited_as_data():
     assert user.index("Ignore previous") > user.index("<register_entry>")
     tail = user[user.rindex("</evidence>"):]
     assert "Ignore previous" not in tail
+
+
+def test_no_evidence_in_the_request_means_no_range_passes():
+    """AGENT_FIXES.md fix 1: an empty evidence list still runs the checks."""
+    one = {"method": GOOD["method"], "estimates": [GOOD["estimates"][0]],
+           "unestimated": [{"factor": f, "reason": "None.", "data_request_id": 7}
+                           for f in ("vuln", "primary.response", "slef", "secondary.fines")]}
+    with pytest.raises(ValueError, match=re.escape("tef: evidence ids [1] are not in the evidence list")):
+        EstimatesOutput.model_validate(one, context={"evidence": {}, "request_ids": {7}})
+
+
+def test_no_requests_in_the_request_means_no_request_id_passes():
+    out = {**GOOD, "unestimated": [{"factor": "secondary.fines", "reason": "None.", "data_request_id": 99}]}
+    with pytest.raises(ValueError, match=re.escape("data request 99 is not in the list")):
+        EstimatesOutput.model_validate(out, context={**evidence_context(REQ), "request_ids": set()})
+
+
+def test_validation_without_a_request_context_skips_the_evidence_checks():
+    EstimatesOutput.model_validate(change("tef", evidence_ids=[99]))
+
+
+def test_basis_refuses_an_empty_set():
+    with pytest.raises(ValueError):
+        estimates.basis(set())

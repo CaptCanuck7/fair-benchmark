@@ -459,6 +459,9 @@ class EstimatesOutput(BaseModel):
     @model_validator(mode="after")
     def _rules(self, info: ValidationInfo) -> "EstimatesOutput":
         ctx = info.context or {}
+        # The checks run whenever the context names the evidence or requests,
+        # even when the list is empty: with no evidence, no range may pass.
+        check_evidence, check_requests = "evidence" in ctx, "request_ids" in ctx
         evidence: dict[int, dict] = ctx.get("evidence", {})
         request_ids: set[int] = ctx.get("request_ids", set())
         problems: list[str] = []
@@ -474,7 +477,7 @@ class EstimatesOutput(BaseModel):
                 problems.append(f"{e.factor}: use values from 0 to 100 (percent or percentile)")
             if not e.min <= e.ml <= e.max:
                 problems.append(f"{e.factor}: keep min <= ml <= max")
-            if evidence:
+            if check_evidence:
                 unknown = [i for i in e.evidence_ids if i not in evidence]
                 if unknown:
                     problems.append(f"{e.factor}: evidence ids {unknown} are not in the evidence list")
@@ -491,7 +494,7 @@ class EstimatesOutput(BaseModel):
             seen.add(u.factor)
             if (u.data_request_id is None) == (u.new_request is None):
                 problems.append(f"{u.factor}: give exactly one of data_request_id or new_request")
-            elif u.data_request_id is not None and request_ids and u.data_request_id not in request_ids:
+            elif u.data_request_id is not None and check_requests and u.data_request_id not in request_ids:
                 problems.append(f"{u.factor}: data request {u.data_request_id} is not in the list")
         for options in required_factors(self.method.mode, self.method.vuln_mode):
             if not seen & set(options):

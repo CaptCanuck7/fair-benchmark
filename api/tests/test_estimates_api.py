@@ -231,3 +231,31 @@ def test_tab_offers_only_the_methods_factors(client, fake):
     assert res.status_code == 200
     assert factor(res.json(), "primary.replacement")["unestimated"] is None
     assert res.json()["estimates"]["decided"] == 1
+
+
+def test_estimates_blocked_when_the_evidence_run_found_nothing(client, fake, monkeypatch):
+    """AGENT_FIXES.md fix 1: an evidence run that stored only data requests
+    leaves nothing for a range to rest on."""
+    def no_items(task, payload):
+        res = fake(task, payload)
+        if task == "evidence":
+            res.output = {**res.output, "items": []}
+        return res
+
+    monkeypatch.setattr(agent_client, "call_task", no_items)
+    import_register(client)
+    review(client, scenario_for(client, "TR-6")["id"], "approve")
+    assert start(client, "TR-6", "evidence").status_code == 202
+    d = detail(client, "TR-6")
+    assert d["evidence"] == [] and d["dataRequests"]
+    msg = ("No evidence was found for this risk. Answer a data request or gather evidence again before "
+           "drafting estimates.")
+    assert d["blocked"]["estimates"] == msg
+    res = start(client, "TR-6", "estimates")
+    assert res.status_code == 409 and res.json()["detail"] == msg
+
+    # An answered data request becomes evidence, and estimates may run.
+    req = d["dataRequests"][0]
+    assert client.put(f"/api/data-requests/{req['id']}", json={"answer": "Tested in March 2026."}).status_code == 200
+    assert detail(client, "TR-6")["blocked"]["estimates"] is None
+    assert start(client, "TR-6", "estimates").status_code == 202

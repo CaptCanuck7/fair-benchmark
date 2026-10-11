@@ -57,9 +57,10 @@ def current_stages(state: IntakeState, include_rejected: bool = False) -> tuple[
     return quality, triage, classification
 
 
-def task_blocker(state: IntakeState, task: str, has_evidence: bool = False) -> str | None:
+def task_blocker(state: IntakeState, task: str, has_evidence: bool = False, evidence_items: int = 0) -> str | None:
     """Why a scenario, vectors, evidence or estimates task can't run for this
-    risk yet, or None. `has_evidence`: an evidence run has succeeded."""
+    risk yet, or None. `has_evidence`: an evidence run has succeeded.
+    `evidence_items`: how many current evidence items the risk has."""
     quality, triage, _ = current_stages(state)
     if not quality or quality["status"] != "ready":
         return "The quality check must find this entry ready first."
@@ -75,4 +76,7 @@ def task_blocker(state: IntakeState, task: str, has_evidence: bool = False) -> s
             return f"Approve or edit the scenario first. {what} from the approved scenario."
     if task == "estimates" and not has_evidence:
         return "Gather evidence first. Every range must rest on evidence."
+    if task == "estimates" and evidence_items == 0:
+        return ("No evidence was found for this risk. Answer a data request or gather evidence again before "
+                "drafting estimates.")
     return None

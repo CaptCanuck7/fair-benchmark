@@ -890,6 +890,18 @@ prototype first; otherwise choose the simpler option."
   estimates must meet every rule, and each most-likely value must stay within
   a factor of four of the clean recorded run.
 
+**Fixes after review** (`AGENT_FIXES.md`)
+- **Fix 1: estimates never pass without evidence.**
+  - The estimates rules now run whenever the validation context names
+    `evidence` or `request_ids`, even when the list is empty. Only a context
+    without those keys (a bare schema check in a test) skips them.
+  - `basis()` raises on an empty set instead of calling it "internal".
+  - The api blocks the estimates task until the risk has at least one current
+    evidence item, so an evidence run that found only data requests isn't
+    enough. Answering one of those requests creates an item and unblocks it.
+  - `task_blocker` takes the count beside `has_evidence`, and one helper,
+    `agent_pipeline.evidence_gate`, supplies both to every caller.
+
 ## Later extensions
 
 The code leaves room for these. They are not built:

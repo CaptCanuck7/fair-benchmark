@@ -53,7 +53,11 @@ def build_user(req: EstimatesRequest) -> str:
 
 
 def basis(cited_origins: set[str]) -> str:
-    return "mixed" if len(cited_origins) > 1 else next(iter(cited_origins), "internal")
+    """internal, external or mixed. Validation has already rejected a range
+    with no known evidence; one reaching here is a bug, not a default."""
+    if not cited_origins:
+        raise ValueError("an estimate with no known cited evidence has no basis")
+    return "mixed" if len(cited_origins) > 1 else next(iter(cited_origins))
 
 
 def run(llm: LLM, req: EstimatesRequest) -> LLMResult[EstimatesResult]:

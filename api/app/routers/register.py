@@ -279,7 +279,7 @@ def risk_detail_out(session: Session, row: RiskRow) -> dict:
     drafts = session.scalars(select(DraftRow).where(DraftRow.risk_pk == row.id).order_by(DraftRow.id.desc())).all()
     # Rejected drafts are shown (so the analyst can see and reverse them) but not used downstream.
     reached = dict(zip(agent_pipeline.TASKS, current_stages(state, include_rejected=True)))
-    has_evidence = agent_pipeline.latest_evidence_run(session, row.id) is not None
+    gate = agent_pipeline.evidence_gate(session, row.id)
     from app.routers.estimates import estimates_out  # imported here: that module imports this one
 
     return {
@@ -304,7 +304,7 @@ def risk_detail_out(session: Session, row: RiskRow) -> dict:
         "vectors": draft_out(state.drafts["vectors"], by_id) if "vectors" in state.drafts else None,
         "vectorsStale": vectors_stale(state),
         # Why each analyst-started task can't run yet (null when it can).
-        "blocked": {task: task_blocker(state, task, has_evidence) for task in agent_pipeline.RISK_TASKS},
+        "blocked": {task: task_blocker(state, task, *gate) for task in agent_pipeline.RISK_TASKS},
         # Estimate ranges stay hidden until revealed, factor by factor.
         "estimates": estimates_out(session, row),
         "triageThreshold": settings.triage_min_score,
