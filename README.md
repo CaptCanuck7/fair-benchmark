@@ -493,7 +493,11 @@ This is a risk tool, so it follows the baseline in `CLAUDE.md`:
   container. The key is never logged or returned by an endpoint.
 - **The agent's outbound requests go through one guard** (`agent/app/guard.py`):
   https only, allowlisted domains and fixed feed addresses only, searches of at
-  most 120 characters, and nothing containing a register or evidence identifier.
+  most 120 characters, and nothing containing a register or evidence identifier,
+  even percent-encoded or with spaces or underscores for its hyphens. URLs are
+  normalised before any check and sent exactly as checked. Paths with encoded
+  separators are refused, and URLs to non-feed hosts are capped at 500
+  characters, with at most 120 of query text.
   Redirects are re-checked, responses are size-capped, and every attempt is
   logged (redacted) before it is sent. If the log can't be written, the request
   isn't sent.
@@ -901,6 +905,27 @@ prototype first; otherwise choose the simpler option."
     enough. Answering one of those requests creates an item and unblocks it.
   - `task_blocker` takes the count beside `has_evidence`, and one helper,
     `agent_pipeline.evidence_gate`, supplies both to every caller.
+- **Fix 2: the guard's URL gaps are closed.**
+  - `Guard.prepare_url` normalises a URL once and returns it. Every check runs
+    on that string, and `OutboundClient.get` sends that exact string, on each
+    redirect hop too. Normalising means:
+    - refusing paths with `%2e`, `%2f`, `%5c` or a literal backslash
+    - resolving dot segments and dropping the fragment
+    - passing the result through `httpx.URL`, so httpx's own normalisation
+      can't change it after the check
+  - Fixed feeds are matched against the normalised URL.
+  - Identifiers are checked in the raw and the percent-decoded path and query
+    (up to four passes, "+" as a space).
+  - **Length caps for non-feed hosts:** the whole URL at 500 characters and the
+    decoded query string at 120.
+  - **Identifier separators:** in identifier patterns, any run of spaces,
+    hyphens or underscores matches any other. Token boundaries are unchanged.
+  - **Beyond the fix list:**
+    - a new block reason, `encoded_path`, for the refused paths
+    - log redaction now also redacts identifiers that only appear once
+      decoded; before, a blocked `ASSET%2D412` would have been logged as is
+    - labels on the Settings page for `encoded_path`, `url_too_long` and
+      `url_query_too_long`
 
 ## Later extensions
 

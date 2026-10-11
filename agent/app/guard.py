@@ -8,13 +8,18 @@ this module is what enforces it.
 
 Checks, in order:
 1. External access is turned on (AGENT_EXTERNAL_ENABLED).
-2. URLs use https and point at an allowlisted domain (or a subdomain of one),
+2. URLs are normalised first: a path holding an encoded dot, slash or
+   backslash (or a literal backslash) is refused, dot segments are resolved,
+   and every later check runs on the normalised URL, which is what is sent.
+3. URLs use https and point at an allowlisted domain (or a subdomain of one),
    or start with one of the fixed feed URLs.
-3. Queries are at most 120 characters.
-4. Neither the query nor the URL contains a register or evidence identifier
-   (asset and risk IDs, tickets, incident and finding IDs, people's names,
-   business units, environments, asset names), ignoring case.
-5. A query naming a vendor is sent only if the analyst approved that exact query.
+4. Queries are at most 120 characters. For hosts other than the fixed feeds,
+   so is a URL's decoded query string, and the whole URL is at most 500.
+5. Neither the query nor the URL (raw and percent-decoded) contains a register
+   or evidence identifier (asset and risk IDs, tickets, incident and finding
+   IDs, people's names, business units, environments, asset names), ignoring
+   case and treating spaces, hyphens and underscores between its parts alike.
+6. A query naming a vendor is sent only if the analyst approved that exact query.
 
 Log entries are redacted: identifiers are replaced with "[asset_id]" and so
 on, so the outbound log never holds internal information.
@@ -23,13 +28,22 @@ on, so the outbound log never holds internal information.
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import unquote_plus, urlsplit, urlunsplit
 
 import httpx
 
 MAX_QUERY_LENGTH = 120
+MAX_URL_LENGTH = 500
 MAX_REDIRECTS = 3
 DEFAULT_MAX_BYTES = 5 * 1024 * 1024
+# Percent-decoding passes before the identifier check: enough for double and
+# triple encoding, bounded so a crafted URL can't loop.
+MAX_DECODE_PASSES = 4
+# An encoded dot, slash or backslash in a path could be decoded into a
+# different path after the check, so such paths are refused outright.
+ENCODED_SEPARATOR = re.compile(r"%(2e|2f|5c)", re.IGNORECASE)
+# Inside an identifier, any run of these separates its parts.
+SEPARATOR_RUN = re.compile(r"[\s_-]+")
 
 # Feeds the evidence tools read, allowed even if their domains are removed
 # from ALLOWED_DOMAINS. Matched as URL prefixes, not whole hosts.
@@ -69,6 +83,30 @@ def _host_allowed(host: str, domains: Iterable[str]) -> bool:
     return any(host == d or host.endswith("." + d) for d in domains)
 
 
+def _remove_dot_segments(path: str) -> str:
+    """Resolve "." and ".." in a URL path (RFC 3986 section 5.2.4), never above the root."""
+    out: list[str] = []
+    for seg in path.split("/"):
+        if seg == "..":
+            if len(out) > 1:
+                out.pop()
+        elif seg != ".":
+            out.append(seg)
+    if path.endswith(("/.", "/..")):
+        out.append("")
+    return "/".join(out) or "/"
+
+
+def _decoded(text: str) -> str:
+    """Percent-decode (with "+" as a space) until the text stops changing."""
+    for _ in range(MAX_DECODE_PASSES):
+        nxt = unquote_plus(text)
+        if nxt == text:
+            break
+        text = nxt
+    return text
+
+
 class Guard:
     def __init__(
         self,
@@ -88,15 +126,21 @@ class Guard:
     def _compile(items: list[Identifier]) -> list[tuple[str, re.Pattern]]:
         """One pattern per kind. Longest values first, so "Asset-4120" isn't
         reported as "Asset-412". Bounded by non-alphanumerics, so "Nova" doesn't
-        match inside "renovate"."""
+        match inside "renovate". A run of spaces, hyphens or underscores in a
+        value matches any such run, so "ASSET 4120" and "ASSET_4120" match
+        "ASSET-4120"."""
         by_kind: dict[str, list[str]] = {}
         for item in items:
             value = item.value.strip()
             if value:
                 by_kind.setdefault(item.kind, []).append(value)
+
+        def pattern(value: str) -> str:
+            return r"[\s_-]+".join(re.escape(part) for part in SEPARATOR_RUN.split(value))
+
         out = []
         for kind, values in by_kind.items():
-            alts = "|".join(re.escape(v) for v in sorted(set(values), key=len, reverse=True))
+            alts = "|".join(pattern(v) for v in sorted(set(values), key=len, reverse=True))
             out.append((kind, re.compile(rf"(?<![0-9A-Za-z])(?:{alts})(?![0-9A-Za-z])", re.IGNORECASE)))
         return out
 
@@ -109,7 +153,13 @@ class Guard:
     def redact(self, text: str | None) -> str | None:
         if text is None:
             return None
-        for kind, pattern in self._identifiers + self._vendors:
+        patterns = self._identifiers + self._vendors
+        # An identifier hidden by percent-encoding is redacted in decoded form,
+        # so the log never holds it in either form.
+        decoded = _decoded(text)
+        if decoded != text and any(p.search(decoded) for _, p in patterns):
+            text = decoded
+        for kind, pattern in patterns:
             text = pattern.sub(f"[{kind}]", text)
         return text
 
@@ -129,25 +179,53 @@ class Guard:
         return Decision.ok()
 
     def check_url(self, url: str) -> Decision:
+        return self.prepare_url(url)[1]
+
+    def prepare_url(self, url: str) -> tuple[str, Decision]:
+        """Normalise a URL and check it. Returns the normalised URL, which is
+        the exact string every check ran on and the one to send."""
         if not self.external_enabled:
-            return Decision(False, "external_disabled")
+            return url, Decision(False, "external_disabled")
         try:
             parts = urlsplit(url)
             host = (parts.hostname or "").lower()
+            port = parts.port
         except ValueError:
-            return Decision(False, "invalid_url")
-        if parts.scheme != "https":
-            return Decision(False, "not_https")
-        if parts.username or parts.password or (parts.port not in (None, 443)):
-            return Decision(False, "invalid_url")
-        fixed = any(url.startswith(prefix) for prefix in FIXED_FEEDS)
-        if not fixed and not _host_allowed(host, self.allowed_domains):
-            return Decision(False, "host_not_allowed")
-        # Identifiers can leak through paths and query strings too.
-        kind = self._identifier_in(f"{parts.path}?{parts.query}")
+            return url, Decision(False, "invalid_url")
+        if parts.scheme.lower() != "https":
+            return url, Decision(False, "not_https")
+        if parts.username or parts.password or (port not in (None, 443)):
+            return url, Decision(False, "invalid_url")
+        if "\\" in parts.path or ENCODED_SEPARATOR.search(parts.path):
+            return url, Decision(False, "encoded_path")
+        # Resolve dot segments, drop the fragment (never sent), and let httpx
+        # apply its own normalisation, so the string checked is the string sent.
+        try:
+            rebuilt = urlunsplit(("https", parts.netloc.lower(), _remove_dot_segments(parts.path or "/"),
+                                  parts.query, ""))
+            normalized = str(httpx.URL(rebuilt))
+            final = urlsplit(normalized)
+        except (ValueError, httpx.InvalidURL):
+            return url, Decision(False, "invalid_url")
+        if "\\" in final.path or ENCODED_SEPARATOR.search(final.path):
+            return normalized, Decision(False, "encoded_path")
+
+        fixed = any(normalized.startswith(prefix) for prefix in FIXED_FEEDS)
+        if not fixed and not _host_allowed((final.hostname or "").lower(), self.allowed_domains):
+            return normalized, Decision(False, "host_not_allowed")
+        raw = f"{final.path}?{final.query}"
+        decoded_query = _decoded(final.query)
+        # Fixed feed URLs are built by code, and some are long (EPSS for 20 CVEs).
+        if not fixed:
+            if len(normalized) > MAX_URL_LENGTH:
+                return normalized, Decision(False, "url_too_long")
+            if len(decoded_query) > MAX_QUERY_LENGTH:
+                return normalized, Decision(False, "url_query_too_long")
+        # Identifiers can leak through paths and query strings, encoded or not.
+        kind = self._identifier_in(raw) or self._identifier_in(f"{_decoded(final.path)}?{decoded_query}")
         if kind:
-            return Decision(False, f"identifier:{kind}")
-        return Decision.ok()
+            return normalized, Decision(False, f"identifier:{kind}")
+        return normalized, Decision.ok()
 
 
 @dataclass
@@ -200,7 +278,8 @@ class OutboundClient:
         through the guard, and the body is capped at `max_bytes`."""
         target = str(httpx.URL(url, params=params)) if params else url
         for _hop in range(MAX_REDIRECTS + 1):
-            decision = self.guard.check_url(target)
+            # Send exactly the normalised URL the guard checked, on every hop.
+            target, decision = self.guard.prepare_url(target)
             if decision.allowed and query is not None:
                 decision = self.guard.check_query(query)
             self._record(tool, target, query, decision)

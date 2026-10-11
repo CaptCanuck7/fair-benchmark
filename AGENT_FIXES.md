@@ -1,6 +1,6 @@
 # FAIR Risk Workbench: agent fixes after review
 
-Four fixes from the review of the agent extension (milestones 1 to 7). Read this whole file, then inspect the code named in each fix before changing it. Where the code differs from what this file describes, follow the code and say so in the README.
+Six fixes from the review of the agent extension (milestones 1 to 7). Fixes 1 to 4 correct defects. Fixes 5 and 6 are decisions the owner made after the review. Read this whole file, then inspect the code named in each fix before changing it. Where the code differs from what this file describes, follow the code and say so in the README.
 
 ## Rules for this work
 
@@ -76,6 +76,43 @@ The same pattern applies to `request_ids`: with no data requests, an invented `d
 
 **Tests.** `render_risk` output contains the right line for each case and never the owner's name. The api's quality payload carries `has_risk_owner` and no name. Check how the replay tests key `intake_recorded.json`; if they depend on the payload or the prompt version, re-record rather than edit.
 
-## When all four are done
+## Fix 5. Show when a range rests on related evidence (medium)
+
+**Problem.** `AGENT_BUILD.md` section 9.6 says a factor with no evidence gets no range. The build checks this by factor group: a range passes when any cited item informs the same group (frequency, susceptibility, primary loss, secondary loss). A fines range can therefore rest only on a record count tagged to another secondary factor, and nothing tells the analyst.
+
+**Decision.** Keep the group rule, but make the weaker case visible and cap its confidence. Do not switch to a strict per-factor rule: the model assigns the factor tags, so a strict rule could be met by tagging more broadly.
+
+**Change.**
+
+1. Carry each evidence item's factor tags into the validation context (`evidence_context` in `agent/app/tasks/estimates.py`).
+2. In `EstimatesOutput._rules`, when none of an estimate's cited items is tagged to the estimate's own factor, require `conf` to be "low". Use the usual single corrective retry.
+3. After validation, set `evidence_match` on each estimate in code, the same way `basis` is set: "direct" when at least one cited item is tagged to the factor itself, otherwise "related".
+4. Add `agent/app/prompts/estimates.v2.md`, copied from v1, stating the rule: a range with no evidence tagged to its own factor may still be proposed from evidence in the same group, at low confidence, and the rationale must say which related evidence it uses and why it applies. Point `PROMPT_VERSION` at it and keep v1 in place.
+5. Api (`api/app/routers/estimates.py`): return `evidenceMatch` with the agent's range, only after the reveal like the rest of it. Carry it into an "agent" decision. When pushed, add a line to the factor's `src` for a related range: "Rests on related evidence: no cited item is tagged to this factor."
+6. Estimates tab: after the reveal, show a "Rests on related evidence" label beside the agent's range, with the cited items listed. An estimate draft without the field (created before this change) shows no label.
+
+**Tests.** A related-only estimate at "med" fails validation and passes at "low". `evidence_match` is "direct" or "related" as the tags dictate. The field is absent from the api response before the reveal and present after. The pushed `src` carries the line for a related range and not for a direct one.
+
+## Fix 6. Check an evidence item's number against its source record (medium)
+
+**Problem.** Code proves that an evidence item's citation came from a tool in the same run. The item's `value` and `summary` are the model's own transcription and are not compared with the cited record, so a wrong number on a real citation would pass.
+
+**Decision.** Check the number for internal records and flag a mismatch. Do not drop the item: a derived value, such as response hours multiplied by the labor rate, is legitimate and will not appear in the row. Show the source record beside each item so the analyst can compare. External web items are out of scope for now, and the summary sentence cannot be checked by code.
+
+**Change.**
+
+1. Keep the source record. Add the cleaned row fields to `Source` (`agent/app/tools/base.py`) and set them in `internal_evidence.records()`. For reference library entries, keep the entry's metric, value and unit.
+2. In `postprocess` (`agent/app/tasks/evidence.py`), set `value_check` on each item:
+   - "found": the item has a value, the source has fields, and the value matches a number in them. Read numbers from numeric cells and from text cells, and use the same tolerance as `value_in` in `agent/app/tasks/library.py`. Move that number parsing to a shared module so both use it.
+   - "not_found": the item has a value, the source has fields, and no number matches.
+   - "not_checked": no value, or no source fields (web results, feeds).
+   Include the source fields in the item output.
+3. Api: store `value_check` and the source fields for each evidence item. The README says the database is only ever created, never migrated, so do not alter an existing table in a way that breaks existing volumes. Follow the approach milestone 7 took for `analysis_drafts` (a new table keyed to the evidence item), or whichever approach keeps an existing volume working, and record the choice. Items created from a data request answer are "not_checked".
+4. Return both from the risk detail response. On the Evidence tab and in the evidence lists on the Estimates tab, show a warning tag "Value not found in source" for "not_found", and an expandable "Source record" with the fields for internal items. Items stored before this change show neither.
+5. Pass `value_check` to the estimates task with each evidence item, and say in `estimates.v2.md` (the version added in fix 5) that a value marked "not_found" may be derived or mistranscribed and should not be relied on without saying so in the rationale.
+
+**Tests.** A value present in a numeric cell is "found". A value present only inside a notes sentence is "found". A value that appears nowhere in the row is "not_found" and the item is kept. An item with no value, and a web item, are "not_checked". The source fields never leave the api except to the browser: nothing new is added to any outbound request.
+
+## When all six are done
 
 Run all three test suites and report the counts. List any place where the code differed from this file, and anything you chose not to change.

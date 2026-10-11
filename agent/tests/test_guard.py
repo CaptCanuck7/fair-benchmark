@@ -231,3 +231,119 @@ def test_check_search_logs_and_blocks():
         c.check_search("web_search", "claude web search", "Excelsior tls 1.0")
     assert [e.allowed for e in rec.entries] == [True, False]
     assert rec.entries[1].query == "[environment] tls 1.0"
+
+
+# --- AGENT_FIXES.md fix 2: the URL gaps ---
+
+
+@pytest.mark.parametrize("url", [
+    "https://nvd.nist.gov/search?q=ASSET%2D412",        # encoded hyphen
+    "https://nvd.nist.gov/search?q=ASSET%252D412",      # encoded twice
+    "https://nvd.nist.gov/search?q=asset+412",          # "+" is a space
+    "https://nvd.nist.gov/%41sset-412",                 # encoded letter in the path
+])
+def test_encoded_identifiers_in_urls_are_blocked(url):
+    assert guard().check_url(url).reason == "identifier:asset_id"
+
+
+@pytest.mark.parametrize("query", ["exploit ASSET 412 sftp", "exploit asset_412 sftp", "exploit asset - 412"])
+def test_identifier_separators_are_interchangeable(query):
+    assert guard().check_query(query).reason == "identifier:asset_id"
+
+
+def test_separator_matching_keeps_token_boundaries():
+    g = guard()
+    assert g.check_query("Asset 4120 is a different asset").allowed
+    assert g.check_query("asset_4120 too").allowed
+    assert g.check_query("renovated excelsiorly").allowed
+    assert g.check_query("ben   nakamura phishing").reason == "identifier:person"
+
+
+def test_long_urls_are_blocked_on_non_feed_hosts():
+    g = guard()
+    assert g.check_url("https://nvd.nist.gov/search?q=" + "a" * 121).reason == "url_query_too_long"
+    assert g.check_url("https://nvd.nist.gov/search?q=" + "a%20" * 60).reason == "url_query_too_long"
+    assert g.check_url("https://nvd.nist.gov/search?q=" + "a" * 100).allowed
+    assert g.check_url("https://nvd.nist.gov/" + "p/" * 260).reason == "url_too_long"
+
+
+@pytest.mark.parametrize("url", [
+    "https://raw.githubusercontent.com/mitre/cti/../../someone/repo/main/page.html",
+    "https://raw.githubusercontent.com/mitre/cti/./../../someone/repo/main/page.html",
+])
+def test_dot_segments_cant_escape_a_fixed_feed(url):
+    assert guard(domains=[]).check_url(url).reason == "host_not_allowed"
+
+
+@pytest.mark.parametrize("url", [
+    "https://raw.githubusercontent.com/mitre/cti/%2e%2e/%2e%2e/someone/repo/x.json",
+    "https://raw.githubusercontent.com/mitre/cti/..%2f..%2fsomeone/x.json",
+    "https://raw.githubusercontent.com/mitre/cti/..%5C..%5Csomeone/x.json",
+    r"https://nvd.nist.gov/a\..\b",
+])
+def test_encoded_or_backslash_separators_in_paths_are_refused(url):
+    assert guard(domains=["nvd.nist.gov"]).check_url(url).reason == "encoded_path"
+
+
+def test_real_feed_urls_still_pass():
+    g = guard(domains=[])
+    cves = ",".join(f"CVE-2024-{i:04d}" for i in range(1, 21))
+    for url, params in [
+        ("https://services.nvd.nist.gov/rest/json/cves/2.0", {"keywordSearch": "openssh", "resultsPerPage": 50}),
+        ("https://services.nvd.nist.gov/rest/json/cves/2.0",
+         {"keywordSearch": "windows server 2012 smb", "resultsPerPage": 50, "startIndex": 1950}),
+        ("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", None),
+        ("https://api.first.org/data/v1/epss", {"cve": cves}),
+        ("https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json", None),
+    ]:
+        target = str(httpx.URL(url, params=params)) if params else url
+        assert g.check_url(target).allowed, target
+
+
+def test_the_client_sends_the_normalised_url_and_logs_blocks():
+    sent, rec = [], Recorder()
+
+    def handler(req):
+        sent.append(str(req.url))
+        return httpx.Response(200, text="ok")
+
+    c = client(handler, rec)
+    c.get("https://nvd.nist.gov/a/./b/../c#frag", tool="web_fetch")
+    assert sent == ["https://nvd.nist.gov/a/c"] and rec.entries[0].destination == "https://nvd.nist.gov/a/c"
+    for url, reason in [("https://nvd.nist.gov/search?q=ASSET%2D412", "identifier:asset_id"),
+                        ("https://nvd.nist.gov/search?q=" + "a" * 200, "url_query_too_long"),
+                        ("https://raw.githubusercontent.com/mitre/cti/../../x/y", "host_not_allowed")]:
+        with pytest.raises(Blocked) as exc:
+            c.get(url, tool="web_fetch")
+        assert exc.value.reason == reason and rec.entries[-1].blocked_reason == reason
+    assert len(sent) == 1
+    # The log holds the blocked URL with the decoded identifier redacted.
+    assert rec.entries[1].destination == "https://nvd.nist.gov/search?q=[asset_id]"
+
+
+def test_redirect_to_an_allowlisted_host_is_followed():
+    sent, rec = [], Recorder()
+
+    def handler(req):
+        sent.append(str(req.url))
+        if req.url.host == "nvd.nist.gov":
+            return httpx.Response(301, headers={"location": "https://www.cisa.gov/news/../page"})
+        return httpx.Response(200, text="done")
+
+    res = client(handler, rec).get("https://nvd.nist.gov/start", tool="web_fetch")
+    assert res.text == "done"
+    assert sent == ["https://nvd.nist.gov/start", "https://www.cisa.gov/page"]
+    assert [e.allowed for e in rec.entries] == [True, True]
+
+
+def test_an_encoded_identifier_in_a_redirect_is_blocked():
+    rec = Recorder()
+
+    def handler(req):
+        if req.url.path == "/start":
+            return httpx.Response(302, headers={"location": "/next?ref=Asset%5F412"})
+        raise AssertionError("must not be sent")
+
+    with pytest.raises(Blocked) as exc:
+        client(handler, rec).get("https://nvd.nist.gov/start", tool="web_fetch")
+    assert exc.value.reason == "identifier:asset_id"
