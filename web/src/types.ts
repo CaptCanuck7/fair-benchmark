@@ -522,6 +522,30 @@ export interface EvidenceRun {
   /** Items dropped because no tool returned their citation. */
   rejected: { citation: string; summary?: string; reason: string }[]
   notes: { toolsOffered?: string[]; cveLookupsOffered?: boolean; cveLookupsMade?: number; backstopGroups?: string[] }
+  /** What each source did in this run; null for runs from before it was recorded. */
+  coverage?: SourceCoverage | null
+}
+
+export type CoverageReason = 'external_off' | 'threat_type' | 'blocked' | 'failed' | 'budget' | 'not_called'
+
+export interface ToolCoverage {
+  offered: boolean
+  required: boolean
+  calls: number
+  blocked: number
+  failed: number
+  /** Calls that ran: not blocked, not failed. */
+  checks: number
+  /** Accepted evidence items citing what this tool returned. */
+  items: number
+  reason: CoverageReason | null
+}
+
+export interface SourceCoverage {
+  tools: Record<string, ToolCoverage>
+  budgetSpent: boolean
+  /** The reference library had no approved entries when the run looked. */
+  libraryEmpty?: boolean
 }
 
 export interface AppSettings {

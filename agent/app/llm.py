@@ -86,6 +86,8 @@ class LLMResult(Generic[T]):
     usage: Usage
     attempts: int
     tool_calls: int = 0
+    # tool_loop only: whether the call or time budget ran out.
+    budget_spent: bool = False
 
     @property
     def model(self) -> str:
@@ -170,6 +172,7 @@ class LLM:
         effort: str | None = None,
         context: Callable[[], dict[str, Any]] | None = None,
         clock: Callable[[], float] = time.monotonic,
+        required_tools: dict[str, str] | None = None,
     ) -> LLMResult[T]:
         """A bounded tool-use loop that ends in JSON matching `output`.
 
@@ -178,12 +181,19 @@ class LLM:
         further calls get an error result and the next turn sets tool_choice
         "none", so the model has to answer. The final JSON gets the same single
         corrective retry as `structured`. `context()` is passed to validation.
+
+        `required_tools` maps tool names to why each is needed. An answer that
+        arrives before every one was called (a blocked call counts as called),
+        with budget left, is set aside once: the model is told which are still
+        missing and the loop goes on. After that the answer is accepted as is.
         """
         schema = anthropic.transform_schema(output)
         system = f"{system.strip()}\n\n{UNTRUSTED_RULE}"
         messages: list = [{"role": "user", "content": user}]
         usage = Usage()
         started, calls, attempts = clock(), 0, 0
+        called: set[str] = set()
+        reminded = False
 
         def out_of_budget() -> bool:
             return calls >= max_calls or clock() - started >= max_seconds
@@ -219,16 +229,30 @@ class LLM:
                                           "return the final JSON with what you have."), True
                     else:
                         calls += 1
+                        called.add(block.name)
                         text, is_error = execute(block.name, dict(block.input or {}))
                     results.append({"type": "tool_result", "tool_use_id": block.id, "content": text,
                                     **({"is_error": True} if is_error else {})})
                 messages = [*messages, {"role": "user", "content": results}]
                 continue
 
+            missing = [t for t in (required_tools or {}) if t not in called]
+            if missing and not reminded and not out_of_budget():
+                reminded = True
+                lines = "\n".join(f"- {t}: {required_tools[t]}" for t in missing)
+                messages = [*messages, {"role": "user", "content": (
+                    "Not yet. These lookups are required for this task and haven't been made:\n"
+                    f"{lines}\n"
+                    "Call them now, then return the complete JSON. If they find nothing relevant, say so; "
+                    "don't add weak items."
+                )}]
+                continue
+
             attempts += 1
             try:
                 parsed = output.model_validate_json(_text(response), context=context() if context else None)
-                return LLMResult(output=parsed, usage=usage, attempts=attempts, tool_calls=calls)
+                return LLMResult(output=parsed, usage=usage, attempts=attempts, tool_calls=calls,
+                                 budget_spent=out_of_budget())
             except ValidationError as exc:
                 if attempts >= 2:
                     raise LLMError(f"The model's output failed validation twice:\n{_short(exc)}", usage) from exc

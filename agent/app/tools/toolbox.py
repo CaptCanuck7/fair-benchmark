@@ -92,6 +92,11 @@ class Toolbox:
                  attack_index: list[dict] | None = None):
         self.registry, self.outbound, self.asset_ids = registry, outbound, asset_ids
         self.client, self.model, self.allowed_domains, self.mode = client, model, allowed_domains, mode
+        self.external, self.cve_allowed = external, cve_allowed
+        # Per tool: calls made, calls the guard blocked, calls that failed.
+        self.stats: dict[str, dict[str, int]] = {}
+        # Which tool first returned each citation, to count found items per source.
+        self.tool_of: dict[str, str] = {}
         self.internal_fetch, self.library_search, self.attack_index = internal_fetch, library_search, attack_index
         if mode == "library":
             self.names = ["web_search", "web_fetch"] if external else []
@@ -109,14 +114,23 @@ class Toolbox:
     def execute(self, name: str, args: dict) -> tuple[str, bool]:
         if name not in self.names:
             return f"The tool {name} isn't available for this task.", True
+        stat = self.stats.setdefault(name, {"calls": 0, "blocked": 0, "failed": 0})
+        stat["calls"] += 1
+        before = set(self.registry.sources)
         try:
             return self._run(name, args), False
         except Blocked as exc:
+            stat["blocked"] += 1
             return web.blocked_message(exc.reason), True
         except httpx.HTTPError as exc:
+            stat["failed"] += 1
             return f"The source couldn't be reached ({exc.__class__.__name__}). Try another source.", True
         except (KeyError, ValueError, TypeError) as exc:
+            stat["failed"] += 1
             return f"The tool couldn't use that input or read the response ({exc.__class__.__name__}).", True
+        finally:
+            for citation in set(self.registry.sources) - before:
+                self.tool_of.setdefault(citation, name)
 
     def _run(self, name: str, a: dict) -> str:
         if name == "internal_records":

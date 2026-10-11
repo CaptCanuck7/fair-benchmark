@@ -376,8 +376,13 @@ def _gather_evidence(s: Session, row: RiskRow, run: AgentRunRow, state) -> None:
     for req in out["data_requests"]:
         s.add(DataRequestRow(risk_pk=row.id, agent_run_id=run.id, team=req["team"], question=req["question"],
                              factor=req["factor"], reason=req["reason"], status="open"))
+    notes = dict(out.get("notes") or {})
+    if isinstance(notes.get("coverage"), dict):
+        # Whether the library had anything to find when this run looked.
+        approved = s.scalars(select(ReferenceLibraryRow.id).where(ReferenceLibraryRow.status == "approved")).first()
+        notes["coverage"] = {**notes["coverage"], "libraryEmpty": approved is None}
     s.add(EvidenceRunRow(agent_run_id=run.id, risk_pk=row.id, tool_calls=int(out.get("tool_calls") or 0),
-                         rejected=out.get("rejected") or [], notes=out.get("notes") or {}))
+                         rejected=out.get("rejected") or [], notes=notes))
     s.commit()
 
 

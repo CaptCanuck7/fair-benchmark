@@ -21,7 +21,7 @@ from app.tasks.common import load_prompt, render_risk
 from app.tools.base import Registry, is_stale
 from app.tools.toolbox import Toolbox
 
-PROMPT_VERSION = "evidence.v1"
+PROMPT_VERSION = "evidence.v2"
 MAX_TOOL_CALLS = 12
 MAX_SECONDS = 120.0
 
@@ -35,6 +35,68 @@ ROUTES = {
     "third_party": "vendor assessments, incident history, public breach disclosures",
     "other": "incident history, telemetry, control tests and the reference library",
 }
+
+# Lookups the loop requires when they're offered (AGENT_FIXES.md fix 7), and why.
+REQUIRED_WHY = {
+    "library_lookup": "the reference library holds approved industry figures (breach frequency, cost per record) "
+                      "that any risk can use",
+    "nvd_search": "the technology involved may have published vulnerabilities; search by its generic product or "
+                  "protocol name",
+    "web_search": "third-party and unsupported-software risks need public security research and disclosed "
+                  "incidents about the kind of technology involved, searched in generic terms",
+}
+WEB_SEARCH_TYPES = {"third_party", "unsupported_software"}
+# Every evidence tool, in the order coverage lists them.
+EVIDENCE_TOOLS = ("internal_records", "library_lookup", "attack_techniques", "nvd_search", "kev_check",
+                  "epss_scores", "web_search", "web_fetch")
+CVE_TOOLS = {"nvd_search", "kev_check", "epss_scores"}
+
+
+def required_tools(req: EvidenceRequest, toolbox: Toolbox) -> dict[str, str]:
+    """The lookups this run must make: the library always; NVD whenever it is
+    offered (external sources on, malicious threat); web search when offered
+    for a malicious threat whose condition type is third party or unsupported
+    software."""
+    c = req.classification
+    types = {c.primary_type, c.secondary_type} if c else set()
+    malicious = req.scenario.get("threat_type", "") not in NON_MALICIOUS
+    needed = ["library_lookup", "nvd_search"]
+    if malicious and types & WEB_SEARCH_TYPES:
+        needed.append("web_search")
+    return {t: REQUIRED_WHY[t] for t in needed if t in toolbox.names}
+
+
+def coverage(toolbox: Toolbox, required: dict[str, str], items: list[dict], budget_spent: bool) -> dict:
+    """What each source did in this run, for the Evidence tab. A blocked or
+    failed call is an attempt, not a check. `reason` says why a source with no
+    checks wasn't checked: external_off, threat_type, blocked, failed, budget,
+    or not_called (required, budget left, still not called)."""
+    found: dict[str, int] = {}
+    for i in items:
+        tool = toolbox.tool_of.get(i["citation"])
+        if tool:
+            found[tool] = found.get(tool, 0) + 1
+    tools = {}
+    for name in EVIDENCE_TOOLS:
+        s = toolbox.stats.get(name, {"calls": 0, "blocked": 0, "failed": 0})
+        offered = name in toolbox.names
+        checks = s["calls"] - s["blocked"] - s["failed"]
+        reason = None
+        if not offered:
+            reason = "external_off" if not toolbox.external else "threat_type" if name in CVE_TOOLS else None
+        elif checks == 0:
+            if s["blocked"]:
+                reason = "blocked"
+            elif s["failed"]:
+                reason = "failed"
+            elif budget_spent:
+                reason = "budget"
+            elif name in required:
+                reason = "not_called"
+        tools[name] = {"offered": offered, "required": name in required, **s, "checks": checks,
+                       "items": found.get(name, 0), "reason": reason}
+    return {"tools": tools, "budgetSpent": budget_spent}
+
 
 # Requests added when the model leaves a group uncovered.
 BACKSTOP = {
@@ -74,7 +136,7 @@ def _vectors_text(vectors: dict | None) -> str:
     return "\n".join(lines)
 
 
-def build_user(req: EvidenceRequest, toolbox: Toolbox) -> str:
+def build_user(req: EvidenceRequest, toolbox: Toolbox, required: dict[str, str] | None = None) -> str:
     c = req.classification
     routing = []
     if c:
@@ -93,6 +155,8 @@ def build_user(req: EvidenceRequest, toolbox: Toolbox) -> str:
         f"Approved attack vectors or failure paths:\n{_vectors_text(req.vectors)}\n\n"
         "Sources to try first for this condition type:\n" + ("\n".join(routing) or "- incident history, telemetry, "
                                                              "control tests") + "\n\n"
+        "Required lookups for this run (make them early; they count toward the budget):\n"
+        + ("\n".join(f"- {t}: {why}" for t, why in (required or {}).items()) or "- none") + "\n\n"
         "Factor groups that each need evidence or a data request: frequency (tef, lef, cf, poa), susceptibility "
         "(vuln, tcap, rs), primary loss (primary.*), secondary loss (slef, secondary.*).\n"
         f"Tool budget: {MAX_TOOL_CALLS} calls and {int(MAX_SECONDS)} seconds. "
@@ -111,7 +175,8 @@ def value_check(value: float | None, fields: dict | None) -> str:
 
 
 def postprocess(out: EvidenceOutput, registry: Registry, toolbox: Toolbox, tool_calls: int,
-                threat_type: str) -> EvidenceResult:
+                threat_type: str, required: dict[str, str] | None = None,
+                budget_spent: bool = False) -> EvidenceResult:
     items, rejected, seen = [], [], set()
     for item in out.items:
         src = registry.get(item.citation)
@@ -147,13 +212,17 @@ def postprocess(out: EvidenceOutput, registry: Registry, toolbox: Toolbox, tool_
         "cveLookupsMade": registry.cve_lookups,
         "threatType": threat_type,
         "backstopGroups": backstopped,
+        "coverage": coverage(toolbox, required or {}, items, budget_spent),
     })
 
 
 def run(llm: LLM, req: EvidenceRequest, toolbox: Toolbox) -> LLMResult[EvidenceResult]:
+    required = required_tools(req, toolbox)
     res = llm.tool_loop(
-        load_prompt(PROMPT_VERSION), build_user(req, toolbox), EvidenceOutput, toolbox.definitions(),
+        load_prompt(PROMPT_VERSION), build_user(req, toolbox, required), EvidenceOutput, toolbox.definitions(),
         toolbox.execute, max_calls=MAX_TOOL_CALLS, max_seconds=MAX_SECONDS, effort="medium",
+        required_tools=required,
     )
-    result = postprocess(res.output, toolbox.registry, toolbox, res.tool_calls, req.scenario.get("threat_type", ""))
+    result = postprocess(res.output, toolbox.registry, toolbox, res.tool_calls, req.scenario.get("threat_type", ""),
+                         required, res.budget_spent)
     return LLMResult(output=result, usage=res.usage, attempts=res.attempts, tool_calls=res.tool_calls)

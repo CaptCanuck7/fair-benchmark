@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { AgentStatus, EvidenceItem, FactorGroup, RegisterRiskDetail } from '../types'
+import type { AgentStatus, CoverageReason, EvidenceItem, FactorGroup, RegisterRiskDetail, SourceCoverage } from '../types'
 import { api, ApiError } from '../api/client'
 import { useContent } from '../content'
 import { dateTime } from '../lib/format'
@@ -74,6 +74,7 @@ export function EvidenceTab({ risk, agent, reload, onShowRequests }: Props) {
                 'No vulnerability-database lookups: they apply only to malicious threats with external sources on.'}
             </p>
           )}
+          {run?.coverage && <SourcesChecked coverage={run.coverage} />}
           {run && run.rejected.length > 0 && (
             <details className="more">
               <summary>
@@ -151,6 +152,57 @@ export function SourceRecord({ e }: { e: EvidenceItem }) {
         ))}
       </dl>
     </details>
+  )
+}
+
+const SOURCES: [string, string[]][] = [
+  ['Internal records', ['internal_records']],
+  ['Reference library', ['library_lookup']],
+  ['Vulnerability feeds (NVD, KEV, EPSS)', ['nvd_search', 'kev_check', 'epss_scores']],
+  ['MITRE ATT&CK', ['attack_techniques']],
+  ['Web search', ['web_search']],
+  ['Page fetch', ['web_fetch']],
+]
+const REASONS: Record<CoverageReason, string> = {
+  external_off: 'external sources are off',
+  threat_type: 'not offered for this threat type',
+  budget: 'the tool budget ran out',
+  blocked: 'blocked by the outbound guard',
+  failed: 'the source couldn’t be reached',
+  not_called: 'a required lookup the agent didn’t make',
+}
+
+/** One line per source: checked (with lookups), checked with nothing found, or not checked and why. */
+export function SourcesChecked({ coverage }: { coverage: SourceCoverage }) {
+  return (
+    <div className="sources">
+      <h3 className="small">Sources checked</h3>
+      <ul>
+        {SOURCES.map(([label, names]) => {
+          const ts = names.map((n) => coverage.tools[n]).filter(Boolean)
+          if (!ts.length) return null
+          const checks = ts.reduce((s, t) => s + t.checks, 0)
+          const items = ts.reduce((s, t) => s + t.items, 0)
+          const reason = ts.map((t) => t.reason).find((r) => r) ?? null
+          const required = ts.some((t) => t.required)
+          const lookups = `${checks} lookup${checks === 1 ? '' : 's'}`
+          let status: string
+          if (checks > 0 && names[0] === 'library_lookup' && coverage.libraryEmpty) {
+            status = 'Checked, the library has no approved figures yet.'
+          } else if (checks > 0) {
+            status = items > 0 ? `Checked, ${lookups}` : `Checked, nothing found (${lookups})`
+          } else {
+            status = `Not checked${reason ? `: ${REASONS[reason]}` : ''}`
+          }
+          return (
+            <li key={label} className={checks > 0 ? '' : 'notchecked'}>
+              <b>{label}</b>
+              {required && <span className="tag">Required</span>} <span>{status}</span>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 

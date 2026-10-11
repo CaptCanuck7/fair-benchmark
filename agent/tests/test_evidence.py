@@ -99,6 +99,14 @@ def llm(fake) -> LLM:
     return LLM(client=fake, model="claude-sonnet-5-5")
 
 
+@pytest.fixture(autouse=True)
+def _no_required_lookups(monkeypatch):
+    """The tests in this file script the model without the lookups fix 7
+    requires, to test other things. Required lookups are tested in
+    test_evidence_coverage.py."""
+    monkeypatch.setattr(evidence, "required_tools", lambda req, box: {})
+
+
 REQ = EvidenceRequest(risk=RISK, scenario=SCENARIO, classification={"primary_type": "unsupported_software"})
 ALL_GROUPS = [
     {"citation": "Incident History INC-2026-021", "summary": "A brute-force attempt, no access.", "factors": ["tef"]},

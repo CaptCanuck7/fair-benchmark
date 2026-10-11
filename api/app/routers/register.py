@@ -263,6 +263,8 @@ def evidence_out(session: Session, row: RiskRow) -> dict:
             "toolCalls": summary.tool_calls if summary else None,
             "rejected": summary.rejected if summary else [],
             "notes": summary.notes if summary else {},
+            # What each source did (AGENT_FIXES.md fix 7); null for runs from before it was recorded.
+            "coverage": (summary.notes or {}).get("coverage") if summary else None,
         },
     }
 

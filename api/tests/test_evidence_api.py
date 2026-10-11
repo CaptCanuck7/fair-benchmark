@@ -291,3 +291,41 @@ def test_source_fields_never_go_back_out(client, checked):
     assert MARKER not in after and "source_fields" not in after and "sourceFields" not in after
     # The analysis document doesn't carry it either.
     assert MARKER not in json.dumps(client.get(f"/api/analyses/{aid}").json())
+
+
+# ---------------------------------------------------------------- AGENT_FIXES.md fix 7: source coverage
+
+COVERAGE = {"tools": {"library_lookup": {"offered": True, "required": True, "calls": 1, "blocked": 0, "failed": 0,
+                                         "checks": 1, "items": 0, "reason": None},
+                      "nvd_search": {"offered": True, "required": True, "calls": 1, "blocked": 1, "failed": 0,
+                                     "checks": 0, "items": 0, "reason": "blocked"}},
+            "budgetSpent": False}
+
+
+@pytest.fixture
+def covered(fake, monkeypatch):
+    def call(task, payload):
+        res = fake(task, payload)
+        if task == "evidence":
+            res.output = {**res.output, "notes": {**res.output["notes"], "coverage": COVERAGE}}
+        return res
+
+    monkeypatch.setattr(agent_client, "call_task", call)
+    return fake
+
+
+def test_coverage_is_stored_with_the_run_and_returned(client, covered):
+    run = gathered(client)["evidenceRun"]
+    assert run["coverage"] == {**COVERAGE, "libraryEmpty": True}
+    assert run["notes"]["coverage"]["tools"]["nvd_search"]["reason"] == "blocked"
+
+
+def test_library_empty_reflects_approved_entries_at_run_time(client, covered):
+    entry = {"metric": "Breach frequency", "value": 0.05, "unit": "per year", "source": "Test report",
+             "edition": "2025", "url": "https://www.verizon.com/x"}
+    assert client.post("/api/library", json=entry).status_code in (200, 201)
+    assert gathered(client)["evidenceRun"]["coverage"]["libraryEmpty"] is False
+
+
+def test_a_run_without_coverage_returns_none(client, fake):
+    assert gathered(client)["evidenceRun"]["coverage"] is None

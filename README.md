@@ -1021,6 +1021,55 @@ prototype first; otherwise choose the simpler option."
     passed every rule. In an earlier run, TR-7's rationale didn't use wording
     the "zero confirmed logins is weak evidence" check recognises; the rerun
     passed.
+- **Fix 7: external evidence coverage is guaranteed and shown.**
+  - **Counting:** `Toolbox.execute` counts calls, guard blocks and failures
+    per tool, and records which tool returned each citation, so found items
+    can be counted per source.
+  - **Coverage:** the evidence task returns `coverage` in the run's `notes`
+    (no table change). For every tool it gives whether it was offered and
+    required, the counts, checks (calls neither blocked nor failed), items
+    found, and a reason code when it wasn't checked: `external_off`,
+    `threat_type`, `blocked`, `failed`, `budget` or `not_called`. The api adds
+    `libraryEmpty`, whether the library had no approved entries at that
+    moment, and returns `coverage` with the evidence run.
+  - **Required lookups:**
+    - `library_lookup` always
+    - `nvd_search` whenever it is offered
+    - `web_search` when it is offered for a malicious threat whose condition
+      type (primary or secondary) is third party or unsupported software
+  - **Where the file disagreed with itself:** its rule 2 reads as requiring
+    web search for any threat type, but its test says a non-malicious threat
+    needs only the library. I followed the test: web search, like NVD, is
+    required only for malicious threats.
+  - **Enforcement:** `LLM.tool_loop(required_tools=...)` sets aside one final
+    answer that arrives before every required tool was called (a blocked call
+    counts), names what's missing and why, and continues. It does this once,
+    and only with budget left. The reminder isn't a validation retry. The
+    limits stay at 12 calls and 120 seconds.
+  - **The prompt:** `evidence.v2.md` lists the lookups, asks for them early,
+    keeps web searches generic, and says "found nothing relevant" is a valid
+    result. v1 is kept.
+  - **In the UI:** the Evidence tab lists the six sources with "Checked" and
+    the number of lookups, "Checked, nothing found", or "Not checked" (in the
+    warning style, with the reason when there is one). Runs from before this
+    change show no list. A reference library with no approved entries reads
+    "Checked, the library has no approved figures yet."
+  - **Allowed sites:** the default list is unchanged; adding sites is the
+    owner's call.
+  - **Tests:** the older loop tests in `agent/tests/test_evidence.py` script
+    the model without the required lookups, to test other things. That file
+    switches the requirement off with a documented fixture, and fix 7's own
+    tests are in `test_evidence_coverage.py`.
+  - **Replays:** they replace the agent call entirely, so the reminder doesn't
+    change what they send or expect, and `evidence_recorded.json` wasn't
+    re-recorded. Recorded runs simply show no list.
+  - **Live check:** `tests/test_live_eval_coverage.py` runs evidence
+    gathering on TR-10 and TR-14 (third party). Both made the library lookup,
+    an NVD search and a web search, and the outbound log shows `nvd` and
+    `web_search` entries for each run. The library lookup is a call to the
+    api, not outbound, so it's confirmed from coverage rather than the log.
+    To reach the running api from a one-off container, set
+    `LIVE_API=http://api:8000`.
 
 ## Later extensions
 
