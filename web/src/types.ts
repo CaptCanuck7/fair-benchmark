@@ -569,6 +569,7 @@ export interface EstimateDecision {
   by: string
   at: string
   revealedFirst?: boolean
+  evidenceMatch?: 'direct' | 'related'
 }
 
 export interface EstimateFactor {
@@ -576,7 +577,17 @@ export interface EstimateFactor {
   status: 'estimated' | 'unestimated'
   revealed: boolean
   /** Null until revealed. */
-  agent: { min: number; ml: number; max: number; conf: Conf; rationale: string; evidenceIds: number[]; basis: string } | null
+  agent: {
+    min: number
+    ml: number
+    max: number
+    conf: Conf
+    rationale: string
+    evidenceIds: number[]
+    basis: string
+    /** related: no cited item is tagged to this factor. Absent on older drafts. */
+    evidenceMatch?: 'direct' | 'related'
+  } | null
   unestimated: { reason: string; dataRequestId: number | null } | null
   reveal: { analystRange: RangeValue | null; enteredBeforeReveal: boolean; revealedAt: string } | null
   decision: EstimateDecision | null

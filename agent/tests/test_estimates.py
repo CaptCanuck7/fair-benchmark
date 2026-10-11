@@ -164,3 +164,41 @@ def test_validation_without_a_request_context_skips_the_evidence_checks():
 def test_basis_refuses_an_empty_set():
     with pytest.raises(ValueError):
         estimates.basis(set())
+
+
+# --- AGENT_FIXES.md fix 5: ranges on related evidence ---
+
+FINES = {"factor": "secondary.fines", "min": 0, "ml": 100000, "max": 1000000, "conf": "med",
+         "rationale": "From the record count tagged to secondary response (IBM), as fines scale with records.",
+         "evidence_ids": [4]}
+
+
+def with_fines(**kw) -> dict:
+    return {**GOOD, "estimates": [*GOOD["estimates"], {**FINES, **kw}], "unestimated": []}
+
+
+def test_related_evidence_caps_confidence_at_low():
+    with pytest.raises(ValueError, match=re.escape("secondary.fines: none of the cited evidence is tagged to "
+                                                   "secondary.fines itself")):
+        validate(with_fines(conf="med"))
+    validate(with_fines(conf="low"))
+
+
+def test_evidence_match_follows_the_tags():
+    fake = FakeClient(reply(with_fines(conf="low")))
+    result = estimates.run(llm(fake), REQ).output
+    match = {e["factor"]: e["evidence_match"] for e in result.estimates}
+    assert match == {"tef": "direct", "vuln": "direct", "primary.response": "direct", "slef": "direct",
+                     "secondary.response": "direct", "secondary.fines": "related"}
+
+
+def test_a_related_range_at_med_gets_one_corrective_retry():
+    fake = FakeClient(reply(with_fines(conf="med")), reply(with_fines(conf="low")))
+    assert estimates.run(llm(fake), REQ).attempts == 2
+    assert "related evidence" in fake.calls[1]["messages"][-1]["content"]
+
+
+def test_estimates_use_the_v2_prompt():
+    assert estimates.PROMPT_VERSION == "estimates.v2"
+    from app.tasks.common import load_prompt
+    assert "Related evidence" in load_prompt("estimates.v2") and "Related evidence" not in load_prompt("estimates.v1")

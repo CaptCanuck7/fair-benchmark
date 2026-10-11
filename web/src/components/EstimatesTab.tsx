@@ -258,14 +258,31 @@ function FactorEstimate({
                     <td>{status.state === 'ok' ? content.confidence[mine.conf].label : '—'}</td>
                   </tr>
                   <tr>
-                    <th scope="row">Agent’s ({f.agent.basis} evidence)</th>
+                    <th scope="row">
+                      Agent’s ({f.agent.basis} evidence)
+                      {f.agent.evidenceMatch === 'related' && <span className="tag warn">Rests on related evidence</span>}
+                    </th>
                     <td>{fmt(f.agent)}</td>
                     <td>{content.confidence[f.agent.conf].label}</td>
                   </tr>
                 </tbody>
               </table>
               <p className="small"><b>Agent’s rationale:</b> {f.agent.rationale}</p>
-              <p className="small muted">Cites: {cited(f.agent.evidenceIds).map((e) => e.citation).join('; ') || '—'}</p>
+              {f.agent.evidenceMatch === 'related' ? (
+                <div className="check warn small">
+                  <b>Rests on related evidence.</b> None of the cited items is tagged to this factor; the agent used
+                  these from the same group, so its confidence is capped at low:
+                  <ul className="gaps">
+                    {cited(f.agent.evidenceIds).map((e) => (
+                      <li key={e.id}>
+                        {e.summary} <span className="mono muted">{e.citation}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="small muted">Cites: {cited(f.agent.evidenceIds).map((e) => e.citation).join('; ') || '—'}</p>
+              )}
               <div className="draftactions">
                 <button type="button" className="btn" disabled={busy || status.state !== 'ok'} onClick={useMine}>
                   Keep mine

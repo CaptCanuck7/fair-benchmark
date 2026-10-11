@@ -99,7 +99,9 @@ def estimates_out(session: Session, row: RiskRow) -> dict | None:
             "status": "estimated" if est else "unestimated",  # unestimated may carry no reason
             "revealed": rev is not None,
             "agent": ({"min": est["min"], "ml": est["ml"], "max": est["max"], "conf": est["conf"],
-                       "rationale": est["rationale"], "evidenceIds": est["evidence_ids"], "basis": est["basis"]}
+                       "rationale": est["rationale"], "evidenceIds": est["evidence_ids"], "basis": est["basis"],
+                       # direct or related; absent on drafts from before it was recorded.
+                       **({"evidenceMatch": est["evidence_match"]} if "evidence_match" in est else {})}
                       if est and rev else None),
             "unestimated": ({"reason": unestimated[key]["reason"],
                              "dataRequestId": unestimated[key].get("data_request_id")} if key in unestimated else None),
@@ -178,7 +180,8 @@ def decide(risk_id: str, factor: str, body: DecisionIn, session: Session = Depen
         if factor not in _reveals(session, draft):
             raise ApiError(409, "Show the agent’s range before taking it.")
         decision = {"choice": "agent", "min": est["min"], "ml": est["ml"], "max": est["max"], "conf": est["conf"],
-                    "rationale": est["rationale"], "evidenceIds": est["evidence_ids"], "by": by, "at": at}
+                    "rationale": est["rationale"], "evidenceIds": est["evidence_ids"], "by": by, "at": at,
+                    **({"evidenceMatch": est["evidence_match"]} if "evidence_match" in est else {})}
     else:
         if body.range is None:
             raise ApiError(422, "Enter your range.", [{"path": "range", "message": "Required."}])
@@ -251,7 +254,10 @@ def build_analysis(session: Session, row: RiskRow, scenario: dict, estimate: Dra
                 continue
             if d["choice"] == "agent":
                 cites = _citations(session, d["evidenceIds"])
-                src = f"{d['rationale']}\nSources: {'; '.join(cites)}\nAgent-drafted, approved by {d['by']} on {d['at'][:10]}."
+                related = ("\nRests on related evidence: no cited item is tagged to this factor."
+                           if d.get("evidenceMatch") == "related" else "")
+                src = (f"{d['rationale']}\nSources: {'; '.join(cites)}{related}\n"
+                       f"Agent-drafted, approved by {d['by']} on {d['at'][:10]}.")
             else:
                 src = f"Analyst estimate by {d['by']} on {d['at'][:10]}."
             dist = Dist(min=d["min"], ml=d["ml"], max=d["max"], conf=d["conf"] if d["conf"] in CONF else "med", src=src)

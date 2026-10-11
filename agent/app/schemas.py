@@ -490,6 +490,11 @@ class EstimatesOutput(BaseModel):
                                     "with no evidence of its own goes under unestimated")
                 if cited and all(ev["origin"] == "external" for ev in cited) and e.conf != "low":
                     problems.append(f"{e.factor}: external base rates alone support only conf 'low'")
+                # Related evidence only (same group, none tagged to this factor) caps confidence too.
+                if cited and not any(e.factor in ev.get("factors", ()) for ev in cited) and e.conf != "low":
+                    problems.append(f"{e.factor}: none of the cited evidence is tagged to {e.factor} itself, so the "
+                                    "range rests on related evidence and supports only conf 'low'; say in the "
+                                    "rationale which related evidence it uses and why it applies")
         for u in self.unestimated:
             if u.factor in seen:
                 problems.append(f"{u.factor} appears twice")

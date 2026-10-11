@@ -964,6 +964,26 @@ prototype first; otherwise choose the simpler option."
     I re-recorded it anyway through the live evaluation, which passed on
     every section 14 expectation. The fixture now reflects `quality.v2`, and
     TR-6's recorded quality check no longer asks who the owner is.
+- **Fix 5: ranges on related evidence are shown and capped.**
+  - **The rule:** the group rule stays: a range needs a cited item in its
+    factor's group. When none of the cited items is tagged to the factor
+    itself, the range must be at confidence "low", with the usual single
+    corrective retry. The evidence tags now reach the validation context.
+  - **`evidence_match`:** set in code after validation, like `basis`. It is
+    "direct" when a cited item is tagged to the factor, otherwise "related".
+  - **The prompt:** `estimates.v2.md` states the rule and asks the rationale
+    to say which related evidence it uses and why it applies. `estimates.v1.md`
+    is kept.
+  - **In the api:** `evidenceMatch` comes with the agent's range only after the
+    reveal, and is carried into an "agent" decision. A related range pushed to
+    an analysis gets "Rests on related evidence: no cited item is tagged to
+    this factor." in its `src`, before the approval line.
+  - **In the UI:** the Estimates tab labels a revealed related range and lists
+    the items it rests on. Drafts from before this change have no field and
+    show no label.
+  - **Evaluation:** the live estimates evaluation (and so its replay) also
+    checks the cap and that `evidence_match` follows the tags. The recorded
+    estimates already meet the cap, so they weren't re-recorded.
 
 ## Later extensions
 

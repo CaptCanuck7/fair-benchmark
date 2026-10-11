@@ -61,6 +61,11 @@ def estimate_problems(rid: str, out: dict, evidence: dict[int, dict], required: 
         cited = [evidence[i] for i in e["evidence_ids"] if i in evidence]
         if cited and all(c["origin"] == "external" for c in cited) and e["conf"] != "low":
             problems.append(f"{rid} {f}: external evidence only but confidence {e['conf']}")
+        if cited and not any(f in c["factors"] for c in cited) and e["conf"] != "low":
+            problems.append(f"{rid} {f}: related evidence only but confidence {e['conf']}")
+        if "evidence_match" in e and e["evidence_match"] != ("direct" if any(f in c["factors"] for c in cited)
+                                                              else "related"):
+            problems.append(f"{rid} {f}: evidence_match {e['evidence_match']} doesn't follow the tags")
     for u in out["unestimated"]:
         covered.add(u["factor"])
         if (u.get("data_request_id") is None) == (u.get("new_request") is None):

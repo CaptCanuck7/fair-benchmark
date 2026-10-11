@@ -17,7 +17,7 @@ from app.llm import LLM, LLMResult, untrusted
 from app.schemas import FACTOR_GROUPS, EstimatesOutput, EstimatesRequest
 from app.tasks.common import load_prompt, render_risk
 
-PROMPT_VERSION = "estimates.v1"
+PROMPT_VERSION = "estimates.v2"
 
 
 class EstimatesResult(BaseModel):
@@ -28,7 +28,7 @@ class EstimatesResult(BaseModel):
 
 def evidence_context(req: EstimatesRequest) -> dict:
     return {
-        "evidence": {e.id: {"origin": e.origin,
+        "evidence": {e.id: {"origin": e.origin, "factors": set(e.factors),
                             "groups": {g for g, keys in FACTOR_GROUPS.items() if set(e.factors) & set(keys)}}
                      for e in req.evidence},
         "request_ids": {r.id for r in req.data_requests},
@@ -52,6 +52,12 @@ def build_user(req: EstimatesRequest) -> str:
     )
 
 
+def evidence_match(factor: str, cited_factors: list[list[str]]) -> str:
+    """direct: a cited item is tagged to the factor itself; related: only to
+    other factors in its group."""
+    return "direct" if any(factor in tags for tags in cited_factors) else "related"
+
+
 def basis(cited_origins: set[str]) -> str:
     """internal, external or mixed. Validation has already rejected a range
     with no known evidence; one reaching here is a bug, not a default."""
@@ -65,7 +71,9 @@ def run(llm: LLM, req: EstimatesRequest) -> LLMResult[EstimatesResult]:
     res = llm.structured(load_prompt(PROMPT_VERSION), build_user(req), EstimatesOutput, effort="medium", context=ctx)
     out = res.output
     origins = {e.id: e.origin for e in req.evidence}
-    estimates = [{**e.model_dump(), "basis": basis({origins[i] for i in e.evidence_ids if i in origins})}
+    tags = {e.id: e.factors for e in req.evidence}
+    estimates = [{**e.model_dump(), "basis": basis({origins[i] for i in e.evidence_ids if i in origins}),
+                  "evidence_match": evidence_match(e.factor, [tags[i] for i in e.evidence_ids if i in tags])}
                  for e in out.estimates]
     result = EstimatesResult(method=out.method.model_dump(), estimates=estimates,
                              unestimated=[u.model_dump() for u in out.unestimated])

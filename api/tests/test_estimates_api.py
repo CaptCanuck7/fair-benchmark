@@ -329,3 +329,49 @@ def test_a_draft_without_based_on_is_never_stale(client, fake):
     start(client, "TR-6", "evidence")
     assert detail(client, "TR-6")["estimates"]["stale"] == FRESH
     assert client.post("/api/register/risks/TR-6/create-analysis").status_code == 201
+
+
+# ---------------------------------------------------------------- AGENT_FIXES.md fix 5: related evidence
+
+RELATED_LINE = "Rests on related evidence: no cited item is tagged to this factor."
+
+
+@pytest.fixture
+def matched(fake, monkeypatch):
+    """The fake's estimates with evidence_match set: slef rests on related evidence."""
+    def call(task, payload):
+        res = fake(task, payload)
+        if task == "estimates":
+            for e in res.output["estimates"]:
+                e["evidence_match"] = "related" if e["factor"] == "slef" else "direct"
+        return res
+
+    monkeypatch.setattr(agent_client, "call_task", call)
+    return fake
+
+
+def test_evidence_match_is_hidden_until_reveal(client, matched):
+    d = ready(client)
+    assert factor(d, "slef")["agent"] is None and "related" not in json.dumps(d["estimates"])
+    d = reveal(client, "TR-6", "slef").json()
+    assert factor(d, "slef")["agent"]["evidenceMatch"] == "related"
+    d = reveal(client, "TR-6", "tef").json()
+    assert factor(d, "tef")["agent"]["evidenceMatch"] == "direct"
+
+
+def test_related_range_is_noted_in_the_pushed_src(client, matched):
+    ready(client)
+    for key in ("tef", "slef"):
+        reveal(client, "TR-6", key)
+        d = decide(client, "TR-6", key, "agent").json()
+    assert factor(d, "slef")["decision"]["evidenceMatch"] == "related"
+    aid = client.post("/api/register/risks/TR-6/create-analysis").json()["analysisId"]
+    st = client.get(f"/api/analyses/{aid}").json()["states"][0]
+    assert RELATED_LINE in st["slef"]["src"]
+    assert RELATED_LINE not in st["lef"]["tef"]["src"] and "Agent-drafted" in st["lef"]["tef"]["src"]
+
+
+def test_a_draft_without_evidence_match_shows_none(client, fake):
+    ready(client)
+    d = reveal(client, "TR-6", "slef").json()
+    assert "evidenceMatch" not in factor(d, "slef")["agent"]
