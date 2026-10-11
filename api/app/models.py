@@ -346,3 +346,33 @@ class FactorProvenanceRow(Base):
     approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
     range: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class AnalysisDraftRow(Base):
+    """Something the agent drafted about an analysis (task 7): an input review
+    or a report on one stored run.
+
+    Kept apart from `drafts`, which belong to register risks, so the existing
+    table needs no migration. `kind` is review or report; statuses and
+    `edited_payload` work as in `drafts`. `input_hash` is the analysis input
+    hash the review read, so the workspace can tell when inputs have changed.
+    """
+
+    __tablename__ = "analysis_drafts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    analysis_id: Mapped[str] = mapped_column(ForeignKey("analyses.id", ondelete="CASCADE"), index=True)
+    run_id: Mapped[str | None] = mapped_column(ForeignKey("runs.id", ondelete="CASCADE"), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(16), index=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    input_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="drafted")
+    reviewer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    agent_run_id: Mapped[str | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    edited_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[str] = mapped_column(String(32))
+
+    @property
+    def effective(self) -> dict:
+        return self.edited_payload if self.status == "edited" and self.edited_payload else self.payload

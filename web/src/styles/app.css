@@ -320,3 +320,12 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
 .provenance.analyst::before { content: "● "; color: var(--green) }
 .fromrisk { font-size: 13.5px; margin: 6px 0 0 }
 .mitigation { margin: 0 0 10px }
+
+/* Input review and reports (task 7) */
+.findings { list-style: none; padding: 0; margin: 8px 0 }
+.findings li .btn { margin-top: 6px }
+.report { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 6px }
+.report h4 { margin: 14px 0 4px; font-size: 14px }
+.report form .fld { margin-top: 10px }
+.runbtns { display: flex; gap: 8px; flex-shrink: 0 }
+@media (max-width: 520px) { .runbtns .btn { padding: 8px 11px; font-size: 14px } .runbtns { gap: 6px } }

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Check, Settings, StateResult } from '../types'
 import { useContent } from '../content'
 import { every, freq, money, pct } from '../lib/format'
@@ -22,6 +23,8 @@ interface Props {
   /** Set when showing a past run: settings are read-only and the banner explains why. */
   history: { runAt: string; onBack: () => void } | null
   csvUrl: string | null
+  /** Shown at the end of the section, such as the report for this run. */
+  children?: ReactNode
 }
 
 function Stat({ k, v, ex, keyStat }: { k: string; v: string; ex: string; keyStat?: boolean }) {
@@ -34,7 +37,7 @@ function Stat({ k, v, ex, keyStat }: { k: string; v: string; ex: string; keyStat
   )
 }
 
-export function ResultsSection({ stateName, result: r, run, stale, preChecks, settings, onSettings, history, csvUrl }: Props) {
+export function ResultsSection({ stateName, result: r, run, stale, preChecks, settings, onSettings, history, csvUrl, children }: Props) {
   const content = useContent()
   const thr = run?.threshold ?? null
 
@@ -171,6 +174,7 @@ export function ResultsSection({ stateName, result: r, run, stale, preChecks, se
           )}
         </>
       )}
+      {children}
     </section>
   )
 }

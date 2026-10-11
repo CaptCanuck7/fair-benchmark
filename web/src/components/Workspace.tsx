@@ -3,14 +3,17 @@ import type { Analysis, Check, Provenance, ProvenanceFactor, Scope, Settings } f
 import { api, ApiError } from '../api/client'
 import { useContent } from '../content'
 import { saveStatusText, useAutosave } from '../hooks/useAutosave'
+import { useAnalysisAgent } from '../hooks/useAnalysisAgent'
 import { useRuns } from '../hooks/useRuns'
 import { factorAnchor, parseCheckPath, setPath, treatmentCopy, updateState } from '../lib/model'
 import { ProvenanceContext } from '../provenance'
 import { CompareSection } from './CompareSection'
 import { FrequencySection } from './FrequencySection'
+import { InputReview } from './InputReview'
 import { ConformanceNote, Intro } from './Intro'
 import { PrimarySection, SecondarySection } from './LossSections'
 import { OptionTabs } from './OptionTabs'
+import { ReportPanel } from './ReportPanel'
 import { ResultsSection } from './ResultsSection'
 import { RunBar } from './RunBar'
 import { RunHistory } from './RunHistory'
@@ -35,6 +38,7 @@ export function Workspace({ id, navigate }: Props) {
   const docRef = useRef<Analysis | null>(null)
   const runs = useRuns(id)
   const [prov, setProv] = useState<Provenance | null>(null)
+  const agent = useAnalysisAgent(id)
 
   const validate = useCallback((a: Analysis) => {
     api.validate(a).then(
@@ -282,6 +286,14 @@ export function Workspace({ id, navigate }: Props) {
             <PrimarySection state={st} onChange={editState} />
             <SecondarySection state={st} onChange={editState} />
           </ProvenanceContext.Provider>
+          <InputReview
+            agent={agent}
+            states={doc.states}
+            onGoto={(index, factor) => {
+              if (index !== docRef.current?.active) edit((a) => ({ ...a, active: index }))
+              window.setTimeout(() => goto(factor ? factorAnchor(factor) : 'sec-state'), 50)
+            }}
+          />
           <ResultsSection
             key={history?.id ?? 'latest'}
             stateName={history && shownResult ? shownResult.name : st.name}
@@ -293,7 +305,9 @@ export function Workspace({ id, navigate }: Props) {
             onSettings={(field: keyof Settings, value) => edit((a) => setPath(a, `settings.${field}`, value))}
             history={history ? { runAt: history.runAt, onBack: runs.back } : null}
             csvUrl={shown ? api.exportCsvUrl(doc.id, shown.id) : null}
-          />
+          >
+            <ReportPanel agent={agent} runId={shown?.id ?? null} stale={stale && !history} />
+          </ResultsSection>
           {(doc.states.length > 1 || shown?.results.comparison) && (
             <CompareSection comparison={shown?.results.comparison ?? null} threshold={shown?.threshold ?? null} stale={stale && !history} />
           )}
@@ -310,7 +324,26 @@ export function Workspace({ id, navigate }: Props) {
           <ConformanceNote />
         </main>
       </div>
-      <RunBar message={statusMsg} running={running} onRun={run} />
+      <RunBar
+        message={statusMsg}
+        running={running}
+        onRun={run}
+        extra={
+          <button
+            type="button"
+            className="btn"
+            disabled={agent.busy || !!agent.off}
+            title={agent.off ?? 'The agent reviews the saved inputs. Its findings are advisory.'}
+            onClick={async () => {
+              if (!(await autosave.flush())) return
+              await agent.review()
+              window.setTimeout(() => document.getElementById('sec-review')?.scrollIntoView({ block: 'start' }), 50)
+            }}
+          >
+            {agent.busy ? 'Agent working…' : 'Review inputs'}
+          </button>
+        }
+      />
     </>
   )
 }

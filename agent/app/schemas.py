@@ -499,3 +499,125 @@ class EstimatesOutput(BaseModel):
         if problems:
             raise ValueError("; ".join(problems))
         return self
+
+
+# --- Task 7: input review ---------------------------------------------------------
+
+FindingKind = Literal["no_rationale", "evidence_conflict", "scope_drift", "unexplained_change", "unit_mistake",
+                      "other"]
+# Kinds that are about one factor of one option.
+FACTOR_FINDINGS = {"no_rationale", "evidence_conflict", "unexplained_change", "unit_mistake"}
+
+
+class ReviewRequest(BaseModel):
+    agent_run_id: str | None = None
+    analysis: dict
+    states: list[dict]
+    checks: list[dict] = Field(default_factory=list)
+    evidence: list[dict] = Field(default_factory=list)
+    provenance: list[dict] = Field(default_factory=list)
+
+
+class FindingOut(BaseModel):
+    kind: FindingKind
+    state_id: str | None = Field(description="The option the finding is about; null for the whole analysis.")
+    factor: FactorKey | Literal["method"] | None = None
+    message: str = Field(min_length=10, max_length=500, description="What looks wrong, in plain words.")
+    suggestion: str | None = Field(default=None, max_length=400, description="What the analyst could check or do.")
+    evidence_ids: list[int] = Field(default_factory=list, max_length=6)
+
+
+class ReviewOutput(BaseModel):
+    summary: str = Field(min_length=10, max_length=600)
+    findings: list[FindingOut] = Field(max_length=15)
+
+    @model_validator(mode="after")
+    def _grounded(self, info: ValidationInfo) -> "ReviewOutput":
+        ctx = info.context or {}
+        states: dict[str, dict] = ctx.get("states", {})
+        evidence: set[int] = ctx.get("evidence", set())
+        problems = []
+        for i, f in enumerate(self.findings):
+            where = f"findings[{i}]"
+            if f.state_id is not None and states and f.state_id not in states:
+                problems.append(f"{where}: state_id {f.state_id!r} isn't an option in this analysis")
+                continue
+            if f.kind in FACTOR_FINDINGS and (f.factor is None or f.state_id is None):
+                problems.append(f"{where}: a {f.kind} finding names its option (state_id) and factor")
+                continue
+            st = states.get(f.state_id or "", {})
+            if f.kind == "evidence_conflict":
+                if not f.evidence_ids:
+                    problems.append(f"{where}: an evidence_conflict finding cites the evidence ids it conflicts with")
+                unknown = [e for e in f.evidence_ids if e not in evidence]
+                if unknown:
+                    problems.append(f"{where}: evidence ids {unknown} aren't in the linked evidence")
+            if f.kind == "unexplained_change":
+                if st.get("baseline"):
+                    problems.append(f"{where}: unexplained_change is about a treatment option, not the current state")
+                elif f.factor not in st.get("changed", set()):
+                    problems.append(f"{where}: the option doesn't change {f.factor}")
+            if f.kind in ("no_rationale", "unit_mistake") and st and f.factor not in st.get("factors", set()):
+                problems.append(f"{where}: {f.factor} isn't used by that option's method")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
+
+
+# --- Task 7: reports ------------------------------------------------------------------
+
+# A figure as written in a report: $1.09M, 86%, 2.8, 10,000.
+FIGURE = re.compile(r"(?<![\w.])\$?\d{1,3}(?:,\d{3})+(?:\.\d+)?[KMB%]?|(?<![\w.])\$?\d+(?:\.\d+)?(?:[KMB]\b|%)?")
+FIGURE_LABELS = re.compile(r"\b[Pp](?:10|50|90|95|99)\b|\b(?:10|50|90|95|99)(?:st|nd|rd|th)?[- ]percentile\b|"
+                           r"\b[A-Z]{2,}-\d+\b")
+REPORT_JARGON = re.compile(r"\b(TEF|LEF|SLEF|PERT|ALE|Monte Carlo|loss event frequency|threat event frequency|"
+                           r"loss exceedance|stochastic)\b", re.IGNORECASE)
+
+
+def figures_in(text: str, names: list[str] | tuple[str, ...] = ()) -> list[str]:
+    for name in sorted((n for n in names if n), key=len, reverse=True):
+        text = text.replace(name, " ")
+    return FIGURE.findall(FIGURE_LABELS.sub(" ", text))
+
+
+class ReportRequest(BaseModel):
+    agent_run_id: str | None = None
+    analysis: dict
+    risk: dict | None = None
+    run: dict
+    options: list[dict]
+    residual_state_id: str | None = None
+
+
+class ReportOutput(BaseModel):
+    leadership_summary: str = Field(min_length=200, max_length=2500)
+    exception_justification: str | None = Field(default=None, max_length=3000)
+
+    @model_validator(mode="after")
+    def _figures_copied(self, info: ValidationInfo) -> "ReportOutput":
+        ctx = info.context or {}
+        problems = []
+        if ctx.get("residual") and not self.exception_justification:
+            problems.append("write the exception_justification: there is a treatment option to compare")
+        if not ctx.get("residual") and self.exception_justification:
+            problems.append("exception_justification must be null: there is no treatment option")
+        allowed: set[str] = ctx.get("figures", set())
+        names = ctx.get("names", [])
+        for field in ("leadership_summary", "exception_justification"):
+            text = getattr(self, field) or ""
+            m = REPORT_JARGON.search(text)
+            if m:
+                problems.append(f"{field} uses the term '{m.group(0)}'; leaders won't know it, say it plainly")
+            if allowed:
+                stray = [f for f in figures_in(text, names) if f not in allowed and not _is_year(f)]
+                if stray:
+                    problems.append(f"{field} has numbers that aren't in the figures: {', '.join(dict.fromkeys(stray))}. "
+                                    "Copy figures exactly as given, write no other numbers, and write counts "
+                                    "and ratios in words")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
+
+
+def _is_year(token: str) -> bool:
+    return token.isdigit() and 1990 <= int(token) <= 2100

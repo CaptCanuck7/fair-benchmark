@@ -36,10 +36,15 @@ UNTRUSTED_RULE = (
 )
 
 
+# Every tag that marks untrusted text. Any of them inside untrusted text is
+# neutralized, so the text can't end its own block or fake another one.
+DATA_TAGS = ("register_entry", "scenario", "evidence", "web_content", "analysis")
+_TAG = re.compile(rf"<\s*(/?)\s*({'|'.join(DATA_TAGS)})\s*>", re.IGNORECASE)
+
+
 def untrusted(tag: str, text: str) -> str:
-    """Wrap untrusted text in a labeled tag. A closing tag inside the text is
-    neutralized so the text can't end the block early."""
-    safe = re.sub(rf"</\s*{re.escape(tag)}\s*>", f"</ {tag}>", text or "", flags=re.IGNORECASE)
+    """Wrap untrusted text in a labeled tag, neutralizing any data tag inside it."""
+    safe = _TAG.sub(lambda m: f"<{m.group(1)} {m.group(2)}>", text or "")
     return f"<{tag}>\n{safe}\n</{tag}>"
 
 

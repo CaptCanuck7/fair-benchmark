@@ -22,6 +22,7 @@ from app import app_settings
 from app.routers import (
     agent,
     analyses,
+    analysis_agent,
     data_requests,
     drafts,
     estimates,
@@ -139,6 +140,7 @@ app.include_router(internal_guard.router)
 app.include_router(agent.router)
 app.include_router(drafts.router)
 app.include_router(estimates.router)
+app.include_router(analysis_agent.router)
 app.include_router(data_requests.router)
 app.include_router(library.router)
 app.include_router(library.internal)

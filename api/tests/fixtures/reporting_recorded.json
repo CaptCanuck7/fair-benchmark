@@ -1,0 +1,56 @@
+{
+  "review": {
+    "TR-6": {
+      "summary": "The baseline is well documented, but the migration option has a unit error in vulnerability and unexplained changes to response cost. Secondary loss is left empty throughout even though the evidence points to large exposure (410,000 individuals with records).",
+      "findings": [
+        {
+          "kind": "unit_mistake",
+          "state_id": "t1",
+          "factor": "vuln",
+          "message": "Vulnerability is entered as 0.01, 0.03 and 0.05, but the unit is percent. The notes say the success rate falls to about 3%, so these values read as 0.01%, 0.03% and 0.05%. That is roughly 100 times too low.",
+          "suggestion": "Enter 1, 3 and 5 if a 3% success rate is intended, and check the result against the baseline of 5 to 50%.",
+          "evidence_ids": []
+        },
+        {
+          "kind": "unexplained_change",
+          "state_id": "t1",
+          "factor": "primary.response",
+          "message": "Response cost is cut to a quarter of the baseline (750 / 3,750 / 22,500), but the migration notes only talk about the attack success rate. Patching blocks attacks. It does not obviously make a breach cheaper to respond to.",
+          "suggestion": "Explain why response cost falls, or restore the baseline range. The rationale still describes the baseline reasoning.",
+          "evidence_ids": [
+            7,
+            8
+          ]
+        },
+        {
+          "kind": "no_rationale",
+          "state_id": "t1",
+          "factor": "vuln",
+          "message": "The rationale is copied from the baseline. It says the OS is unpatched and cannot be fixed, which does not support a post-migration range or the 3% figure.",
+          "suggestion": "Say where the 3% comes from, for example the patch cadence of the managed file transfer platform or comparable data. Note that the allowlist and key-only controls stay unchanged.",
+          "evidence_ids": [
+            9,
+            10
+          ]
+        },
+        {
+          "kind": "other",
+          "state_id": null,
+          "factor": null,
+          "message": "Secondary losses are empty in every option, and productivity and replacement are also empty. The scope is a payroll data breach affecting about 410,000 individuals and 340 customers, so notification, fines and reputation losses are likely. Results will understate loss and the benefit of migrating.",
+          "suggestion": "Estimate secondary loss event frequency and the secondary loss forms, or state explicitly that they are out of scope.",
+          "evidence_ids": [
+            1,
+            2
+          ]
+        }
+      ]
+    }
+  },
+  "report": {
+    "TR-6": {
+      "leadership_summary": "Two customer file transfer servers hold payroll files. These include names, national ID numbers and bank account details. The servers run an operating system that no longer gets security patches. External criminals could break in through unpatched flaws, broad customer network ranges, stolen keys, or an internal foothold. The effect would be a loss of confidentiality. In the current state, the simulation shows an average annual loss of $291K. In a bad year, one that only one year in ten is worse than, the loss is $629K. In a severe year the loss reaches $786K. The chance of any loss in a year is 97%, and the simulation expects 9.4 loss events per year. A typical single event costs $28K. Loss is driven by the missing patches, the wide allowlist, and no alert rules for these servers, so nobody is told in time to limit the damage. One treatment option was tested: migrate the servers to the supported platform. It lets patching close flaws, so attacks rarely succeed. It costs $40K a year. Average annual loss falls to $92, and the chance of any loss in a year drops to 1.3%. That saves $250K a year more than it costs. Main caveat: the current frequency of 9.4 looks high. It should be checked against incident history, to confirm these are real losses and not just attempts.",
+      "exception_justification": "This asks for acceptance of the risk that remains after the migration of both servers. In the current state, average annual loss is $291K and a bad year costs $629K. After migration, average annual loss is $92 and a bad year costs $0. That cuts average loss by $290K, which is 100% lower. The migration costs $40K a year. Its net benefit is that it saves $250K a year more than it costs. Each dollar spent reduces loss by $7.3. What remains is small but not zero. The chance of any loss in a year is 1.3%. The simulation expects 0.012 loss events per year. If one happens, a typical event costs $6.3K. Accepting this means accepting that rare chance of payroll data exposure on the migrated platform, since patching makes attacks rarely succeed but does not remove the chance. Most years will show no loss, so the typical year at $0 should not be read as proof that no risk remains. Leaders should accept this only with the migration funded and finished, because until then the current state figures still apply."
+    }
+  }
+}

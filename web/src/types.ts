@@ -604,3 +604,44 @@ export type Provenance =
   | { linked: false }
   | { linked: true; riskId: string; riskTitle: string | null; mitigationPlan: string | null; createdAt: string;
       factors: ProvenanceFactor[] }
+
+// --- Input review and reports (task 7) ---
+
+export type FindingKind = 'no_rationale' | 'evidence_conflict' | 'scope_drift' | 'unexplained_change' | 'unit_mistake' | 'other'
+
+export interface Finding {
+  kind: FindingKind
+  state_id: string | null
+  factor: string | null
+  message: string
+  suggestion: string | null
+  evidence_ids: number[]
+}
+
+export interface ReviewPayload {
+  summary: string
+  findings: Finding[]
+}
+
+export interface ReportPayload {
+  leadershipSummary: string
+  exceptionJustification: string | null
+  residualStateId: string | null
+  residualName: string | null
+}
+
+export type AnalysisDraft<T> = Draft<T> & {
+  runId: string | null
+  /** Reviews: the inputs changed after the review. */
+  stale?: boolean
+  /** Reports: numbers in the shown text that aren't in the run (only possible after an edit). */
+  numberCheck?: string[]
+}
+
+export interface AnalysisAgentView {
+  busy: boolean
+  runs: AgentRun[]
+  review: AnalysisDraft<ReviewPayload> | null
+  /** The latest report per simulation run, keyed by run ID. */
+  reports: Record<string, AnalysisDraft<ReportPayload>>
+}

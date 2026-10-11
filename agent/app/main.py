@@ -24,12 +24,14 @@ from app.schemas import (
     EvidenceRequest,
     LibraryRequest,
     QualityRequest,
+    ReportRequest,
+    ReviewRequest,
     ScenarioRequest,
     TaskResult,
     TriageRequest,
     VectorsRequest,
 )
-from app.tasks import classify, estimates, evidence, library, quality, scenario, triage, vectors
+from app.tasks import classify, estimates, evidence, library, quality, report, review, scenario, triage, vectors
 from app.tools.base import Registry
 from app.tools.toolbox import Toolbox
 
@@ -163,3 +165,13 @@ def task_library(req: LibraryRequest):
 @app.post("/tasks/estimates", response_model=TaskResult)
 def task_estimates(req: EstimatesRequest):
     return _run_task(estimates.PROMPT_VERSION, lambda llm: estimates.run(llm, req))
+
+
+@app.post("/tasks/review", response_model=TaskResult)
+def task_review(req: ReviewRequest):
+    return _run_task(review.PROMPT_VERSION, lambda llm: review.run(llm, req))
+
+
+@app.post("/tasks/report", response_model=TaskResult)
+def task_report(req: ReportRequest):
+    return _run_task(report.PROMPT_VERSION, lambda llm: report.run(llm, req))

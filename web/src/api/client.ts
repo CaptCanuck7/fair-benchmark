@@ -8,6 +8,7 @@ import type {
   Content,
   LibraryEntry,
   LibraryEntryInput,
+  AnalysisAgentView,
   OutboundLogEntry,
   Provenance,
   RangeValue,
@@ -132,6 +133,14 @@ export const api = {
     json<RegisterRiskDetail>('DELETE', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}`),
   analysisFromRisk: (riskId: string) =>
     json<{ analysisId: string; factorsPushed: string[] }>('POST', `/register/risks/${encodeURIComponent(riskId)}/create-analysis`),
+  analysisAgent: (analysisId: string) => json<AnalysisAgentView>('GET', `/analyses/${encodeURIComponent(analysisId)}/agent`),
+  startReview: (analysisId: string) =>
+    json<{ runId: string }>('POST', `/agent/analyses/${encodeURIComponent(analysisId)}/review`),
+  startReport: (analysisId: string, runId: string) =>
+    json<{ runId: string }>('POST', `/agent/analyses/${encodeURIComponent(analysisId)}/runs/${encodeURIComponent(runId)}/report`),
+  /** Approve, edit (reports only) or reject. Returns the analysis's agent view. */
+  reviewAnalysisDraft: (draftId: number, action: ReviewAction, payload?: { leadershipSummary: string; exceptionJustification: string | null }) =>
+    json<AnalysisAgentView>('PUT', `/analysis-drafts/${draftId}`, payload ? { action, payload } : { action }),
   provenance: (analysisId: string) => json<Provenance>('GET', `/analyses/${encodeURIComponent(analysisId)}/provenance`),
   /** Record an answer to a data request. Returns the updated risk. */
   answerDataRequest: (id: number, answer: string) =>
