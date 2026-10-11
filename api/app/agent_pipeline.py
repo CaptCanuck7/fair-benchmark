@@ -90,6 +90,8 @@ def risk_entry(row: RiskRow) -> dict[str, Any]:
         "baseline_likelihood": score_input(f.get("baseline_likelihood")),
         "baseline_score": row.baseline_score,
         "mitigation_plan": f.get("mitigation_plan"),
+        # Whether an owner is named, never who: names aren't sent to the model.
+        "has_risk_owner": bool(str(f.get("risk_owner") or "").strip()),
         "structured": row.structured,
         "sections": row.sections,
     }

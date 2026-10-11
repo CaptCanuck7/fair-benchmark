@@ -5,7 +5,7 @@ from app.llm import LLM, LLMResult
 from app.schemas import QualityJudgement, QualityRequest
 from app.tasks.common import load_prompt, render_risk
 
-PROMPT_VERSION = "quality.v1"
+PROMPT_VERSION = "quality.v2"
 
 
 def run(llm: LLM, req: QualityRequest) -> LLMResult[QualityJudgement]:

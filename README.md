@@ -947,6 +947,23 @@ prototype first; otherwise choose the simpler option."
     anyway** button sends. The new analysis's scope notes then end with
     "Estimates were drafted before the scenario changed." (or "the evidence",
     or "the scenario and the evidence" when both changed).
+- **Fix 4: no more false "no risk owner" gap.**
+  - **What's sent:** `RiskEntry.has_risk_owner` says whether the register's
+    Risk Owner field is filled in, never who. The entry the model reads says
+    "Risk owner: recorded (name withheld)" or "Risk owner: not recorded".
+  - **The prompt:** `quality.v2.md` adds one instruction: names are withheld on
+    purpose, so don't report a missing owner or ask who it is when one is
+    recorded. `quality.v1.md` is kept.
+  - **The automatic rule** for a missing owner is unchanged, so TR-17, which
+    has none, still gets the gap.
+  - **Expect a full re-check:** the quality input hash includes the risk
+    payload, so every risk's hash changed. The next register import, or **Run
+    checks again**, re-runs intake for every risk once.
+  - **Fixture:** the replay tests key `intake_recorded.json` by task and risk
+    title, not by payload or prompt version, so they didn't need it changed.
+    I re-recorded it anyway through the live evaluation, which passed on
+    every section 14 expectation. The fixture now reflects `quality.v2`, and
+    TR-6's recorded quality check no longer asks who the owner is.
 
 ## Later extensions
 

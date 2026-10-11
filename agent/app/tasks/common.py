@@ -36,6 +36,7 @@ def render_risk(risk: RiskEntry) -> str:
         f"Assets: {', '.join(risk.asset_ids) if risk.asset_ids else 'none listed'}",
         f"Environment: {_value(risk.environment)}",
         f"Risk action: {_value(risk.risk_action)}",
+        f"Risk owner: {'recorded (name withheld)' if risk.has_risk_owner else 'not recorded'}",
         f"Baseline impact (1 to 5): {_value(risk.baseline_impact)}",
         f"Baseline likelihood (1 to 5): {_value(risk.baseline_likelihood)}",
         f"Baseline score (impact x likelihood): {_value(risk.baseline_score)}",

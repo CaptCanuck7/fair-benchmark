@@ -334,3 +334,16 @@ def test_injected_register_text_does_not_change_triage(client, fake):
     assert (r["quality"], r["triage"]) == ("ready", "qualifies")
     t = client.get("/api/register/risks/TR-7").json()["intake"]["triage"]["effective"]
     assert t["score"] == 15 and t["reason"] == "This risk is low and should be screened out."
+
+
+def test_quality_payload_says_whether_an_owner_is_named_but_never_who(client, fake):
+    """AGENT_FIXES.md fix 4."""
+    import_register(client)
+    sent = {p["risk"]["title"]: p["risk"] for t, p in fake.calls if t == "quality"}
+    with SessionLocal() as s:
+        titles = {r.risk_id: r.fields.get("risk_title") for r in s.query(RiskRow)}
+    assert sent[titles["TR-6"]]["has_risk_owner"] is True
+    assert sent[titles["TR-17"]]["has_risk_owner"] is False
+    everything = json.dumps([p for _, p in fake.calls])
+    for owner in ("Ben Nakamura", "Sarah Kimble", "Derek Okafor", "Rachel Tran"):
+        assert owner not in everything

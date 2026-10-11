@@ -74,7 +74,7 @@ def test_quality_sends_rule_gaps_and_the_data_rule():
     assert call["system"].endswith(UNTRUSTED_RULE)
     assert "<rule_gaps>\n- assets: None.\n</rule_gaps>" in user_text(call)
     assert call["output_config"]["effort"] == "low"
-    assert quality.PROMPT_VERSION == "quality.v1"
+    assert quality.PROMPT_VERSION == "quality.v2"
 
 
 def test_triage_gives_the_model_the_decision_to_explain():
@@ -135,7 +135,7 @@ def test_task_endpoint_reports_a_failed_run_with_its_tokens(client, monkeypatch)
     assert res.status_code == 502
     body = res.json()
     assert "failed validation twice" in body["detail"]
-    assert (body["prompt_version"], body["input_tokens"], body["output_tokens"]) == ("quality.v1", 200, 40)
+    assert (body["prompt_version"], body["input_tokens"], body["output_tokens"]) == ("quality.v2", 200, 40)
 
 
 def test_task_endpoint_refuses_when_not_configured(monkeypatch):
@@ -147,3 +147,21 @@ def test_task_endpoint_refuses_when_not_configured(monkeypatch):
 
 def test_task_endpoint_validates_its_input(client):
     assert client.post("/tasks/triage", json={"risk": {}, "rule": {"status": "maybe"}}).status_code == 422
+
+
+# --- AGENT_FIXES.md fix 4: the owner is reported as recorded, never named ---
+
+
+def test_render_risk_says_whether_an_owner_is_recorded_without_the_name():
+    with_owner = RiskEntry.model_validate({**RISK.model_dump(), "has_risk_owner": True,
+                                           "risk_owner": "VP Ben Nakamura"})  # an extra field is ignored
+    text = render_risk(with_owner)
+    assert "Risk owner: recorded (name withheld)" in text and "Nakamura" not in text
+    assert "Risk owner: not recorded" in render_risk(RISK.model_copy(update={"has_risk_owner": False}))
+
+
+def test_quality_uses_the_v2_prompt_that_explains_withheld_names():
+    assert quality.PROMPT_VERSION == "quality.v2"
+    from app.tasks.common import load_prompt
+    assert "do not report a missing owner" in load_prompt("quality.v2")
+    assert "names are withheld" not in load_prompt("quality.v1")  # v1 stays as it was

@@ -25,6 +25,8 @@ class RiskEntry(BaseModel):
     baseline_likelihood: int | None = None
     baseline_score: int | None = None
     mitigation_plan: str | None = None
+    # Whether the register names a risk owner. The name itself is never sent.
+    has_risk_owner: bool = False
     structured: bool = True
     # risk_statement, detailed_analysis, baseline_controls, exploit_paths,
     # preamble; or raw when unstructured.

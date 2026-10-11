@@ -6,28 +6,27 @@
       "names_loss_path": true,
       "gaps": [
         {
-          "field": "risk_owner",
-          "problem": "The register entry lists no named risk owner, so no one is identified to answer questions or accept the risk."
-        },
-        {
           "field": "baseline_controls",
-          "problem": "The purge window and allowlist are named, but the text does not say how much they limit the files exposed or who can reach the servers, and it does not say how the 7-day purge compares with typical pickup times."
+          "problem": "The 'several' broad /16 allowlist ranges are not counted or sized, so it is unclear how much the firewall allowlist really limits exposure."
         },
         {
-          "field": "exploit_paths",
-          "problem": "Path 3 relies on management ports, but the text does not say who can reach those ports or whether they are limited to an admin network."
+          "field": "detailed_analysis",
+          "problem": "Loss is described only as exposure of files, with no cost types such as customer notification, regulatory fines, contract penalties or customer loss."
         },
         {
           "field": "baseline_likelihood",
-          "problem": "The likelihood score of 3 has no stated basis, such as known exploits for this OS or past attack attempts on these servers."
+          "problem": "The likelihood of 3 has no stated basis, such as known exploits for this OS, past attempts, or how exposed the servers are."
+        },
+        {
+          "field": "baseline_controls",
+          "problem": "Logs go to the SIEM but it is not said whether anyone reviews them, so their value for detection is unclear."
         }
       ],
       "questions": [
-        "Who is the named risk owner for these two servers?",
-        "How quickly do customers pick up files, and how many customers' files are typically on disk at once under the 7-day purge?",
-        "Which networks can reach the management ports on Asset-412 and Asset-413, and are they limited to an admin network?",
-        "How many allowlisted ranges are /16 blocks, and which customers do they belong to?",
-        "What evidence supports a likelihood of 3, such as known exploits for this OS or past attack attempts on these servers?"
+        "How many of the allowlisted ranges are /16 blocks, and roughly how many addresses do they cover?",
+        "What costs would follow a breach of customer payroll files, such as notification, fines, contract penalties or lost customers?",
+        "What evidence supports a likelihood of 3, such as known exploits for this OS or past attack attempts on these servers?",
+        "Does anyone review the SIEM logs from these servers today, and how fast would they notice a compromise?"
       ]
     },
     "No MFA on Legacy Support Admin Console": {
@@ -37,26 +36,31 @@
       "gaps": [
         {
           "field": "assets",
-          "problem": "The asset field gives only an ID (Asset-118), and the analysis never says which customer tenant data or how many tenants sit behind the console."
+          "problem": "The asset is only given as 'Asset-118'; the register does not say which system or customer tenant data it stands for, or how many tenants are affected."
+        },
+        {
+          "field": "baseline_impact",
+          "problem": "Impact is rated 5 but the analysis does not say what loss is expected, such as customer data exposure, tampering with tenant data, contract penalties, or notification costs."
         },
         {
           "field": "baseline_controls",
-          "problem": "The effect of the VPN MFA control is unclear: it is not said whether it stops path 3 (reused passwords) or only limits attackers outside the network."
+          "problem": "The VPN MFA, lockout and logging controls are listed, but the analysis does not say how much each reduces the risk, for example whether VPN MFA limits path 3 or only some attackers."
         },
         {
-          "field": "baseline_controls",
-          "problem": "Logs are kept 90 days but reviewed only on request, and it is not said whether anyone would notice impersonation misuse in time."
+          "field": "baseline_likelihood",
+          "problem": "Likelihood is rated 3, but no evidence is given of past attempts, attacks, or incidents against this console to support that rating."
         },
         {
-          "field": "detailed_analysis",
-          "problem": "The loss is stated only as viewing or changing tenant data. The analysis does not say what the organization would lose, such as breach costs, customer contract penalties, or service disruption."
+          "field": "mitigation_plan",
+          "problem": "The plan has no dates, no named delivery owner, and does not say how the 35 impersonation accounts or the 90-day, on-request log review will be handled before SSO is in place."
         }
       ],
       "questions": [
-        "What customer tenant data sits behind Asset-118, and roughly how many customers and records could be reached through the console?",
-        "Would the VPN MFA requirement stop an attacker using reused or guessed passwords, or only those outside the network?",
-        "Who looks at console logs today, and would misuse of the impersonation privilege be spotted before data was taken?",
-        "If an attacker impersonated a customer administrator, what would the organization lose, such as breach notification costs, contract penalties, or customer departures?"
+        "Which system and which customer tenants does Asset-118 cover, and roughly how many customers could be reached?",
+        "What would be lost if an attacker used an impersonation account: which data, how many records, and what contract or notification costs?",
+        "How does VPN MFA change the risk for exploit path 3, where reused passwords are tried, and for the other two paths?",
+        "Have there been any failed or suspicious logins, or incidents, on this console in the last year?",
+        "When will SSO and MFA be in place, who delivers it, and what interim steps cover the 35 impersonation accounts and log review?"
       ]
     },
     "Over-Privileged CI/CD Deployment Role in Production Cloud Account": {
@@ -66,16 +70,16 @@
       "gaps": [
         {
           "field": "baseline_controls",
-          "problem": "The effect of the SIEM-forwarded audit logging is not explained, so it is unclear whether anyone would detect and stop misuse of the role in time."
+          "problem": "Audit logging and daily posture scans are listed, but the text does not say whether they detect or stop misuse of the role quickly enough to reduce loss."
         },
         {
-          "field": "risk_statement",
-          "problem": "The statement says production data and infrastructure could be read, changed or destroyed but does not say what the organization would lose, such as customer data, downtime or recovery cost."
+          "field": "assets",
+          "problem": "Asset-907 and Asset-355 are given only as IDs, and the analysis does not say which systems or data sit behind the role or what would be lost."
         }
       ],
       "questions": [
-        "Are there SIEM alerts for use of the deployment role from outside the pipeline or for unusual actions, and who responds to them and how fast?",
-        "If an attacker used this role against production, what would the business lose: which data sets or services would be exposed or down, and for how long?"
+        "Do the SIEM alerts cover actions taken by the deployment role, and how quickly would someone review them?",
+        "What are Asset-907 and Asset-355, and which production data or services could the role reach that would hurt most if lost or changed?"
       ]
     },
     "User Access Reviews Not Performed for Payroll Processing Application": {
@@ -85,21 +89,27 @@
       "gaps": [
         {
           "field": "baseline_controls",
-          "problem": "The application audit log is listed as a control, but the entry does not say whether anyone reviews it or whether it would detect misuse by a user who still holds access."
+          "problem": "The audit log is listed as a control, but the entry does not say whether anyone reviews it or whether it would catch misuse by people with stale access."
         },
         {
           "field": "detailed_analysis",
-          "problem": "The entry does not say what the 30 local accounts are used for, who holds them, or whether they have MFA or are covered by the leaver process, so their exposure is unclear."
+          "problem": "The 30 local accounts are said to sit outside single sign-on, but it is unclear whether they are covered by multi-factor authentication or by any leaver process."
         },
         {
-          "field": "risk_statement",
-          "problem": "The loss is described only as unauthorized viewing or changing of payroll data, with no mention of what the organization would lose, such as fraud, privacy exposure, or audit findings."
+          "field": "baseline_impact",
+          "problem": "The impact score of 3 is given without saying what would be lost, such as payroll fraud, exposure of employee pay data, or an audit exception."
+        },
+        {
+          "field": "assets",
+          "problem": "Asset-562 is only an identifier and the entry does not say how many employees' payroll records the application holds or what data it contains."
         }
       ],
       "questions": [
-        "Does anyone review the payroll application audit log, and could it show misuse by a user who kept access after a role change or leaving?",
-        "Who holds the 30 local accounts, what are they used for, and do they have MFA or any leaver check?",
-        "What would the organization lose if payroll data were viewed or changed without authorization, for example payment fraud, staff data exposure, or fines?"
+        "Does anyone review the payroll application audit log, and how quickly would changes made by a user with stale access be noticed?",
+        "Do the 30 local accounts require multi-factor authentication, and does any process disable them when someone leaves?",
+        "What loss do you expect if stale access is misused, for example payroll fraud, exposure of pay data, or an audit finding, and why is impact scored 3?",
+        "What data does Asset-562 hold, and for how many employees?",
+        "Can the 9 stale accounts found in the spot check do more than view data, such as change pay or bank details?"
       ]
     },
     "Unsupported Insecure Protocol on Third-Party Benefits Integration": {
@@ -109,16 +119,16 @@
       "gaps": [
         {
           "field": "baseline_controls",
-          "problem": "The effect of the IP range firewall rules and request logging on the exploit paths is not explained; logging is not said to detect misuse and the firewall does not stop interception or use of a stolen credential."
+          "problem": "Logging of integration requests is listed as a control, but the text does not say whether anyone reviews the logs or gets alerts, so its effect on detecting misuse is unclear."
         },
         {
-          "field": "exploit_paths",
-          "problem": "It is not stated where the shared credential is stored or who can read it, so the likelihood of credential theft cannot be judged."
+          "field": "baseline_likelihood",
+          "problem": "The likelihood of 2 is not explained, and it is unclear how the weak TLS 1.0 session, shared credential and lack of a retirement date were weighed."
         }
       ],
       "questions": [
-        "Does the request logging record which credential or caller made each request, and does anyone review or alert on it, so that misuse of the shared account would be noticed?",
-        "Where is the shared basic-authentication credential stored, and who or what can read it?"
+        "Who reviews the integration request logs, how often, and would they spot use of the shared credential from an unexpected place?",
+        "What reasoning supports a likelihood of 2, given TLS 1.0, a shared basic-authentication credential and no firm retirement date for the legacy API?"
       ]
     },
     "No Data Loss Prevention on Workstations Handling Customer Data Extracts": {
@@ -128,21 +138,26 @@
       "gaps": [
         {
           "field": "baseline_controls",
-          "problem": "Controls are listed but the analysis does not say how far each one reduces the chance of copying extracts out, for example whether the proxy logs are ever reviewed."
+          "problem": "Controls such as full-disk encryption, EDR and the web proxy logs are listed but the text does not say how they reduce the chance or size of data being copied out."
         },
         {
           "field": "detailed_analysis",
-          "problem": "The analysis does not say what the extracts contain or how many customer records they hold, so the size of the loss is unclear."
+          "problem": "The analysis does not say what is in the customer data extracts (for example personal or financial data) or how many customer records could be exposed."
+        },
+        {
+          "field": "baseline_likelihood",
+          "problem": "Likelihood is scored 2 but no reasoning is given, and the analysis shows a clear weakness and no blocking of USB or personal cloud storage."
         },
         {
           "field": "assets",
-          "problem": "The asset is only given as Asset-731, and it is unclear whether this means the 85 workstations, the extracts, or both."
+          "problem": "The asset is recorded only as an ID (Asset-731) and the text does not say whether it covers the 85 workstations, the customer data extracts, or both."
         }
       ],
       "questions": [
-        "What do the customer data extracts typically contain (for example names, contact details, payment or health data), and roughly how many customer records does a typical extract hold?",
-        "Does Asset-731 stand for the 85 workstations, the customer data extracts, or both?",
-        "Does anyone review the 30 days of web proxy logs for uploads to personal cloud storage, and does the EDR agent alert on copying to USB or cloud storage?"
+        "What data fields and roughly how many customer records do the extracts usually hold, and are any of them personal or regulated?",
+        "How do full-disk encryption, EDR and the 30-day proxy logs reduce the chance or impact of someone copying extracts to USB or personal cloud storage?",
+        "Why was likelihood scored 2 given that USB and personal cloud storage are not blocked, and have any past copy-out incidents or near misses occurred?",
+        "Does Asset-731 stand for the 85 workstations, the customer data extracts, or both?"
       ]
     },
     "Backup Restoration Untested for Time and Attendance Database": {
@@ -151,17 +166,22 @@
       "names_loss_path": true,
       "gaps": [
         {
-          "field": "baseline_controls",
-          "problem": "The recovery point objective is 24 hours, but hourly log backups are listed, so it is unclear which recovery point the controls are meant to meet."
+          "field": "risk_analysis",
+          "problem": "The analysis gives no loss figure or duration for the outage, and does not say how long customers could tolerate it before SLA credits or payroll disruption start."
         },
         {
-          "field": "risk_owner",
-          "problem": "The entry gives no risk owner name, so it is unclear who can confirm the restore time and recovery details."
+          "field": "baseline_controls",
+          "problem": "The 24-hour recovery point objective conflicts with hourly log backups, and it is unclear whether the hourly log backups are included in the restore time and any restore test."
+        },
+        {
+          "field": "baseline_likelihood",
+          "problem": "The likelihood score of 2 is not explained, and it is unclear how the untested restore, the schema change and the storage migration were weighed against the working controls."
         }
       ],
       "questions": [
-        "Do the hourly log backups mean you can restore to within one hour, or is the 24-hour recovery point objective the real commitment to customers?",
-        "Who owns this risk and can confirm the restore steps and the 8-hour target?"
+        "What is the SLA credit amount or penalty for an outage beyond 8 hours, and how many hours of outage would cause payroll failures for customers?",
+        "Do the hourly log backups mean the real recovery point is under 24 hours, and will the restore test include replaying those logs?",
+        "Why was likelihood scored 2, given the schema change and storage migration since the last restore test?"
       ]
     },
     "Hardcoded Secrets in Source Code Repositories": {
@@ -170,22 +190,22 @@
       "names_loss_path": true,
       "gaps": [
         {
+          "field": "assets",
+          "problem": "Assets are listed only as Asset-846 and Asset-129, so the analysis does not say which systems or data these are or how they relate to the 41 repositories."
+        },
+        {
           "field": "baseline_controls",
-          "problem": "The control 'Production databases are reachable only from production network segments' is named, but the text does not say how an attacker or insider would reach those segments, so its effect on exploit path 2 is unclear."
+          "problem": "Network segmentation of production databases is listed, but the text does not say whether it limits the insider or foothold path, or whether the database credentials are also valid from other places."
         },
         {
           "field": "risk_analysis",
-          "problem": "The entry does not say what the organization would lose if the secrets are misused, such as payment fraud, customer data exposure or downtime, so the size of loss is unclear."
-        },
-        {
-          "field": "assets",
-          "problem": "The register lists only asset IDs, and the analysis does not say which systems or data they cover, so it is unclear whether they map to the production databases and the payment and messaging providers."
+          "problem": "The loss is not stated in business terms. It names fraudulent messages and data read at the provider but not which data, how much, or what the payment API keys could do."
         }
       ],
       "questions": [
-        "Which attackers or insiders could realistically reach the production network segments, and by what route, such as VPN, jump hosts or a compromised server?",
-        "If the production database credentials or payment and messaging API keys were misused, what would be lost? Examples are customer records, fraudulent payments or a service outage.",
-        "Do Asset-846 and Asset-129 cover the production databases and the payment and messaging services, or something else, and what data do they hold?"
+        "Which systems, databases and data sets do Asset-846 and Asset-129 stand for, and which of the 41 repositories relate to each?",
+        "Can an attacker with a foothold in a production network segment reach the 18 production databases, and what data do they hold?",
+        "What could the payment and messaging API keys do if misused, such as move money, send messages to customers, or read customer records?"
       ]
     },
     "Overdue Security Assessment for Support Ticketing Vendor": {
@@ -194,27 +214,27 @@
       "names_loss_path": true,
       "gaps": [
         {
-          "field": "exploit_paths",
-          "problem": "The analysis does not say who or what would exploit the weakness, such as an attacker at the vendor or sub-processor, or how they would reach the stored tickets and attachments."
+          "field": "assets",
+          "problem": "The asset is given only as an identifier (Asset-455) and the environment as 'Nova', so the register does not say which system or data set they refer to."
         },
         {
           "field": "baseline_controls",
-          "problem": "The contract terms, 72-hour breach notice and SSO with MFA are listed, but the text does not explain how they lower the chance or size of loss at the vendor, since MFA covers agent logins only."
+          "problem": "The controls are listed but their effect is not explained, for example how the 72-hour breach notification or SSO with MFA reduces exposure of PII held at the vendor."
         },
         {
-          "field": "assets",
-          "problem": "The register lists only 'Asset-455', and the text does not say whether this is the ticketing vendor's tool or what it holds, so the link to the data at risk is unclear."
+          "field": "exploit_paths",
+          "problem": "The analysis does not say who or what would exploit the weakness, such as an attacker breaching the vendor or its sub-processor, or how the PII would be reached."
         },
         {
-          "field": "baseline_likelihood",
-          "problem": "Likelihood is 2 with no stated basis, though a sub-processor incident occurred and the SOC 2 evidence is stale."
+          "field": "baseline_impact",
+          "problem": "The impact score of 3 is not tied to a stated loss, such as the number of people affected, notification costs, or regulatory or contract penalties."
         }
       ],
       "questions": [
-        "Who could realistically get at the ticket data: a vendor insider, an attacker who breaches the vendor or its sub-processor, or someone else, and by what route?",
-        "How do the contract terms, 72-hour breach notice and SSO with MFA reduce the chance or size of a data loss at the vendor itself?",
-        "What does Asset-455 refer to, and does it cover the ticketing tool and all the stored tickets and attachments?",
-        "Why was likelihood set at 2, given the 2025 sub-processor incident and the SOC 2 report ending September 2024?"
+        "Which system or data set does Asset-455 refer to, and what is the Nova environment?",
+        "How do the 72-hour breach notification and the SSO with MFA reduce the chance or size of a PII exposure at the vendor?",
+        "Who would most likely act on the weakness (for example an attacker breaching the vendor or its sub-processor), and how would they reach the ticket data?",
+        "What losses would follow a PII exposure, and how many people could be affected, to support an impact score of 3?"
       ]
     },
     "Outdated Firmware on Conference Room Display Devices": {
@@ -224,21 +244,21 @@
       "gaps": [
         {
           "field": "risk_statement",
-          "problem": "The statement says a display could be used as a foothold, but the analysis says the VLAN has no route to corporate or production networks, so it is unclear what a foothold would reach."
+          "problem": "The statement says an attacker could use a display as a foothold, but the analysis says the VLAN has no route to corporate networks and the devices hold no data or credentials, so it is unclear what a foothold would reach."
         },
         {
           "field": "baseline_controls",
-          "problem": "Network access control on corporate switch ports is listed, but the devices sit on the guest VLAN, so it is unclear how this control affects the risk."
+          "problem": "Network access control is listed for corporate switch ports, but the displays sit on the guest VLAN, so it is unclear whether this control applies to them."
         },
         {
           "field": "assets",
-          "problem": "The asset is only an ID (Asset-377) and the analysis does not say whether it covers all 46 units or who uses the rooms, so the meeting disruption cost is hard to scope."
+          "problem": "The register lists a single asset ID, but the analysis describes 46 display units, so it is unclear whether the ID covers all of them."
         }
       ],
       "questions": [
-        "If a display were compromised, what could an attacker on the guest VLAN reach, given the firewall isolation?",
-        "How does network access control on corporate switch ports apply to displays on the guest VLAN?",
-        "Does Asset-377 cover all 46 display units, and which rooms or teams would lose meetings if they were disrupted?"
+        "If the guest VLAN has no route to corporate networks, what could an attacker reach from a compromised display?",
+        "Does network access control apply to the guest VLAN where the displays sit, or only to corporate switch ports?",
+        "Does Asset-377 cover all 46 display units, or are they recorded under other asset IDs?"
       ]
     },
     "Contractor Security Awareness Training Below Target": {
@@ -248,36 +268,27 @@
       "gaps": [
         {
           "field": "risk_statement",
-          "problem": "The statement says contractors 'may' fall for phishing or mishandle data but does not say which data or systems they can reach or what would be lost."
-        },
-        {
-          "field": "exploit_paths",
-          "problem": "No path is given for how an untrained contractor leads to loss, such as a phished account being used to reach data."
+          "problem": "The statement says contractors may fall for phishing or mishandle data but does not say which data or systems they can reach or what would be lost."
         },
         {
           "field": "baseline_controls",
-          "problem": "Access expiry at 60 days, email filtering and the phishing report button are listed, but the text does not say how much they reduce the chance or size of loss."
+          "problem": "The controls are listed but the entry does not explain how access expiry, email filtering and the report button reduce the risk for contractors who are still within the grace period."
         },
         {
           "field": "detailed_analysis",
-          "problem": "The numbers do not agree: 38 of 420 outstanding is about 9%, but it is unclear how many are past the grace period and truly overdue, and the 'most' within grace is not counted."
+          "problem": "The 91% figure and the 38 of 420 count do not match (38 outstanding is about 91% complete), but the entry does not say how many outstanding contractors are past the 60-day grace period or have access today."
         },
         {
-          "field": "mitigation_plan",
-          "problem": "The action is Accept but no reason, owner or review date is recorded, and it is unclear whether the overdue contractors will be followed up."
-        },
-        {
-          "field": "risk_owner",
-          "problem": "No risk owner is named to accept the risk or follow up with contractor sponsors."
+          "field": "risk_action",
+          "problem": "Accept is chosen with no stated reason, and the mitigation plan is blank, so it is unclear why the remaining gap is tolerable."
         }
       ],
       "questions": [
-        "Which systems and data can the 38 outstanding contractors access?",
-        "What loss could follow if one of these contractors is phished or mishandles data, and has this happened before?",
-        "In which environment do these contractors work, such as corporate network, customer systems or a supplier portal?",
-        "How many of the 38 are past the 60-day grace period, and is their access being removed?",
-        "How much do email filtering and the phishing report button reduce the chance of a contractor causing a breach?",
-        "Who owns this risk, and why is acceptance the chosen action rather than a plan to close the gap?"
+        "Which systems or data sets can the 38 outstanding contractors reach today?",
+        "What loss would you expect if one of these contractors fell for a phishing email or mishandled data?",
+        "How many of the 38 outstanding contractors are past the 60-day grace period and still have access?",
+        "How do the access expiry and email filtering reduce risk during the grace period?",
+        "Why is accepting this risk appropriate, and is any follow-up planned for contractors who miss the deadline?"
       ]
     },
     "Logging gaps": {
@@ -287,28 +298,32 @@
       "gaps": [
         {
           "field": "detailed_analysis",
-          "problem": "The wording is vague. It does not say which logs are weak, where, or what 'not good' means (missing, incomplete, not reviewed, or not kept long enough)."
-        },
-        {
-          "field": "exploit_paths",
-          "problem": "No one is named who could act on the weakness, and no event is described. 'If something happens' gives no loss path or loss."
+          "problem": "The text does not say which logs, systems or locations are weak, so 'some places' cannot be scoped."
         },
         {
           "field": "baseline_controls",
-          "problem": "No existing logging or monitoring controls are named, so it is unclear what the baseline impact and likelihood scores of 3 rest on."
+          "problem": "No existing logging or monitoring controls are described, so the current protection is unknown."
         },
         {
           "field": "mitigation_plan",
-          "problem": "The plan is 'TBD' while the risk action is Mitigate, so no steps, owner, or timing are given."
+          "problem": "The plan says only 'TBD', so the action 'Mitigate' has no steps, owner or timing."
+        },
+        {
+          "field": "baseline_impact",
+          "problem": "Impact and likelihood scores of 3 have no stated reasoning, so they cannot be checked against any scenario."
+        },
+        {
+          "field": "exploit_paths",
+          "problem": "No one or nothing is named that could act on the logging weakness, and no event or loss is described."
         }
       ],
       "questions": [
-        "Which systems, applications, or log sources have the logging weakness?",
-        "Which environment (for example production, test, or cloud) is affected?",
-        "Who is the risk owner for this item?",
-        "What exactly is wrong with the logging: missing events, short retention, no alerting, or no one reviewing the logs?",
-        "What bad event could go undetected or be hard to investigate because of this, and what would the organization lose?",
-        "What logging and monitoring controls exist today, and what steps will the mitigation plan take?"
+        "Which systems, applications or networks have weak logging, and what does 'not good' mean for each (not collected, not kept long enough, not reviewed)?",
+        "What logging and monitoring is in place today, and what does it cover?",
+        "What event could go unnoticed or be hard to investigate because of these gaps, and who might cause it?",
+        "What would the organization lose if that happened (for example data, service time, regulatory standing)?",
+        "What are the mitigation steps, and when will they be done?",
+        "Why were impact and likelihood both set to 3?"
       ]
     },
     "Old servers in data center": {
@@ -318,74 +333,74 @@
       "gaps": [
         {
           "field": "detailed_analysis",
-          "problem": "\"Old servers\" and \"not dealt with\" are vague: it does not say what age, which servers, or what has not been done (patching, replacement, decommissioning)."
-        },
-        {
-          "field": "risk_owner",
-          "problem": "\"Team is aware\" does not say which team, who owns the servers, or what they plan to do."
-        },
-        {
-          "field": "baseline_impact",
-          "problem": "Impact is scored 4 but nothing says what data or service would be lost, so the score cannot be checked."
-        },
-        {
-          "field": "baseline_controls",
-          "problem": "No controls are named, such as network isolation, monitoring or support contracts, so current protection is unknown."
+          "problem": "'Old servers' and 'not been dealt with' do not say what is wrong with them, such as unsupported software, missing patches or end of life hardware."
         },
         {
           "field": "environment",
-          "problem": "\"Granite\" and \"DC\" are not explained, so the location and scope of the servers is unclear."
+          "problem": "'Granite' and 'DC' are not explained, so it is unclear which data center or environment is meant."
+        },
+        {
+          "field": "baseline_impact",
+          "problem": "An impact of 4 is recorded but the analysis names no loss, so the score has no stated basis."
+        },
+        {
+          "field": "baseline_controls",
+          "problem": "'Team is aware' is not a control and does not say what protects the servers today or what is being done about them."
+        },
+        {
+          "field": "mitigation_plan",
+          "problem": "No plan, owner action or date is given to deal with the old servers."
         }
       ],
       "questions": [
-        "Which servers are involved, and what business services or data does each one support?",
-        "What makes these servers old: unsupported operating system, missing patches, or end-of-life hardware?",
-        "Who could exploit this weakness, how would they do it, and what would the organization lose?",
-        "Which controls protect these servers today, such as network isolation, monitoring or extended support?",
-        "Which team owns these servers, and what has it agreed to do about them and by when?",
-        "What does \"DC\" mean here, and is Granite the name of the data center or a different environment?"
+        "Which servers are the old ones, and what systems, data or services run on them?",
+        "What exactly is wrong with these servers, for example unsupported operating system, missing patches or end of life hardware?",
+        "Who or what could exploit this weakness, and how would that harm the organization?",
+        "What would be lost if it happened, such as downtime, data exposure or fines, and what led to an impact score of 4?",
+        "What controls protect these servers today, such as network isolation, monitoring or extended vendor support?",
+        "Which data center does 'DC' mean, and what does 'Granite' refer to?"
       ]
     }
   },
   "triage": {
     "End-of-Support OS on Customer SFTP File Transfer Servers": {
-      "reason": "The baseline score is 12 (impact 4 x likelihood 3), which is above the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry also describes unpatched servers holding payroll files with employee PII for about 340 customers.",
+      "reason": "The baseline score of 12 is above the threshold of 6, so this risk qualifies for full FAIR analysis. The entry also describes unpatched servers holding payroll files with employee PII for about 340 customers.",
       "advisory": null
     },
     "No MFA on Legacy Support Admin Console": {
-      "reason": "The baseline score is 15 (impact 5 x likelihood 3), which is above the threshold of 6, so the risk qualifies for full FAIR analysis. The entry describes a password-only admin console with 35 accounts that can impersonate customer administrators.",
+      "reason": "The baseline score is 15 (impact 5 x likelihood 3), which is above the threshold of 6, so this risk qualifies for full FAIR analysis. The console uses passwords only, and 35 accounts can impersonate any customer administrator.",
       "advisory": null
     },
     "Over-Privileged CI/CD Deployment Role in Production Cloud Account": {
-      "reason": "The baseline score is 12 (impact 4 x likelihood 3), which is above the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry describes a wildcard admin role with old long-lived keys in a production account, which fits that result.",
+      "reason": "The baseline score is 12 (impact 4 x likelihood 3), which is above the threshold of 6, so this risk qualifies for full FAIR analysis. The entry also describes wildcard admin permissions and long-lived keys in a production account, which fits a risk worth quantifying.",
       "advisory": null
     },
     "User Access Reviews Not Performed for Payroll Processing Application": {
-      "reason": "The baseline score is 12, which is above the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry describes missed access reviews, stale accounts, and 30 local accounts outside SSO on a payroll application.",
-      "advisory": "The 2 terminated contractor accounts and 30 local accounts without SSO may deserve early attention, and the likely SOC 2 audit exception could be included in the analysis."
+      "reason": "The baseline score is 12 (impact 3 x likelihood 4), which is at or above the threshold of 6, so the risk qualifies for full FAIR analysis. The entry also describes overdue reviews, stale accounts found in a spot check, and 30 local accounts outside SSO.",
+      "advisory": "The entry notes that payroll data is involved and that a SOC 2 audit exception is likely, so the analyst may want to include compliance and audit costs when scoping the analysis."
     },
     "Unsupported Insecure Protocol on Third-Party Benefits Integration": {
-      "reason": "The baseline score is 8 (impact 4 x likelihood 2), which is above the threshold of 6, so this risk qualifies for full FAIR analysis. The entry describes sensitive employee data moving over an unsupported legacy protocol, which fits a high impact rating.",
+      "reason": "The baseline score is 8 (impact 4 x likelihood 2), which is above the threshold of 6, so the rule says this risk qualifies for a full FAIR analysis. The entry describes an unsupported TLS 1.0 integration that carries employee personal data for about 1,100 customers.",
       "advisory": null
     },
     "No Data Loss Prevention on Workstations Handling Customer Data Extracts": {
-      "reason": "The baseline score is 8 (impact 4 x likelihood 2), which is above the threshold of 6, so this risk qualifies for full FAIR analysis. The entry also describes customer data extracts on 85 workstations with no DLP or egress monitoring.",
-      "advisory": null
+      "reason": "The baseline score is 8 (impact 4 x likelihood 2), which is above the threshold of 6, so the risk qualifies for a full FAIR analysis. The entry describes customer data extracts on 85 workstations with no DLP or egress controls.",
+      "advisory": "The 2025 audit found extracts older than 90 days on 9 of 20 sampled workstations, so the analyst may want to check whether a likelihood of 2 reflects how often extracts are left on workstations."
     },
     "Backup Restoration Untested for Time and Attendance Database": {
-      "reason": "The baseline score is 8 (impact 4 x likelihood 2), which is above the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry also describes a large database with unknown restore time and SLA credits at stake, which fits a quantified review.",
+      "reason": "The baseline score is 8 (impact 4 x likelihood 2), which is above the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry also describes an untested 6 TB restore against an 8-hour objective, which affects about 2,300 customers.",
       "advisory": null
     },
     "Hardcoded Secrets in Source Code Repositories": {
-      "reason": "The baseline score is 12 (impact 4 x likelihood 3), which is above the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry also describes 212 exposed secrets, including 18 production database credentials, which fits that level of score.",
+      "reason": "The baseline score is 12, which is above the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry describes 212 exposed secrets, including 18 production database credentials, readable by about 2,050 users.",
       "advisory": null
     },
     "Overdue Security Assessment for Support Ticketing Vendor": {
-      "reason": "The baseline score is 6 (impact 3 x likelihood 2), which meets the threshold of 6, so this risk qualifies for a full FAIR analysis. The entry also describes customer PII held in about 1.2 million tickets and a vendor assessment that is 14 months overdue.",
-      "advisory": "The score sits right at the threshold, and the entry notes unconfirmed exposure from a 2025 sub-processor incident and no attachment retention limit, so the analyst may want to check whether the likelihood of 2 is still fair."
+      "reason": "The baseline score is 6 (impact 3 x likelihood 2), which meets the threshold of 6, so the rule says this risk qualifies for full FAIR analysis. The entry also describes an overdue vendor assessment and customer PII held in about 1.2 million tickets.",
+      "advisory": "The score sits right at the threshold, and the entry notes unconfirmed sub-processor exposure and no attachment retention limit, so the analyst may want to check whether the likelihood of 2 is too low."
     },
     "Outdated Firmware on Conference Room Display Devices": {
-      "reason": "The baseline score is 2, which is below the threshold of 6, so this risk does not go forward for a full FAIR analysis. The entry supports a low score: the displays are on an isolated guest VLAN, hold no data or credentials, and the missed firmware versions list no remotely exploitable flaws.",
+      "reason": "The baseline score is 2 (impact 1 x likelihood 2), which is below the threshold of 6, so this risk does not go to a full FAIR analysis. The entry supports a low score: the displays sit on an isolated guest VLAN, hold no data or credentials, and the missed firmware versions list no remotely exploitable flaws.",
       "advisory": null
     },
     "Contractor Security Awareness Training Below Target": {
@@ -398,55 +413,55 @@
       "primary_type": "unsupported_software",
       "secondary_type": "misconfiguration",
       "confidence": "high",
-      "reason": "The SFTP servers run an operating system that reached end of support in January 2026 and no longer gets security patches, while broad /16 allowlist ranges add a smaller misconfiguration issue."
+      "reason": "The SFTP servers run an operating system that reached end of support in January 2026 and no longer receives security patches, while broad /16 allowlist ranges add a secondary misconfiguration."
     },
     "No MFA on Legacy Support Admin Console": {
       "primary_type": "missing_control",
       "secondary_type": null,
       "confidence": "high",
-      "reason": "The legacy support admin console uses username and password only and is not integrated with SSO, so multi-factor authentication is absent for accounts with tenant impersonation privilege."
+      "reason": "The legacy support admin console uses username and password only, with no multi-factor authentication and no SSO integration, so a required authentication control is absent."
     },
     "Over-Privileged CI/CD Deployment Role in Production Cloud Account": {
       "primary_type": "misconfiguration",
       "secondary_type": "process_gap",
       "confidence": "high",
-      "reason": "The CI/CD deployment role exists but is set up with wildcard administrative permissions and long-lived keys instead of least-privilege scoped access, with stale key rotation and a long-unresolved posture finding as secondary process issues."
+      "reason": "The CI/CD deployment role exists but is set up with wildcard administrative permissions and long-lived keys instead of least-privilege scoped access, while stale key rotation and a posture finding left open for 5 months point to a secondary process gap."
     },
     "User Access Reviews Not Performed for Payroll Processing Application": {
       "primary_type": "process_gap",
       "secondary_type": "missing_control",
       "confidence": "high",
-      "reason": "Quarterly access reviews were skipped for two quarters because the application owner role was vacant, and the 30 local accounts fall outside the SSO-based leaver process."
+      "reason": "Quarterly access reviews were skipped for two quarters because the application owner role was vacant, and the 30 local accounts sit outside the SSO leaver process."
     },
     "Unsupported Insecure Protocol on Third-Party Benefits Integration": {
       "primary_type": "unsupported_software",
       "secondary_type": "third_party",
       "confidence": "med",
-      "reason": "The integration runs on a legacy SOAP API version the provider no longer supports and issues no security fixes for, which is also a supplier-side dependency, with TLS 1.0 and a shared basic-auth account adding weak settings."
+      "reason": "The integration uses a legacy SOAP API version that the provider no longer supports and issues no security fixes for, running over TLS 1.0 with a shared basic-auth account, and the dependency sits with a third-party provider."
     },
     "No Data Loss Prevention on Workstations Handling Customer Data Extracts": {
       "primary_type": "missing_control",
-      "secondary_type": "process_gap",
+      "secondary_type": "misconfiguration",
       "confidence": "high",
-      "reason": "The workstations have no DLP agent or egress monitoring and do not block USB or personal cloud storage, while extracts are also left untracked with no retention limit enforced."
+      "reason": "The 85 workstations have no DLP agent or egress monitoring, which is a missing control, while USB storage and personal cloud sites are also left unblocked and no retention limit is enforced."
     },
     "Backup Restoration Untested for Time and Attendance Database": {
       "primary_type": "process_gap",
-      "secondary_type": null,
+      "secondary_type": "missing_control",
       "confidence": "high",
-      "reason": "Backups run nightly but no full restore test has been performed in 19 months, including after a major schema change and storage migration, so recoverability against the 8-hour objective is unverified."
+      "reason": "Backups run but no full restore test has been performed in 19 months, including after a major schema change and storage migration, so the recovery time against the 8-hour objective is unverified."
     },
     "Hardcoded Secrets in Source Code Repositories": {
       "primary_type": "missing_control",
       "secondary_type": "process_gap",
       "confidence": "med",
-      "reason": "There is no pre-commit or push-time secret scanning, so 212 hardcoded secrets sit in repositories, while voluntary vault use and unrotated secrets also point to a process gap."
+      "reason": "Hardcoded secrets are in repositories with no pre-commit or push-time secret scanning, while vault use is voluntary and secrets have gone unrotated for years."
     },
     "Overdue Security Assessment for Support Ticketing Vendor": {
       "primary_type": "third_party",
-      "secondary_type": null,
+      "secondary_type": "missing_control",
       "confidence": "high",
-      "reason": "The vendor's security assessment is 14 months overdue, its SOC 2 report is stale, and written confirmation of a sub-processor incident is missing, so the weakness lies in supplier oversight and in customer PII held by the vendor."
+      "reason": "The vendor security assessment is 14 months overdue, the SOC 2 report is stale, and the vendor's 2025 sub-processor incident is unconfirmed, which are all gaps in supplier oversight, while the absence of an attachment retention limit is a minor missing control."
     }
   }
 }
