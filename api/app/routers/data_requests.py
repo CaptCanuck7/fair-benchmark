@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import decision_log
 from app.db import get_session
 from app.errors import ApiError
 from app.models import DataRequestRow, EvidenceItemRow, RiskRow
@@ -40,5 +41,9 @@ def answer_request(request_id: int, body: Answer, session: Session = Depends(get
     item.published_at, item.retrieved_at = at[:10], at
     item.summary = f"Q: {req.question} A: {answer}"[:2000]
     item.value, item.unit, item.factors, item.stale = None, None, [req.factor], False
+    session.flush()
+    decision_log.log(session, req.risk_pk, at=at, by=req.answered_by, step="evidence", subject=str(req.id),
+                     action="answer", detail={"requestId": req.id, "team": req.team, "factor": req.factor,
+                                              "evidenceItemId": item.id, "answer": answer[:500]})
     session.commit()
     return risk_detail_out(session, session.get(RiskRow, req.risk_pk))

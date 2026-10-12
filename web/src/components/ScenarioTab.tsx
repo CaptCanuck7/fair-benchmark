@@ -9,7 +9,7 @@ import {
   type ScenarioDraft,
 } from '../types'
 import { api, ApiError } from '../api/client'
-import { DraftActions, DraftLabel, ReviewError, TaskBar, useReview } from './DraftControls'
+import { DraftActions, DraftLabel, ReasonField, reasonOk, ReviewError, TaskBar, useReview } from './DraftControls'
 
 const FACTOR: Record<ControlFactor, string> = {
   frequency: 'How often the threat acts',
@@ -84,7 +84,7 @@ export function ScenarioTab({ risk, agent, onRisk, reload }: Props) {
               initial={draft.effective}
               busy={r.busy}
               onCancel={() => setEditing(false)}
-              onSave={(edited) => void r.review(draft.id, 'edit', edited)}
+              onSave={(edited, why) => void r.review(draft.id, 'edit', edited, why)}
             />
           ) : (
             <>
@@ -93,7 +93,8 @@ export function ScenarioTab({ risk, agent, onRisk, reload }: Props) {
                 draft={draft}
                 actions={['approve', 'edit', 'reject']}
                 busy={r.busy}
-                onAction={(a) => void r.review(draft.id, a)}
+                onAction={(a, why) => void r.review(draft.id, a, undefined, why)}
+                needsReason
                 onEdit={() => setEditing(true)}
               />
             </>
@@ -217,7 +218,7 @@ function ScenarioEditor({
 }: {
   initial: ScenarioDraft
   busy: boolean
-  onSave: (s: ScenarioDraft) => void
+  onSave: (s: ScenarioDraft, reason: string) => void
   onCancel: () => void
 }) {
   const [s, setS] = useState<ScenarioDraft>(() => JSON.parse(JSON.stringify(initial)))
@@ -229,9 +230,17 @@ function ScenarioEditor({
       s.controls.map((c, j) => (j === i ? { ...c, ...patch } : c)),
     )
 
+  const [reason, setReason] = useState('')
+  const [tried, setTried] = useState(false)
+
   function submit(e: FormEvent) {
     e.preventDefault()
-    onSave({ ...s, notes: lines(notes), controls: s.controls.map((c) => ({ ...c, note: c.note?.trim() || null })) })
+    setTried(true)
+    if (!reasonOk(reason)) return
+    onSave(
+      { ...s, notes: lines(notes), controls: s.controls.map((c) => ({ ...c, note: c.note?.trim() || null })) },
+      reason.trim(),
+    )
   }
 
   return (
@@ -348,6 +357,7 @@ function ScenarioEditor({
         </fieldset>
       )}
 
+      <ReasonField label="Why are you changing it?" value={reason} onChange={setReason} showError={tried} />
       <div className="row">
         <button type="submit" className="btn primary" disabled={busy}>
           Save and approve

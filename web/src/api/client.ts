@@ -12,6 +12,8 @@ import type {
   OutboundLogEntry,
   Provenance,
   RangeValue,
+  DecisionWhy,
+  DecisionLogEntry,
   RegisterImport,
   RegisterImportResult,
   RegisterRisk,
@@ -120,15 +122,23 @@ export const api = {
   startRiskTask: (riskId: string, task: 'scenario' | 'vectors' | 'evidence' | 'estimates') =>
     json<{ runId: string; riskId: string }>('POST', `/agent/risks/${encodeURIComponent(riskId)}/${task}`),
   /** Approve, edit or reject a draft. Returns the updated risk. */
-  reviewDraft: (draftId: number, action: ReviewAction, payload?: unknown) =>
-    json<RegisterRiskDetail>('PUT', `/drafts/${draftId}`, payload === undefined ? { action } : { action, payload }),
+  reviewDraft: (draftId: number, action: ReviewAction, payload?: unknown, reason?: string) =>
+    json<RegisterRiskDetail>('PUT', `/drafts/${draftId}`, {
+      action,
+      ...(payload === undefined ? {} : { payload }),
+      ...(reason ? { reason } : {}),
+    }),
   /** Show the agent's range for a factor, sending the analyst's own range if entered. */
   revealEstimate: (riskId: string, factor: string, analystRange: RangeValue | null) =>
     json<RegisterRiskDetail>('POST', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}/reveal`,
       { analystRange }),
-  decideEstimate: (riskId: string, factor: string, choice: 'agent' | 'analyst', range?: RangeValue) =>
+  /** Keep your range (with its reasoning) or take the agent's (with an optional note). */
+  decideEstimate: (riskId: string, factor: string, choice: 'agent' | 'analyst', range?: RangeValue, why?: DecisionWhy) =>
     json<RegisterRiskDetail>('PUT', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}`,
-      range ? { choice, range } : { choice }),
+      { choice, ...(range ? { range } : {}), ...(why ?? {}) }),
+  /** The decision record: every analyst action on a risk, oldest first. */
+  decisionLog: (riskId: string) =>
+    json<DecisionLogEntry[]>('GET', `/register/risks/${encodeURIComponent(riskId)}/decision-log`),
   clearEstimate: (riskId: string, factor: string) =>
     json<RegisterRiskDetail>('DELETE', `/register/risks/${encodeURIComponent(riskId)}/estimates/${encodeURIComponent(factor)}`),
   /** Create an analysis from a risk. `acknowledgeStale` creates it even if the estimates are out of date. */

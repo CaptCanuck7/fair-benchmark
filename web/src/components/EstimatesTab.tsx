@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { AgentStatus, Conf, EstimateFactor, EvidenceItem, Kind, RangeValue, RegisterRiskDetail } from '../types'
 import { api, ApiError } from '../api/client'
 import { useContent } from '../content'
@@ -177,6 +177,8 @@ function FactorEstimate({
   const info = content.factors[f.factor]
   const kind = info.kind as Kind
   const [mine, setMine] = useState<RangeValue>(() => f.reveal?.analystRange ?? empty())
+  const [why, setWhy] = useState<Why>(emptyWhy)
+  const [tried, setTried] = useState(false)
   const [inputKey, setInputKey] = useState(0)
   const status = distStatus({ ...mine, src: '' }, kind)
   const evidence = risk.evidence.filter((e) => e.factors.includes(f.factor))
@@ -185,7 +187,20 @@ function FactorEstimate({
   const fmt = (r: { min: number | null; ml: number | null; max: number | null }) =>
     `${fmtVal(kind, r.min)} / ${fmtVal(kind, r.ml)} / ${fmtVal(kind, r.max)}`
 
-  const useMine = () => void act(async () => onRisk(await api.decideEstimate(risk.riskId, f.factor, 'analyst', mine)))
+  const whyProblem = rationaleProblem(why)
+  const useMine = () => {
+    setTried(true)
+    if (whyProblem) return
+    void act(async () =>
+      onRisk(
+        await api.decideEstimate(risk.riskId, f.factor, 'analyst', mine, {
+          rationale: why.rationale.trim(),
+          evidenceIds: why.evidenceIds,
+          placeholder: why.placeholder,
+        }),
+      ),
+    )
+  }
 
   return (
     <section className="estimate" aria-labelledby={`est-${f.factor}`}>
@@ -193,7 +208,13 @@ function FactorEstimate({
         {info.label} <span className="unit">{info.unit}</span>
       </h4>
 
-      <EvidenceList items={evidence} />
+      <EvidenceList
+        items={evidence}
+        ticked={f.decision ? null : why.evidenceIds}
+        onTick={(id, on) =>
+          setWhy((w) => ({ ...w, evidenceIds: on ? [...w.evidenceIds, id] : w.evidenceIds.filter((x) => x !== id) }))
+        }
+      />
       {f.status === 'unestimated' && (
         <p className="small">
           <b>No agent range:</b> {f.unestimated?.reason ?? 'The agent didn’t propose a range for this factor.'}
@@ -213,6 +234,7 @@ function FactorEstimate({
             {dateTime(f.decision.at)}
           </span>{' '}
           <b>{fmt(f.decision)}</b> <span className="muted small">· {content.confidence[f.decision.conf].label} confidence</span>
+          {f.decision.placeholder && <span className="tag warn">Placeholder</span>}
           <button type="button" className="btn quiet" disabled={busy}
                   onClick={() => void act(async () => onRisk(await api.clearEstimate(risk.riskId, f.factor)))}>
             Change
@@ -239,6 +261,7 @@ function FactorEstimate({
             </label>
           </div>
           {status.state === 'error' && <div className="dmsg">{status.msg}</div>}
+          <WhyFields why={why} onWhy={setWhy} showError={tried} />
 
           {f.revealed && f.agent ? (
             <div className="compare-ranges">
@@ -325,7 +348,70 @@ function FactorEstimate({
   )
 }
 
-function EvidenceList({ items }: { items: EvidenceItem[] }) {
+interface Why {
+  rationale: string
+  evidenceIds: number[]
+  placeholder: boolean
+}
+const emptyWhy = (): Why => ({ rationale: '', evidenceIds: [], placeholder: false })
+const RATIONALE_MIN = 15
+
+/** Why an analyst range can't be saved yet (the api's rules), or null. */
+function rationaleProblem(w: Why): string | null {
+  if (w.rationale.trim().length < RATIONALE_MIN) return 'Say why you chose this range, in a sentence or two.'
+  if (!w.evidenceIds.length && !w.placeholder) return 'Tick the evidence you relied on, or mark this range as a placeholder.'
+  return null
+}
+
+/** "Why this range?" and the placeholder flag. */
+function WhyFields({ why, onWhy, showError }: { why: Why; onWhy: (w: Why) => void; showError: boolean }) {
+  const id = useId()
+  const problem = showError ? rationaleProblem(why) : null
+  return (
+    <div className="whyrange">
+      <div className="fld">
+        <label htmlFor={id}>
+          Why this range? <span className="req">Required</span>
+        </label>
+        <textarea
+          id={id}
+          rows={2}
+          value={why.rationale}
+          aria-invalid={!!problem && why.rationale.trim().length < RATIONALE_MIN}
+          aria-describedby={`${id}-hint`}
+          onChange={(e) => onWhy({ ...why, rationale: e.target.value })}
+        />
+        <span id={`${id}-hint`} className="hint">
+          One or two sentences. This is saved with your name and shown wherever the number appears.
+        </span>
+      </div>
+      <label className="check-inline">
+        <input
+          type="checkbox"
+          checked={why.placeholder}
+          onChange={(e) => onWhy({ ...why, placeholder: e.target.checked })}
+        />{' '}
+        This is a placeholder until better data arrives.
+      </label>
+      {problem && (
+        <div className="dmsg" role="alert">
+          {problem}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EvidenceList({
+  items,
+  ticked,
+  onTick,
+}: {
+  items: EvidenceItem[]
+  /** The items ticked as relied on, or null when ticking isn't offered. */
+  ticked: number[] | null
+  onTick: (id: number, on: boolean) => void
+}) {
   if (!items.length) return <p className="muted small">No evidence tagged to this factor.</p>
   return (
     <details className="more" open>
@@ -333,6 +419,12 @@ function EvidenceList({ items }: { items: EvidenceItem[] }) {
       <ul className="gaps small">
         {items.map((e) => (
           <li key={e.id}>
+            {ticked && (
+              <label className="check-inline">
+                <input type="checkbox" checked={ticked.includes(e.id)} onChange={(x) => onTick(e.id, x.target.checked)} />{' '}
+                <span className="sr">I relied on {e.citation}</span>
+              </label>
+            )}
             <span className={`tag ${e.origin === 'internal' ? 'ok' : ''}`}>{e.origin === 'internal' ? 'Internal' : 'External'}</span>{' '}
             {e.stale && <span className="tag warn">Stale</span>} <ValueCheckTag e={e} /> {e.summary}
             {e.value != null && (

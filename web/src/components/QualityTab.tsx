@@ -12,7 +12,7 @@ import type {
 import { api, ApiError } from '../api/client'
 import { dateTime } from '../lib/format'
 import { CONDITION, CONFIDENCE, conditionLabel, gapFieldLabel, QUALITY, TRIAGE } from '../lib/register'
-import { DraftActions, DraftLabel, ReviewError, useReview } from './DraftControls'
+import { DraftActions, DraftLabel, ReasonField, reasonOk, ReviewError, useReview } from './DraftControls'
 
 interface Props {
   risk: RegisterRiskDetail
@@ -164,7 +164,8 @@ function QualityView({ draft, onRisk }: { draft: Draft<QualityResult>; onRisk: (
         draft={draft}
         actions={['approve', 'reject']}
         busy={r.busy}
-        onAction={(a) => void r.review(draft.id, a)}
+        onAction={(a, why) => void r.review(draft.id, a, undefined, why)}
+        needsReason
       />
       <ReviewError error={r.error} fieldErrors={r.fieldErrors} />
     </>
@@ -181,6 +182,8 @@ function ClassificationView({
   const c = draft.effective
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ClassificationResult>(c)
+  const [reason, setReason] = useState('')
+  const [tried, setTried] = useState(false)
   const r = useReview((x) => {
     onRisk(x)
     setEditing(false)
@@ -193,7 +196,9 @@ function ClassificationView({
           className="editor"
           onSubmit={(e) => {
             e.preventDefault()
-            void r.review(draft.id, 'edit', { ...form, secondary_type: form.secondary_type || null })
+            setTried(true)
+            if (!reasonOk(reason)) return
+            void r.review(draft.id, 'edit', { ...form, secondary_type: form.secondary_type || null }, reason.trim())
           }}
         >
           <div className="grid2">
@@ -239,6 +244,7 @@ function ClassificationView({
             <span>Reason</span>
             <textarea rows={2} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
           </label>
+          <ReasonField label="Why are you changing it?" value={reason} onChange={setReason} showError={tried} />
           <div className="row">
             <button type="submit" className="btn primary" disabled={r.busy}>
               Save and approve
@@ -261,9 +267,12 @@ function ClassificationView({
             draft={draft}
             actions={['approve', 'edit', 'reject']}
             busy={r.busy}
-            onAction={(a) => void r.review(draft.id, a)}
+            onAction={(a, why) => void r.review(draft.id, a, undefined, why)}
+            needsReason
             onEdit={() => {
               setForm(c)
+              setReason('')
+              setTried(false)
               setEditing(true)
             }}
           />

@@ -457,7 +457,8 @@ All under `/api`, JSON throughout.
 | POST | `/agent/register/intake` | Run the intake checks on risks not yet checked |
 | POST | `/agent/risks/{riskId}/{task}` | Start `intake`, `scenario`, `vectors`, `evidence` or `estimates` |
 | GET | `/agent/runs/{id}` | An agent job's status, tokens and error |
-| PUT | `/drafts/{id}` | Approve, edit or reject a risk draft |
+| PUT | `/drafts/{id}` | Approve, edit or reject a risk draft (edit and reject need a `reason`) |
+| GET | `/register/risks/{riskId}/decision-log` | The decision record: every analyst action on the risk, oldest first |
 | PUT | `/data-requests/{id}` | Record an answer to a data request |
 | POST | `/register/risks/{riskId}/estimates/{factor}/reveal` | Show the agent's range, recording the analyst's first |
 | PUT, DELETE | `/register/risks/{riskId}/estimates/{factor}` | Decide a factor's range, or clear the decision |
@@ -1070,6 +1071,49 @@ prototype first; otherwise choose the simpler option."
     api, not outbound, so it's confirmed from coverage rather than the log.
     To reach the running api from a one-off container, set
     `LIVE_API=http://api:8000`.
+
+**Guided risk page (UI_REBUILD.md)**
+
+Where the code differed from UI_REBUILD.md, I followed the code; each
+difference is noted here.
+
+- **Stage 1, the decision log.** `decision_log` is a new table, so existing
+  volumes get it on start with no migration. It is append-only in two ways: no
+  endpoint changes or deletes a row, and the ORM refuses an update or delete
+  of one. Its `risk_pk` has no cascade, since risks are never deleted.
+  - **What writes a row:** each draft review (approve, edit, reject), a triage
+    override, the first reveal of a factor (revealing again changes nothing in
+    the code, so it records nothing), each decision, each clear of a decided
+    factor (clearing an undecided one is a no-op), each data request answer,
+    and each Create analysis. Starting an agent task isn't an analyst decision
+    and isn't logged.
+  - **Reasons:** edit and reject need 10 characters after trimming; approve
+    accepts an optional reason and logs it. Triage overrides keep their
+    existing 3-character minimum, since the file didn't change it. An edit's
+    row lists the top-level fields it changed.
+  - **Analyst ranges** need a 15-character rationale. The file gave no
+    message for that, so the api says "Say why you chose this range, in a
+    sentence or two. It is saved with your name and shown wherever the
+    number appears." Evidence IDs must be among the risk's *current* evidence
+    items (the latest run's items plus answered data requests), the same set
+    the Evidence step shows.
+  - **Taking the agent's range** stores `placeholder: false` and the optional
+    `note`; the note is the log row's reason.
+  - **A decision's log row** records `sawAgentRange` (revealed before deciding)
+    and `enteredBeforeReveal` (from the reveal, or null when there was none),
+    so the record can say whether the range was entered before seeing the
+    agent's.
+  - **The endpoint** returns a plain list, as the file says. The decision
+    record works out whether earlier reviews went unrecorded from the risk's
+    own review dates.
+  - **The current risk page** gained the reason fields in this stage, so it
+    keeps working with the stricter api before the guided page replaces it:
+    Reject opens a reason box, each edit form asks "Why are you changing it?",
+    and each factor asks "Why this range?" with evidence checkboxes and the
+    placeholder flag.
+  - **Provenance** returns `placeholder` both inside `range` and as a field of
+    its own. The workspace compares `range` field by field, so the extra key
+    doesn't mark a pushed range as changed.
 
 ## Later extensions
 

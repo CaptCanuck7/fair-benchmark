@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { AgentStatus, RegisterRiskDetail, ThreatPath, VectorsDraft } from '../types'
 import { api, ApiError } from '../api/client'
-import { DraftActions, DraftLabel, ReviewError, TaskBar, useReview } from './DraftControls'
+import { DraftActions, DraftLabel, ReasonField, reasonOk, ReviewError, TaskBar, useReview } from './DraftControls'
 
 const ORIGIN: Record<string, string> = {
   from_register: 'From the register',
@@ -75,7 +75,7 @@ export function VectorsTab({ risk, agent, onRisk, reload }: Props) {
               initial={draft.effective}
               busy={r.busy}
               onCancel={() => setEditing(false)}
-              onSave={(v) => void r.review(draft.id, 'edit', v)}
+              onSave={(v, why) => void r.review(draft.id, 'edit', v, why)}
             />
           ) : (
             <>
@@ -84,7 +84,8 @@ export function VectorsTab({ risk, agent, onRisk, reload }: Props) {
                 draft={draft}
                 actions={['approve', 'edit', 'reject']}
                 busy={r.busy}
-                onAction={(a) => void r.review(draft.id, a)}
+                onAction={(a, why) => void r.review(draft.id, a, undefined, why)}
+                needsReason
                 onEdit={() => setEditing(true)}
               />
             </>
@@ -164,7 +165,7 @@ function VectorsEditor({
 }: {
   initial: VectorsDraft
   busy: boolean
-  onSave: (v: VectorsDraft) => void
+  onSave: (v: VectorsDraft, reason: string) => void
   onCancel: () => void
 }) {
   const failure = initial.kind === 'failure_paths'
@@ -181,8 +182,13 @@ function VectorsEditor({
   const setPath = (i: number, patch: Partial<EditPath>) =>
     setPaths((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)))
 
+  const [reason, setReason] = useState('')
+  const [tried, setTried] = useState(false)
+
   function submit(e: FormEvent) {
     e.preventDefault()
+    setTried(true)
+    if (!reasonOk(reason)) return
     onSave({
       kind: initial.kind,
       paths: paths.map((p) => ({
@@ -195,7 +201,7 @@ function VectorsEditor({
         makes_worse: failure ? split(p.makes_worse, /\n/) : [],
         limits: failure ? split(p.limits, /\n/) : [],
       })),
-    })
+    }, reason.trim())
   }
 
   return (
@@ -289,6 +295,7 @@ function VectorsEditor({
       >
         Add a path
       </button>
+      <ReasonField label="Why are you changing it?" value={reason} onChange={setReason} showError={tried} />
       <div className="row">
         <button type="submit" className="btn primary" disabled={busy}>
           Save and approve

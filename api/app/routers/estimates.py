@@ -9,11 +9,11 @@ the agent's, or enters a third; that decision is what gets pushed.
 from typing import Literal
 
 from fastapi import APIRouter, Body, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import agent_pipeline
+from app import agent_pipeline, decision_log
 from app.content.factors import CONF, F
 from app.db import get_session
 from app.engine.distributions import dist_status
@@ -149,10 +149,14 @@ def reveal(risk_id: str, factor: str, body: RevealIn, session: Session = Depends
         if status == "error":
             raise ApiError(422, "Your range isn’t valid yet. Fix it or clear it before revealing.",
                            [{"path": "analystRange", "message": "Invalid range."}])
-        session.add(EstimateRevealRow(
+        rev = EstimateRevealRow(
             risk_pk=row.id, draft_id=draft.id, factor=factor, revealed_at=now_iso(),
             analyst_range=entered.model_dump() if status == "ok" else None, entered_before_reveal=status == "ok",
-        ))
+        )
+        session.add(rev)
+        decision_log.log(session, row.id, at=rev.revealed_at, by=reviewer_name(), step="estimate", subject=factor,
+                         action="reveal", detail={"draftId": draft.id, "enteredFirst": rev.entered_before_reveal,
+                                                  "analystRange": rev.analyst_range})
         session.commit()
     return risk_detail_out(session, row)
 
@@ -160,6 +164,34 @@ def reveal(risk_id: str, factor: str, body: RevealIn, session: Session = Depends
 class DecisionIn(BaseModel):
     choice: Literal["agent", "analyst"]
     range: RangeIn | None = None
+    # For an analyst range: why, the evidence relied on, and whether it is a stand-in.
+    rationale: str | None = Field(default=None, max_length=4000)
+    evidenceIds: list[int] = Field(default_factory=list, max_length=200)
+    placeholder: bool = False
+    # For the agent's range: an optional note.
+    note: str | None = Field(default=None, max_length=2000)
+
+
+RATIONALE_MESSAGE = ("Say why you chose this range, in a sentence or two. It is saved with your name and shown "
+                     "wherever the number appears.")
+NO_EVIDENCE_MESSAGE = "Tick the evidence you relied on, or mark this range as a placeholder."
+
+
+def _analyst_reasons(session: Session, row: RiskRow, body: DecisionIn) -> tuple[str, list[int]]:
+    """Check the reasoning an analyst range needs; return the rationale and evidence IDs."""
+    rationale = (body.rationale or "").strip()
+    if len(rationale) < decision_log.RATIONALE_MIN:
+        raise ApiError(422, RATIONALE_MESSAGE, [{"path": "rationale", "message": RATIONALE_MESSAGE}])
+    ids = list(dict.fromkeys(body.evidenceIds))
+    current = {e.id for e in agent_pipeline.current_evidence(session, row.id)[0]}
+    foreign = [i for i in ids if i not in current]
+    if foreign:
+        msg = (f"Evidence {', '.join(str(i) for i in foreign)} isn’t among this risk’s current evidence. "
+               "Tick only items listed for this risk.")
+        raise ApiError(422, msg, [{"path": "evidenceIds", "message": msg}])
+    if not ids and not body.placeholder:
+        raise ApiError(422, NO_EVIDENCE_MESSAGE, [{"path": "evidenceIds", "message": NO_EVIDENCE_MESSAGE}])
+    return rationale, ids
 
 
 @router.put("/register/risks/{risk_id}/estimates/{factor}")
@@ -181,17 +213,29 @@ def decide(risk_id: str, factor: str, body: DecisionIn, session: Session = Depen
             raise ApiError(409, "Show the agent’s range before taking it.")
         decision = {"choice": "agent", "min": est["min"], "ml": est["ml"], "max": est["max"], "conf": est["conf"],
                     "rationale": est["rationale"], "evidenceIds": est["evidence_ids"], "by": by, "at": at,
+                    "placeholder": False, "note": (body.note or "").strip() or None,
                     **({"evidenceMatch": est["evidence_match"]} if "evidence_match" in est else {})}
+        reason = decision["note"]
     else:
         if body.range is None:
             raise ApiError(422, "Enter your range.", [{"path": "range", "message": "Required."}])
         r = _valid_range(factor, body.range)
+        rationale, ids = _analyst_reasons(session, row, body)
         decision = {"choice": "analyst", "min": r.min, "ml": r.ml, "max": r.max, "conf": r.conf,
-                    "rationale": None, "evidenceIds": [], "by": by, "at": at,
+                    "rationale": rationale, "evidenceIds": ids, "placeholder": body.placeholder, "by": by, "at": at,
                     "revealedFirst": factor in _reveals(session, draft)}
+        reason = rationale
     decisions = {**_decisions(draft), factor: decision}
     draft.edited_payload = {**draft.payload, "decisions": decisions}
     draft.status, draft.reviewer, draft.reviewed_at = "edited", by, at
+    rev = _reveals(session, draft).get(factor)
+    decision_log.log(session, row.id, at=at, by=by, step="estimate", subject=factor, action="decide", reason=reason,
+                     detail={"draftId": draft.id, "choice": body.choice,
+                             "range": {k: decision[k] for k in ("min", "ml", "max", "conf")},
+                             "evidenceIds": decision["evidenceIds"], "placeholder": decision["placeholder"],
+                             "sawAgentRange": rev is not None,
+                             # Whether the analyst had a range of their own before seeing the agent's.
+                             "enteredBeforeReveal": rev.entered_before_reveal if rev else None})
     session.commit()
     return risk_detail_out(session, row)
 
@@ -201,9 +245,13 @@ def clear_decision(risk_id: str, factor: str, session: Session = Depends(get_ses
     row = get_risk(session, risk_id)
     draft = _draft_or_409(session, row)
     decisions = _decisions(draft)
-    decisions.pop(factor, None)
+    cleared = decisions.pop(factor, None)
     draft.edited_payload = {**draft.payload, "decisions": decisions}
     draft.status = "edited" if decisions else "drafted"
+    if cleared is not None:
+        decision_log.log(session, row.id, at=now_iso(), by=reviewer_name(), step="estimate", subject=factor,
+                         action="clear", detail={"draftId": draft.id, "choice": cleared["choice"],
+                                                 "range": {k: cleared.get(k) for k in ("min", "ml", "max", "conf")}})
     session.commit()
     return risk_detail_out(session, row)
 
@@ -259,7 +307,13 @@ def build_analysis(session: Session, row: RiskRow, scenario: dict, estimate: Dra
                 src = (f"{d['rationale']}\nSources: {'; '.join(cites)}{related}\n"
                        f"Agent-drafted, approved by {d['by']} on {d['at'][:10]}.")
             else:
-                src = f"Analyst estimate by {d['by']} on {d['at'][:10]}."
+                # Rationale, sources, placeholder note, then the approval line (which
+                # the input review strips by pattern: keep its wording).
+                cites = _citations(session, d.get("evidenceIds") or [])
+                parts = [d.get("rationale") or "", f"Sources: {'; '.join(cites)}" if cites else "",
+                         "Placeholder until better data is available." if d.get("placeholder") else "",
+                         f"Analyst estimate by {d['by']} on {d['at'][:10]}."]
+                src = "\n".join(p for p in parts if p)
             dist = Dist(min=d["min"], ml=d["ml"], max=d["max"], conf=d["conf"] if d["conf"] in CONF else "med", src=src)
             obj = state
             parts = F[key]["path"].split(".")
@@ -307,10 +361,15 @@ def create_analysis(risk_id: str, body: CreateIn | None = Body(None), session: S
         session.add(FactorProvenanceRow(
             analysis_id=analysis.id, state_id=state0, factor_path=key, origin=d["choice"],
             evidence_ids=d["evidenceIds"], approved_by=d["by"], approved_at=d["at"],
-            range={k: d[k] for k in ("min", "ml", "max", "conf")},
+            range={**{k: d[k] for k in ("min", "ml", "max", "conf")}, "placeholder": bool(d.get("placeholder"))},
         ))
     session.add(RiskLinkRow(risk_pk=row.id, scenario_draft_id=scenario_draft.id, analysis_id=analysis.id,
                             created_at=now_iso()))
+    decision_log.log(session, row.id, at=now_iso(), by=reviewer_name(), step="analysis", subject=analysis.id,
+                     action="create_analysis",
+                     detail={"analysisId": analysis.id, "factorsPushed": [k for k, _ in provenance],
+                             "placeholders": [k for k, d in provenance if d.get("placeholder")],
+                             "stale": changed, "acknowledgedStale": bool(changed)})
     session.commit()
     return {"analysisId": analysis.id, "factorsPushed": [k for k, _ in provenance]}
 
@@ -335,6 +394,7 @@ def provenance(analysis_id: str, session: Session = Depends(get_session)) -> dic
         "factors": [{
             "stateId": r.state_id, "factor": r.factor_path, "origin": r.origin, "approvedBy": r.approved_by,
             "approvedAt": r.approved_at, "range": r.range,
+            "placeholder": bool((r.range or {}).get("placeholder")),
             "evidence": [{"id": i, "citation": evidence[i].citation, "summary": evidence[i].summary,
                           "origin": evidence[i].origin} for i in r.evidence_ids if i in evidence],
         } for r in rows],

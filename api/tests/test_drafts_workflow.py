@@ -33,8 +33,14 @@ def start(client, rid: str, task: str):
     return client.post(f"/api/agent/risks/{rid}/{task}")
 
 
-def review(client, draft_id: int, action: str, payload=None):
+REASON = "Checked against the register entry."
+
+
+def review(client, draft_id: int, action: str, payload=None, reason: str | None = REASON):
+    """Edit and reject need a reason (UI_REBUILD.md stage 1); approve sends none."""
     body = {"action": action} if payload is None else {"action": action, "payload": payload}
+    if action in ("edit", "reject") and reason is not None:
+        body["reason"] = reason
     return client.put(f"/api/drafts/{draft_id}", json=body)
 
 

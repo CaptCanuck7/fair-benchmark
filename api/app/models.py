@@ -394,3 +394,29 @@ class EvidenceCheckRow(Base):
                                                   index=True)
     value_check: Mapped[str] = mapped_column(String(16))
     source_fields: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+# --- The decision record (UI_REBUILD.md stage 1) ---
+
+
+class DecisionLogRow(Base):
+    """One analyst action on a register risk, with the reason given.
+
+    Append-only: rows are added and never updated or deleted (see
+    app/decision_log.py, which refuses both). `step` is quality, triage,
+    classification, scenario, vectors, evidence, estimate or analysis;
+    `action` is approve, edit, reject, override, reveal, decide, clear, answer
+    or create_analysis. `detail` holds the specifics, such as a decision's range.
+    """
+
+    __tablename__ = "decision_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    risk_pk: Mapped[int] = mapped_column(ForeignKey("risks.id"), index=True)
+    at: Mapped[str] = mapped_column(String(32))
+    by: Mapped[str] = mapped_column(Text)
+    step: Mapped[str] = mapped_column(String(32))
+    subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action: Mapped[str] = mapped_column(String(32))
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)

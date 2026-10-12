@@ -592,12 +592,46 @@ export interface EstimateDecision {
   ml: number
   max: number
   conf: Conf
+  /** The analyst's reasoning, or the agent's rationale when its range was taken. */
   rationale: string | null
   evidenceIds: number[]
+  /** A stand-in until better data arrives; absent on decisions from before it was recorded. */
+  placeholder?: boolean
+  /** The analyst's optional note on taking the agent's range. */
+  note?: string | null
   by: string
   at: string
   revealedFirst?: boolean
   evidenceMatch?: 'direct' | 'related'
+}
+
+/** The reasoning sent with a decision. */
+export interface DecisionWhy {
+  rationale?: string
+  evidenceIds?: number[]
+  placeholder?: boolean
+  note?: string
+}
+
+/** One row of a risk's decision record (append-only). */
+export interface DecisionLogEntry {
+  id: number
+  at: string
+  by: string
+  step: 'quality' | 'triage' | 'classification' | 'scenario' | 'vectors' | 'evidence' | 'estimate' | 'analysis'
+  subject: string | null
+  action:
+    | 'approve'
+    | 'edit'
+    | 'reject'
+    | 'override'
+    | 'reveal'
+    | 'decide'
+    | 'clear'
+    | 'answer'
+    | 'create_analysis'
+  reason: string | null
+  detail: Record<string, unknown> | null
 }
 
 export interface EstimateFactor {
@@ -637,7 +671,9 @@ export interface ProvenanceFactor {
   origin: 'agent' | 'analyst'
   approvedBy: string | null
   approvedAt: string | null
-  range: { min: number; ml: number; max: number; conf: Conf } | null
+  range: { min: number; ml: number; max: number; conf: Conf; placeholder?: boolean } | null
+  /** Marked as a stand-in until better data arrives. */
+  placeholder?: boolean
   evidence: { id: number; citation: string; summary: string; origin: string }[]
 }
 

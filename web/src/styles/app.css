@@ -342,3 +342,13 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
 .sources ul { list-style: none; margin: 0; padding: 0; font-size: 13px }
 .sources li { padding: 3px 0; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline }
 .sources li.notchecked { border-left: 3px solid var(--amber); padding-left: 8px; background: var(--amber-soft) }
+
+/* Required reasons (UI_REBUILD.md stage 1) */
+.fld > label { font-size: 12.5px; font-weight: 600; color: var(--muted) }
+.req { font-size: 11px; font-weight: 700; color: var(--amber); text-transform: uppercase; letter-spacing: .03em; margin-left: 4px }
+.fld textarea[aria-invalid="true"] { border-color: var(--red); background: var(--red-soft) }
+.fld .dmsg { margin-top: 0 }
+.reasonform { margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); max-width: 640px }
+.reasonform .fld textarea, .whyrange .fld textarea { background: var(--panel) }
+.whyrange { margin: 10px 0; display: grid; gap: 6px; max-width: 640px }
+.editor .reason { margin-top: 12px; max-width: 640px }

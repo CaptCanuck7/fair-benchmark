@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app import agent_pipeline
+from app import agent_pipeline, decision_log
 from app.register.drafts import usable
 from app.register.state import IntakeState, current_stages, intake_states, task_blocker
 from app.agent_client import fetch_agent_status
@@ -331,6 +331,13 @@ def reviewer_name() -> str:
     return settings.analyst_name or "Analyst (name not set)"
 
 
+@router.get("/risks/{risk_id}/decision-log")
+def decision_record(risk_id: str, session: Session = Depends(get_session)) -> list[dict]:
+    """Every recorded analyst action on this risk, oldest first. Risks reviewed
+    before the log existed have no rows for those reviews."""
+    return decision_log.rows_out(session, get_risk(session, risk_id).id)
+
+
 class TriageOverride(BaseModel):
     status: Literal["qualifies", "screened_out"]
     reason: str = Field(min_length=3, max_length=1000)
@@ -355,6 +362,9 @@ def triage_override(risk_id: str, body: TriageOverride, session: Session = Depen
                             "override": {"from": draft.payload["status"], "reason": reason,
                                          "by": reviewer_name(), "at": at}}
     draft.status, draft.reviewer, draft.reviewed_at = "edited", reviewer_name(), at
+    decision_log.log(session, row.id, at=at, by=reviewer_name(), step="triage", subject=str(draft.id),
+                     action="override", reason=reason,
+                     detail={"draftId": draft.id, "from": draft.payload["status"], "to": body.status})
     session.commit()
 
     # A risk overridden into the pipeline is classified next, as if it had qualified.

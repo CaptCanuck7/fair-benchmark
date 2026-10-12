@@ -49,9 +49,21 @@ def reveal(client, rid, key, analyst_range=None):
     return client.post(f"/api/register/risks/{rid}/estimates/{key}/reveal", json={"analystRange": analyst_range})
 
 
-def decide(client, rid, key, choice, rng=None):
+RATIONALE = "Matches the incident history for this asset."
+
+
+def decide(client, rid, key, choice, rng=None, **extra):
+    """An analyst range sends a rationale and, by default, the placeholder flag
+    (UI_REBUILD.md stage 1); pass keyword arguments to override."""
     body = {"choice": choice} if rng is None else {"choice": choice, "range": rng}
+    if choice == "analyst":
+        body |= {"rationale": RATIONALE, "placeholder": True}
+    body |= extra
     return client.put(f"/api/register/risks/{rid}/estimates/{key}", json=body)
+
+
+def s0_date(doc: dict) -> str:
+    return doc["updatedAt"][:10]
 
 
 # ---------------------------------------------------------------- order and blocking
@@ -178,7 +190,8 @@ def test_create_analysis_from_tr6(client, fake):
     assert (s0["lef"]["tef"]["min"], s0["lef"]["tef"]["ml"], s0["lef"]["tef"]["max"]) == (1, 4, 12)
     assert s0["lef"]["tef"]["src"].startswith("Four attempts.\nSources: Incident History INC-2026-021")
     assert "Agent-drafted, approved by Test Analyst on " in s0["lef"]["tef"]["src"]
-    assert s0["primary"]["response"]["src"].startswith("Analyst estimate by Test Analyst")
+    assert s0["primary"]["response"]["src"].startswith(RATIONALE)
+    assert s0["primary"]["response"]["src"].endswith(f"Analyst estimate by Test Analyst on {s0_date(doc)}.")
     # Undecided factors stay empty, even ones the agent estimated.
     assert s0["slef"]["min"] is None and s0["secondary"]["fines"]["min"] is None
 
