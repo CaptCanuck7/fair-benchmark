@@ -1194,6 +1194,24 @@ difference is noted here.
     approval line) and shows in the workspace's rationale fields. On TR-6,
     whose estimates are out of date, Create analysis was refused and
     "Create anyway" created it, with the acknowledgement in the log.
+- **Stage 4, the decision record.** `/register/{riskId}/record`, linked as
+  "Decision record" in the page header, lists the risk's log rows grouped by
+  step in pipeline order, oldest first within each.
+  - **Sentences** are written in the browser from each row's action and
+    detail. A decision after seeing the agent's range reads "Kept their own
+    range" when it matches the analyst's previous decision for that factor,
+    and "Entered a new range … after seeing the agent's" otherwise; saving the
+    same range again without seeing it reads "Saved their range … again".
+  - **"Entered before seeing the agent's"** comes from the row's
+    `sawAgentRange` and `enteredBeforeReveal`.
+  - **The note about earlier reviews** appears when any review date the risk
+    detail returns (intake, scenario, paths, decisions) is earlier than the
+    first log row, or when there are reviews and no rows. The api doesn't know
+    when the feature was installed, so the note gives the first entry's date
+    instead.
+  - **Hand check:** Playwright at 1400 px light and 380 px dark on TR-6 and
+    TR-19 after the Stage 2 flow, plus keep-mine and third-range decisions
+    made through the api.
 
 ## Later extensions
 

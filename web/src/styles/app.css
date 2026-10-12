@@ -491,3 +491,13 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
   .mapcell { flex: none }
   .mapop { align-self: center }
 }
+
+/* Decision record (UI_REBUILD.md stage 4) */
+.recordlink.on { text-decoration: none; color: var(--ink) }
+.recgroup { margin-top: 18px }
+.reclist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px }
+.recitem { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px 12px }
+.recitem p { margin: 2px 0 }
+.recmeta { font-size: 12.5px; color: var(--muted) }
+.recwhat { font-weight: 600 }
+.recwhy { font-size: 14px }

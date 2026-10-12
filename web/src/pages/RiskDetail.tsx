@@ -12,6 +12,7 @@ import { VectorsTab } from '../components/VectorsTab'
 import { TestDataNotice } from '../components/TestDataNotice'
 import { FactorStep } from '../components/guided/FactorStep'
 import { FitsPanel } from '../components/guided/FitsPanel'
+import { DecisionRecord } from '../components/guided/DecisionRecord'
 import { RegisterEntry } from '../components/guided/RegisterEntry'
 import { Justification, SummaryStep } from '../components/guided/SummaryStep'
 
@@ -44,12 +45,13 @@ function heading(step: StepId, nonMal: boolean): string {
   }
 }
 
-type View = { kind: 'step'; step: StepId; factor?: string } | { kind: 'entry' } | { kind: 'none' }
+type View = { kind: 'step'; step: StepId; factor?: string } | { kind: 'entry' } | { kind: 'record' } | { kind: 'none' }
 
 function parseSub(sub: string): View {
   const [head, factor] = sub.split('/')
   if (!head) return { kind: 'none' }
   if (head === 'entry') return { kind: 'entry' }
+  if (head === 'record') return { kind: 'record' }
   if ((STEP_IDS as string[]).includes(head))
     return { kind: 'step', step: head as StepId, factor: factor ? decodeURIComponent(factor) : undefined }
   return { kind: 'none' }
@@ -103,7 +105,7 @@ export function RiskDetail({ riskId, sub, navigate }: Props) {
   const currentFactor = factor ? risk?.estimates?.factors.find((f) => f.factor === factor) : undefined
 
   useEffect(() => {
-    const what = view.kind === 'entry' ? 'Register entry' : current?.label
+    const what = view.kind === 'entry' ? 'Register entry' : view.kind === 'record' ? 'Decision record' : current?.label
     document.title = `${riskId}${what ? ` · ${what}` : ''} · Risk register`
   }, [riskId, current?.label, view.kind])
 
@@ -140,6 +142,7 @@ export function RiskDetail({ riskId, sub, navigate }: Props) {
           {riskId}
           {risk?.title ? ` · ${risk.title}` : ''}
         </p>
+        {link(stepPath(riskId, 'record'), 'Decision record', `recordlink${view.kind === 'record' ? ' on' : ''}`)}
       </header>
 
       <div className="guided">
@@ -178,6 +181,12 @@ export function RiskDetail({ riskId, sub, navigate }: Props) {
           {risk && view.kind === 'entry' && (
             <>
               <RegisterEntry risk={risk} />
+              <p className="stepnav">{link(stepPath(riskId, firstStep(risk)), 'Back to the steps')}</p>
+            </>
+          )}
+          {risk && view.kind === 'record' && (
+            <>
+              <DecisionRecord risk={risk} nonMal={nonMal} navigate={navigate} />
               <p className="stepnav">{link(stepPath(riskId, firstStep(risk)), 'Back to the steps')}</p>
             </>
           )}
