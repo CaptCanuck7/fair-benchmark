@@ -1114,6 +1114,60 @@ difference is noted here.
   - **Provenance** returns `placeholder` both inside `range` and as a field of
     its own. The workspace compares `range` field by field, so the extra key
     doesn't mark a pushed range as changed.
+- **Stage 2, the guided flow.** `/register/{riskId}/{step}` (and
+  `/register/{riskId}/estimates/{factor}`, `/register/{riskId}/entry`) replace
+  the tabs; `/register/{riskId}` goes to the first step that needs the analyst
+  and can start, and the Estimates step to its first undecided factor. The
+  old tab components are reused as the step bodies.
+  - **Quality check, Triage and Kind of weakness are three separate steps**,
+    each its own screen. One screen each kept "one primary button per step".
+  - **Rail statuses** are worked out in the browser from the risk detail the
+    api already returns (`web/src/lib/guided.ts`); nothing new was added to the
+    api for them. A step is muted when it can't start; selecting it shows the
+    api's existing blocked reason (Triage and Kind of weakness, which have no
+    api reason, use the wording the old Quality tab used).
+  - **Edit forms** ask "Why are you changing it?" beside "Save and approve",
+    rather than in a second box after it.
+  - **Next** is a primary button once a step needs nothing from the analyst;
+    while a draft awaits review, "Approve and continue" is the only primary.
+  - **Change** on a decided factor opens the form filled in, instead of
+    clearing the decision first as the old tab did. Saving replaces the
+    decision. "Clear this decision" is still offered there, so nothing is
+    lost.
+  - **Keep mine** in the comparison saves the analyst's range again, so the
+    decision record shows they kept it after seeing the agent's.
+  - **"Show the agent's range without entering mine"** keeps today's
+    behavior: if a complete range has been typed but not saved, it is sent as
+    the range entered first.
+  - **Related evidence.** Besides the factor's own items, the evidence part
+    offers "Show N related items from the same part of the model", so a factor
+    with no tagged items can still rest on evidence instead of a placeholder.
+  - **The recommended method** appears once, on the first factor, with
+    "Draft estimates again". The estimates out-of-date warning appears on
+    every factor, since it applies to all of them.
+  - **"Where this fits"** follows the file for tef, vuln and the loss
+    factors. For the others: cf and poa show "Contacts per year × How often a
+    contact becomes an attempt = Attempts per year"; tcap and rs show
+    "Attacker capability compared with Strength of our controls = How often an
+    attempt works"; lef shows its own box. On steps other than Estimates the
+    panel describes what the step is for.
+  - **Non-malicious wording** lives in each factor's `occurrence` content
+    (tef, poa, vuln) and is used when the approved scenario's threat type is
+    an error, failure or natural event (or, with no scenario, when the paths
+    are failure paths).
+  - **Summary in this stage** shows the scenario sentence, open data
+    requests and Create analysis with the existing stale check. Stage 3
+    replaces it with the map.
+  - **Hand check:** done with Playwright (headless Chromium) against a
+    separate compose project on port 8090, using a copy of the demo database
+    with the agent off, at 1400 px and 380 px, light and dark. It walked TR-6
+    from Quality check through Approve and continue, an edit with a reason, a
+    reject with a reason, and TR-19 through a saved range with evidence, the
+    comparison, taking the agent's range with a note, a placeholder range,
+    reload on a factor screen and the back button. Not checked: anything
+    that needs the agent to run (drafting, the "running" state), and the
+    non-malicious wording in the browser, since no risk in the data has a
+    non-malicious scenario.
 
 ## Later extensions
 

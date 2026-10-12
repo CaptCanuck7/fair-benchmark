@@ -30,9 +30,9 @@ const TASK_LABEL: Record<string, string> = {
   vectors: 'Vectors',
 }
 
-/** The quality check, triage and condition type for one risk (pipeline steps 1 to 3). */
-export function QualityTab({ risk, agent, onRisk, reload }: Props) {
-  const { quality, triage, classification } = risk.intake
+/** The intake checks' status, the last failure, and "Run checks again". */
+export function IntakeBar({ risk, agent, reload }: Omit<Props, 'onRisk'>) {
+  const quality = risk.intake.quality
   const running = risk.agent.state === 'running'
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -51,7 +51,7 @@ export function QualityTab({ risk, agent, onRisk, reload }: Props) {
   }
 
   return (
-    <div className="intake">
+    <>
       <div className="agentbar">
         <div role="status" aria-live="polite">
           {running ? (
@@ -79,34 +79,25 @@ export function QualityTab({ risk, agent, onRisk, reload }: Props) {
           {error}
         </div>
       )}
-
-      <h3>Quality check</h3>
-      {quality ? <QualityView draft={quality} onRisk={onRisk} /> : <p className="muted">Not run yet.</p>}
-
-      <h3>Triage</h3>
-      {triage ? (
-        <TriageView draft={triage} risk={risk} onRisk={onRisk} />
-      ) : quality?.effective.status === 'needs_info' ? (
-        <p className="muted">Not run. Triage waits until the quality check finds the entry ready.</p>
-      ) : (
-        <p className="muted">Not run yet.</p>
-      )}
-
-      <h3>Condition type</h3>
-      {classification ? (
-        <ClassificationView draft={classification} onRisk={onRisk} />
-      ) : (triage && triage.effective.status !== 'qualifies') || quality?.effective.status === 'needs_info' ? (
-        <p className="muted">Not run. Only risks that are ready and qualify go on to classification.</p>
-      ) : (
-        <p className="muted">Not run yet.</p>
-      )}
-
-      <RunList runs={risk.runs} />
-    </div>
+    </>
   )
 }
 
-function QualityView({ draft, onRisk }: { draft: Draft<QualityResult>; onRisk: (r: RegisterRiskDetail) => void }) {
+/** Review props shared by the intake views. `onContinue` runs after an approval succeeds. */
+interface StepProps {
+  onRisk: (r: RegisterRiskDetail) => void
+  onContinue?: () => void
+}
+
+/** Approve, reject (with a reason) or edit, then continue after an approval. */
+function reviewAndContinue(r: ReturnType<typeof useReview>, draftId: number, onContinue?: () => void) {
+  return (a: 'approve' | 'reject', why?: string) =>
+    void r.review(draftId, a, undefined, why).then((ok) => {
+      if (ok && a === 'approve') onContinue?.()
+    })
+}
+
+export function QualityView({ draft, onRisk, onContinue }: { draft: Draft<QualityResult> } & StepProps) {
   const q = draft.effective
   const r = useReview(onRisk)
   const checks: [boolean, string][] = [
@@ -164,21 +155,16 @@ function QualityView({ draft, onRisk }: { draft: Draft<QualityResult>; onRisk: (
         draft={draft}
         actions={['approve', 'reject']}
         busy={r.busy}
-        onAction={(a, why) => void r.review(draft.id, a, undefined, why)}
+        onAction={reviewAndContinue(r, draft.id, onContinue)}
         needsReason
+        approveLabel={onContinue ? 'Approve and continue' : undefined}
       />
       <ReviewError error={r.error} fieldErrors={r.fieldErrors} />
     </>
   )
 }
 
-function ClassificationView({
-  draft,
-  onRisk,
-}: {
-  draft: Draft<ClassificationResult>
-  onRisk: (r: RegisterRiskDetail) => void
-}) {
+export function ClassificationView({ draft, onRisk, onContinue }: { draft: Draft<ClassificationResult> } & StepProps) {
   const c = draft.effective
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ClassificationResult>(c)
@@ -267,8 +253,9 @@ function ClassificationView({
             draft={draft}
             actions={['approve', 'edit', 'reject']}
             busy={r.busy}
-            onAction={(a, why) => void r.review(draft.id, a, undefined, why)}
+            onAction={reviewAndContinue(r, draft.id, onContinue)}
             needsReason
+            approveLabel={onContinue ? 'Approve and continue' : undefined}
             onEdit={() => {
               setForm(c)
               setReason('')
@@ -283,15 +270,12 @@ function ClassificationView({
   )
 }
 
-function TriageView({
+export function TriageView({
   draft,
   risk,
   onRisk,
-}: {
-  draft: Draft<TriageResult>
-  risk: RegisterRiskDetail
-  onRisk: (r: RegisterRiskDetail) => void
-}) {
+  onContinue,
+}: { draft: Draft<TriageResult>; risk: RegisterRiskDetail } & StepProps) {
   const t = draft.effective
   const r = useReview(onRisk)
   const other: TriageStatus = t.status === 'qualifies' ? 'screened_out' : 'qualifies'
@@ -350,8 +334,8 @@ function TriageView({
       {!open ? (
         <div className="draftactions">
           {draft.status === 'drafted' && (
-            <button type="button" className="btn primary" disabled={r.busy} onClick={() => void r.review(draft.id, 'approve')}>
-              Approve
+            <button type="button" className="btn primary" disabled={r.busy} onClick={() => reviewAndContinue(r, draft.id, onContinue)('approve')}>
+              {onContinue ? 'Approve and continue' : 'Approve'}
             </button>
           )}
           <button type="button" className="btn quiet" onClick={() => setOpen(true)}>
@@ -393,7 +377,7 @@ function TriageView({
   )
 }
 
-function RunList({ runs }: { runs: AgentRun[] }) {
+export function RunList({ runs }: { runs: AgentRun[] }) {
   if (!runs.length) return null
   return (
     <details className="more">

@@ -14,10 +14,12 @@ interface Props {
   agent: AgentStatus | null
   onRisk: (r: RegisterRiskDetail) => void
   reload: () => void
+  /** Runs after an approval succeeds (the guided page moves to the next step). */
+  onContinue?: () => void
 }
 
 /** Task 4: attack vectors, or failure paths for non-malicious threat types. */
-export function VectorsTab({ risk, agent, onRisk, reload }: Props) {
+export function VectorsTab({ risk, agent, onRisk, reload, onContinue }: Props) {
   const draft = risk.vectors
   const [editing, setEditing] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
@@ -84,8 +86,13 @@ export function VectorsTab({ risk, agent, onRisk, reload }: Props) {
                 draft={draft}
                 actions={['approve', 'edit', 'reject']}
                 busy={r.busy}
-                onAction={(a, why) => void r.review(draft.id, a, undefined, why)}
+                onAction={(a, why) =>
+                  void r.review(draft.id, a, undefined, why).then((ok) => {
+                    if (ok && a === 'approve') onContinue?.()
+                  })
+                }
                 needsReason
+                approveLabel={onContinue ? 'Approve and continue' : undefined}
                 onEdit={() => setEditing(true)}
               />
             </>

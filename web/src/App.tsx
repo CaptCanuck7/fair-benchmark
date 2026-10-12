@@ -9,18 +9,22 @@ import { RiskDetail } from './pages/RiskDetail'
 import { Settings } from './pages/Settings'
 
 // Pages: "/" lists analyses, "/analyses/:id" is the workspace, "/register"
-// lists register risks, "/register/:riskId" shows one and "/settings" shows
+// lists register risks, "/register/:riskId/:step" shows one (the guided page;
+// "/register/:riskId/estimates/:factor" for one factor) and "/settings" shows
 // the agent's status and outbound log.
 // nginx falls back to index.html, so both work on reload.
-function useRoute(): [string, (path: string) => void] {
+export type Navigate = (path: string, opts?: { replace?: boolean }) => void
+
+function useRoute(): [string, Navigate] {
   const [path, setPath] = useState(() => window.location.pathname)
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname)
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
-  const navigate = useCallback((to: string) => {
-    if (to !== window.location.pathname) window.history.pushState(null, '', to)
+  const navigate = useCallback<Navigate>((to, opts) => {
+    if (opts?.replace) window.history.replaceState(null, '', to)
+    else if (to !== window.location.pathname) window.history.pushState(null, '', to)
     setPath(to)
     window.scrollTo(0, 0)
   }, [])
@@ -40,10 +44,10 @@ export default function App() {
   if (!content) return <p className="wrap top muted">Loading…</p>
 
   const m = /^\/analyses\/([^/]+)\/?$/.exec(path)
-  const risk = /^\/register\/([^/]+)\/?$/.exec(path)
+  const risk = /^\/register\/([^/]+)(?:\/(.+?))?\/?$/.exec(path)
   let page
   if (m) page = <Workspace key={m[1]} id={decodeURIComponent(m[1])} navigate={navigate} />
-  else if (risk) page = <RiskDetail key={risk[1]} riskId={decodeURIComponent(risk[1])} navigate={navigate} />
+  else if (risk) page = <RiskDetail key={risk[1]} riskId={decodeURIComponent(risk[1])} sub={risk[2] ?? ''} navigate={navigate} />
   else if (/^\/register\/?$/.test(path)) page = <RegisterList navigate={navigate} />
   else if (/^\/settings\/?$/.test(path)) page = <Settings navigate={navigate} />
   else page = <AnalysesList navigate={navigate} />

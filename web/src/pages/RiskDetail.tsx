@@ -1,91 +1,73 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { AgentStatus, RegisterRiskDetail } from '../types'
+import type { Navigate } from '../App'
 import { api, ApiError } from '../api/client'
-import { dateTime } from '../lib/format'
+import { firstStep, nonMalicious, stepPath, steps, STEP_IDS, type StepId, type StepInfo } from '../lib/guided'
 import { DataRequestsTab } from '../components/DataRequestsTab'
-import { EstimatesTab } from '../components/EstimatesTab'
+import { TaskBar } from '../components/DraftControls'
 import { EvidenceTab } from '../components/EvidenceTab'
-import { QualityTab } from '../components/QualityTab'
+import { ClassificationView, IntakeBar, QualityView, RunList, TriageView } from '../components/QualityTab'
 import { ScenarioTab } from '../components/ScenarioTab'
 import { VectorsTab } from '../components/VectorsTab'
 import { TestDataNotice } from '../components/TestDataNotice'
+import { FactorStep } from '../components/guided/FactorStep'
+import { FitsPanel } from '../components/guided/FitsPanel'
+import { RegisterEntry } from '../components/guided/RegisterEntry'
+import { SummaryStep } from '../components/guided/SummaryStep'
 
 interface Props {
   riskId: string
-  navigate: (path: string) => void
+  /** The rest of the address: a step, "estimates/{factor}", "entry" or "record". */
+  sub: string
+  navigate: Navigate
 }
 
-const SECTIONS: [key: string, label: string][] = [
-  ['preamble', 'Introduction'],
-  ['risk_statement', 'Risk statement'],
-  ['detailed_analysis', 'Detailed risk analysis'],
-  ['baseline_controls', 'Baseline controls'],
-  ['exploit_paths', 'Exploit paths'],
-]
-
-const FACTS: [key: string, label: string][] = [
-  ['risk_category', 'Category'],
-  ['business_unit', 'Business unit'],
-  ['environment', 'Environment'],
-  ['assets', 'Assets'],
-  ['analyst', 'Analyst'],
-  ['grc_manager', 'GRC manager'],
-  ['risk_owner', 'Risk owner'],
-  ['date_identified', 'Date identified'],
-  ['risk_action', 'Risk action'],
-  ['monitoring_frequency', 'Monitoring frequency'],
-  ['remediation_ticket', 'Remediation ticket'],
-  ['treatment_owner', 'Treatment owner'],
-  ['due_date', 'Due date'],
-]
-
-// Tabs in pipeline order. Each fills in as the agent milestones land.
-const TABS: [id: string, label: string, about: string][] = [
-  [
-    'quality',
-    'Quality',
-    'Checks this entry for missing or vague information and lists questions for you, then triages it and names the kind of weakness behind it.',
-  ],
-  [
-    'scenario',
-    'Scenario',
-    'A draft loss event scenario: asset, threat community, threat type and effect, with each baseline control mapped to the part of the risk it affects.',
-  ],
-  [
-    'vectors',
-    'Vectors',
-    'The ways loss could happen, as numbered steps. For accidental or failure risks, the failure paths instead.',
-  ],
-  ['evidence', 'Evidence', 'Cited evidence for each factor, from internal records and allowlisted public sources.'],
-  ['requests', 'Data requests', 'Questions for other teams where no evidence was found.'],
-  [
-    'estimates',
-    'Estimates',
-    'First-pass ranges for each factor, each backed by evidence. You see the evidence and enter your own range before you can reveal the agent’s.',
-  ],
-]
-
-function scoreText(impact: unknown, likelihood: unknown, score: number | null): string {
-  if (score == null) {
-    const i = impact ?? '—'
-    const l = likelihood ?? '—'
-    return `Impact ${i}, likelihood ${l}: no score`
+/** What each step decides, in plain words. */
+function heading(step: StepId, nonMal: boolean): string {
+  switch (step) {
+    case 'quality':
+      return 'Does the register entry say enough to analyze?'
+    case 'triage':
+      return 'Does this risk need a full analysis?'
+    case 'weakness':
+      return 'What kind of weakness is behind this risk?'
+    case 'scenario':
+      return 'What loss event are we measuring?'
+    case 'paths':
+      return nonMal ? 'How could a failure lead to the loss?' : 'How could an attacker cause the loss?'
+    case 'evidence':
+      return 'What do we know, and what do we still need to ask?'
+    case 'estimates':
+      return 'How often, and how much? Start with the agent’s first draft.'
+    case 'summary':
+      return 'Does the whole picture hold together?'
   }
-  return `${impact} × ${likelihood} = ${score}`
 }
 
-export function RiskDetail({ riskId, navigate }: Props) {
+type View = { kind: 'step'; step: StepId; factor?: string } | { kind: 'entry' } | { kind: 'none' }
+
+function parseSub(sub: string): View {
+  const [head, factor] = sub.split('/')
+  if (!head) return { kind: 'none' }
+  if (head === 'entry') return { kind: 'entry' }
+  if ((STEP_IDS as string[]).includes(head))
+    return { kind: 'step', step: head as StepId, factor: factor ? decodeURIComponent(factor) : undefined }
+  return { kind: 'none' }
+}
+
+/** The guided risk page (UI_REBUILD.md): eight steps, one at a time. */
+export function RiskDetail({ riskId, sub, navigate }: Props) {
   const [risk, setRisk] = useState<RegisterRiskDetail | null>(null)
   const [agent, setAgent] = useState<AgentStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState(TABS[0][0])
+  const [railOpen, setRailOpen] = useState(false)
+  const view = parseSub(sub)
 
   const load = useCallback(() => {
     api.getRisk(riskId).then(setRisk, (e: ApiError) => setError(e.message))
   }, [riskId])
 
   useEffect(() => {
-    document.title = `${riskId} · Risk register`
     load()
     api.agentStatus().then(setAgent, () => setAgent(null))
   }, [riskId, load])
@@ -98,168 +80,297 @@ export function RiskDetail({ riskId, navigate }: Props) {
     return () => window.clearTimeout(t)
   }, [risk, running, load])
 
-  const f = risk?.fields ?? {}
-  const latest = risk?.monitoring
-    .slice()
-    .reverse()
-    .find((m) => m.residualScore != null)
-  const active = TABS.find((t) => t[0] === tab) ?? TABS[0]
+  // /register/{riskId} opens the first step that needs the analyst; the
+  // Estimates step opens its first undecided factor.
+  useEffect(() => {
+    if (!risk) return
+    if (view.kind === 'none') navigate(stepPath(riskId, firstStep(risk)), { replace: true })
+    else if (view.kind === 'step' && view.step === 'estimates' && risk.estimates?.factors.length) {
+      const fs = risk.estimates.factors
+      if (!view.factor || !fs.some((f) => f.factor === view.factor)) {
+        const target = fs.find((f) => !f.decision) ?? fs[0]
+        navigate(stepPath(riskId, 'estimates', target.factor), { replace: true })
+      }
+    }
+  }, [risk, view.kind, view.kind === 'step' ? view.step : '', view.kind === 'step' ? view.factor : '']) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const nonMal = risk ? nonMalicious(risk) : false
+  const factor = view.kind === 'step' && view.step === 'estimates' ? view.factor : undefined
+  const all = risk ? steps(risk, factor) : []
+  const current = view.kind === 'step' ? all.find((s) => s.id === view.step) : undefined
+  const currentFactor = factor ? risk?.estimates?.factors.find((f) => f.factor === factor) : undefined
+
+  useEffect(() => {
+    const what = view.kind === 'entry' ? 'Register entry' : current?.label
+    document.title = `${riskId}${what ? ` · ${what}` : ''} · Risk register`
+  }, [riskId, current?.label, view.kind])
+
+  const go = (step: StepId) => {
+    setRailOpen(false)
+    navigate(stepPath(riskId, step))
+  }
+  const link = (to: string, children: ReactNode, className?: string) => (
+    <a
+      href={to}
+      className={className}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+        e.preventDefault()
+        setRailOpen(false)
+        navigate(to)
+      }}
+    >
+      {children}
+    </a>
+  )
 
   return (
     <>
-      <header className="wrap top">
-        <a
-          href="/register"
-          className="back"
-          onClick={(e) => {
-            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
-            e.preventDefault()
-            navigate('/register')
-          }}
-        >
-          <span aria-hidden="true">←</span> Risk register
-        </a>
-        <div className="brand">FAIR risk workbench</div>
-        <h1 className="pagetitle">
+      <header className="guidedhead">
+        {link(
+          '/register',
+          <>
+            <span aria-hidden="true">←</span> Risk register
+          </>,
+          'back',
+        )}
+        <p className="guidedtitle">
           {riskId}
-          {risk?.title ? ` ${risk.title}` : ''}
-        </h1>
+          {risk?.title ? ` · ${risk.title}` : ''}
+        </p>
       </header>
 
-      <main className="wrap">
-        <TestDataNotice />
-        {error && (
-          <div className="check error" role="alert">
-            {error}
-          </div>
-        )}
-        {!risk && !error && <p className="muted">Loading…</p>}
+      <div className="guided">
         {risk && (
-          <div className="detail">
-            <section className="panel" aria-labelledby="entry-h">
-              <h2 id="entry-h" className="h2">
-                Register entry
-              </h2>
-              <dl className="facts">
-                {FACTS.map(([key, label]) => (
-                  <div key={key}>
-                    <dt>{label}</dt>
-                    <dd>{f[key] ?? <span className="muted">—</span>}</dd>
-                  </div>
+          <nav className={`rail${railOpen ? ' open' : ''}`} aria-label="Steps">
+            <button type="button" className="railtoggle" aria-expanded={railOpen} aria-controls="steplist"
+                    onClick={() => setRailOpen(!railOpen)}>
+              {current ? `Step ${current.n} of ${all.length} · ${current.label}` : 'Steps'}
+              {current && <span className="muted"> · {current.status}</span>}
+              <span aria-hidden="true" className="chev">{railOpen ? '▴' : '▾'}</span>
+            </button>
+            <div id="steplist" className="railbody">
+              <h2 className="raillabel">Steps</h2>
+              <ol className="steplist">
+                {all.map((s) => (
+                  <li key={s.id}>
+                    <RailItem s={s} current={current?.id === s.id} riskId={riskId} onGo={go} />
+                  </li>
                 ))}
-              </dl>
-
-              <h3>Scores</h3>
-              <dl className="facts">
-                <div>
-                  <dt>Baseline</dt>
-                  <dd>{scoreText(f.baseline_impact, f.baseline_likelihood, risk.baselineScore)}</dd>
-                </div>
-                <div>
-                  <dt>Target residual</dt>
-                  <dd>{scoreText(f.target_residual_impact, f.target_residual_likelihood, risk.targetScore)}</dd>
-                </div>
-                <div>
-                  <dt>Latest residual</dt>
-                  <dd>
-                    {latest
-                      ? scoreText(latest.residualImpact, latest.residualLikelihood, latest.residualScore)
-                      : <span className="muted">No monitoring update yet</span>}
-                  </dd>
-                </div>
-              </dl>
-              <p className="cap">
-                Scores are impact × likelihood on 1 to 5 scales, recalculated on import. They have no automatic dollar
-                equivalent.
+              </ol>
+              <p className="railextra">
+                {link(stepPath(riskId, 'entry'), 'View the register entry', view.kind === 'entry' ? 'on' : undefined)}
               </p>
+            </div>
+          </nav>
+        )}
 
-              <h3>Risk analysis</h3>
-              {risk.structured ? (
-                SECTIONS.filter(([key]) => risk.sections[key]).map(([key, label]) => (
-                  <div key={key} className="regsec">
-                    <h4>{label}</h4>
-                    <p className="prewrap">{risk.sections[key]}</p>
-                  </div>
-                ))
+        <main className="guidedmain" id="main">
+          <TestDataNotice />
+          {error && (
+            <div className="check error" role="alert">
+              {error}
+            </div>
+          )}
+          {!risk && !error && <p className="muted">Loading…</p>}
+          {risk && view.kind === 'entry' && (
+            <>
+              <RegisterEntry risk={risk} />
+              <p className="stepnav">{link(stepPath(riskId, firstStep(risk)), 'Back to the steps')}</p>
+            </>
+          )}
+          {risk && current && (
+            <>
+              <p className="stepof">
+                Step {current.n} of {all.length} · {current.label}
+                {currentFactor && ` · Factor ${risk.estimates!.factors.indexOf(currentFactor) + 1} of ${risk.estimates!.factors.length}`}
+              </p>
+              {current.blocked && (
+                <div className="check blocked" role="status">
+                  <b>Can’t start yet.</b> {current.blocked}
+                </div>
+              )}
+              {currentFactor ? (
+                <FactorStep
+                  key={currentFactor.factor}
+                  risk={risk}
+                  f={currentFactor}
+                  agent={agent}
+                  nonMal={nonMal}
+                  onRisk={setRisk}
+                  reload={load}
+                  navigate={navigate}
+                />
               ) : (
                 <>
-                  <div className="check warn">
-                    <b>Unstructured.</b> This analysis has none of the section labels (Risk Statement, Detailed Risk
-                    Analysis, Baseline Controls, Exploit Paths), so it is shown as written.
-                  </div>
-                  <p className="prewrap">{risk.sections.raw || <span className="muted">No analysis text.</span>}</p>
+                  <h1 className="steptitle" id="step-h">
+                    {heading(current.id, nonMal)}
+                  </h1>
+                  {stepBody(current.id, risk, () => go(all[current.n]?.id ?? 'summary'))}
+                  <StepNav all={all} current={current} riskId={riskId} link={link} />
                 </>
               )}
+            </>
+          )}
+        </main>
 
-              <h3>Mitigation plan</h3>
-              <p className="prewrap">{f.mitigation_plan ?? <span className="muted">None recorded.</span>}</p>
-
-              <h3>Monitoring updates</h3>
-              {risk.monitoring.length === 0 ? (
-                <p className="muted">None recorded.</p>
-              ) : (
-                <ol className="updates">
-                  {risk.monitoring.map((m, i) => (
-                    <li key={i}>
-                      <div className="t">
-                        {m.taskName ?? 'Update'}
-                        {m.completedDate && <span className="muted"> · completed {m.completedDate}</span>}
-                      </div>
-                      {m.updateText && <p className="prewrap">{m.updateText}</p>}
-                      <div className="d">
-                        Residual: {scoreText(m.residualImpact, m.residualLikelihood, m.residualScore)}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-              {risk.import && (
-                <p className="cap">
-                  From {risk.import.filename}, imported {dateTime(risk.import.importedAt)}.
-                </p>
-              )}
-            </section>
-
-            <section className="panel" aria-label="Agent preparation">
-              <div className="tabs" role="tablist" aria-label="Preparation steps">
-                {TABS.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    id={`tab-${id}`}
-                    aria-selected={tab === id}
-                    aria-controls="tabpanel"
-                    className={`tab${tab === id ? ' on' : ''}`}
-                    onClick={() => setTab(id)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div id="tabpanel" role="tabpanel" aria-labelledby={`tab-${active[0]}`}>
-                <h2 className="h2">{active[1]}</h2>
-                <p className="lede">{active[2]}</p>
-                {active[0] === 'quality' ? (
-                  <QualityTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
-                ) : active[0] === 'scenario' ? (
-                  <ScenarioTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
-                ) : active[0] === 'vectors' ? (
-                  <VectorsTab risk={risk} agent={agent} onRisk={setRisk} reload={load} />
-                ) : active[0] === 'evidence' ? (
-                  <EvidenceTab risk={risk} agent={agent} reload={load} onShowRequests={() => setTab('requests')} />
-                ) : active[0] === 'requests' ? (
-                  <DataRequestsTab risk={risk} onRisk={setRisk} />
-                ) : active[0] === 'estimates' ? (
-                  <EstimatesTab risk={risk} agent={agent} onRisk={setRisk} reload={load} navigate={navigate} />
-                ) : (
-                  <p className="muted">Not run yet.</p>
-                )}
-              </div>
-            </section>
-          </div>
+        {risk && current && (
+          <FitsPanel risk={risk} step={current.id} factor={currentFactor?.factor} nonMal={nonMal} />
         )}
-      </main>
+      </div>
     </>
+  )
+
+  // A plain function, not a component, so the steps keep their state across renders.
+  function stepBody(step: StepId, risk: RegisterRiskDetail, next: () => void) {
+    const { quality, triage, classification } = risk.intake
+    switch (step) {
+      case 'quality':
+        return (
+          <div className="intake">
+            <IntakeBar risk={risk} agent={agent} reload={load} />
+            {quality ? <QualityView draft={quality} onRisk={setRisk} onContinue={next} /> : <p className="muted">Not run yet.</p>}
+            <RunList runs={risk.runs} />
+          </div>
+        )
+      case 'triage':
+        return (
+          <div className="intake">
+            {triage ? (
+              <TriageView draft={triage} risk={risk} onRisk={setRisk} onContinue={next} />
+            ) : (
+              <p className="muted">Not run yet.</p>
+            )}
+          </div>
+        )
+      case 'weakness':
+        return (
+          <div className="intake">
+            {classification ? (
+              <ClassificationView draft={classification} onRisk={setRisk} onContinue={next} />
+            ) : (
+              <p className="muted">Not run yet.</p>
+            )}
+          </div>
+        )
+      case 'scenario':
+        return <ScenarioTab risk={risk} agent={agent} onRisk={setRisk} reload={load} onContinue={next} />
+      case 'paths':
+        return <VectorsTab risk={risk} agent={agent} onRisk={setRisk} reload={load} onContinue={next} />
+      case 'evidence':
+        return (
+          <>
+            <EvidenceTab
+              risk={risk}
+              agent={agent}
+              reload={load}
+              onShowRequests={() => document.getElementById('requests-h')?.scrollIntoView()}
+            />
+            <section className="requests" aria-labelledby="requests-h">
+              <h2 id="requests-h" className="h3" tabIndex={-1}>
+                Data requests
+              </h2>
+              <p className="cap">Questions for other teams where no evidence was found. An answer becomes evidence.</p>
+              <DataRequestsTab risk={risk} onRisk={setRisk} />
+            </section>
+          </>
+        )
+      case 'estimates':
+        // With estimates, the effect above moves on to the first undecided factor.
+        return (
+          <div className="intake">
+            <TaskBar
+              label="Draft estimates"
+              againLabel="Draft estimates again"
+              hasDraft={!!risk.estimates}
+              blocked={risk.blocked.estimates}
+              running={risk.agent.state === 'running'}
+              agentOff={agent && !agent.configured ? agent.reason : null}
+              busy={false}
+              onRun={() => void api.startRiskTask(risk.riskId, 'estimates').then(load, (e) => setError(String(e.message ?? e)))}
+            />
+            {risk.runs[0]?.task === 'estimates' && risk.runs[0].status === 'failed' && (
+              <div className="check error">The last attempt failed: {risk.runs[0].error}</div>
+            )}
+            <p className="muted">
+              {risk.estimates
+                ? 'Opening the first factor…'
+                : 'No estimates yet. The agent drafts a first-pass range for each factor from the evidence; you then enter your own range for each, with your reasons, before you see the agent’s.'}
+            </p>
+          </div>
+        )
+      case 'summary':
+        return <SummaryStep risk={risk} nonMal={nonMal} navigate={navigate} />
+    }
+  }
+}
+
+function RailItem({
+  s,
+  current,
+  riskId,
+  onGo,
+}: {
+  s: StepInfo
+  current: boolean
+  riskId: string
+  onGo: (s: StepId) => void
+}) {
+  return (
+    <a
+      href={stepPath(riskId, s.id)}
+      className={`stepitem${current ? ' on' : ''}${s.blocked ? ' muted' : ''}`}
+      aria-current={current ? 'step' : undefined}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+        e.preventDefault()
+        onGo(s.id)
+      }}
+    >
+      <span className="stepn" aria-hidden="true">
+        {s.n}
+      </span>
+      <span>
+        <span className="steplabel">{s.label}</span>
+        <span className="stepstatus">
+          <span className="sr">: </span>
+          {s.blocked ? `Can’t start yet · ${s.status}` : s.status}
+        </span>
+      </span>
+    </a>
+  )
+}
+
+/** Previous and next steps. Next is the primary button once this step needs nothing from the analyst. */
+function StepNav({
+  all,
+  current,
+  riskId,
+  link,
+}: {
+  all: StepInfo[]
+  current: StepInfo
+  riskId: string
+  link: (to: string, children: ReactNode, className?: string) => ReactNode
+}) {
+  const prev = all[current.n - 2]
+  const next = all[current.n]
+  return (
+    <nav className="stepnav" aria-label="Previous and next step">
+      {prev ? (
+        link(stepPath(riskId, prev.id), <><span aria-hidden="true">← </span>{prev.label}</>)
+      ) : (
+        <span />
+      )}
+      {next &&
+        link(
+          stepPath(riskId, next.id),
+          <>
+            Next: {next.label}
+            <span aria-hidden="true"> →</span>
+          </>,
+          !current.needsAnalyst && !next.blocked ? 'btn primary' : undefined,
+        )}
+    </nav>
   )
 }

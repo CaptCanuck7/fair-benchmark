@@ -352,3 +352,104 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
 .reasonform .fld textarea, .whyrange .fld textarea { background: var(--panel) }
 .whyrange { margin: 10px 0; display: grid; gap: 6px; max-width: 640px }
 .editor .reason { margin-top: 12px; max-width: 640px }
+
+/* Guided risk page (UI_REBUILD.md stage 2) */
+.guidedhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel) }
+.guidedhead .back { margin: 0 }
+.guidedtitle { flex: 1 1 320px; min-width: 0; margin: 0; font-weight: 700; font-size: 16px; overflow-wrap: anywhere }
+.guidedhead .recordlink { font-size: 14px; font-weight: 600 }
+.guided { display: grid; grid-template-columns: 240px minmax(0, 1fr) 270px; gap: 24px; max-width: 1320px; margin: 0 auto; padding: 20px 16px 40px; align-items: start }
+.guidedmain { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px 24px }
+.raillabel { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0 0 8px }
+.rail { position: sticky; top: 12px }
+.railtoggle { display: none }
+.steplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px }
+.stepitem { display: flex; gap: 10px; align-items: baseline; padding: 7px 10px; border: 1px solid transparent; border-radius: 8px; color: var(--ink); text-decoration: none }
+.stepitem:hover { background: var(--panel); border-color: var(--line) }
+.stepitem.on { background: var(--panel); border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent) }
+.stepn { font-weight: 700; color: var(--accent); width: 16px; flex: none; text-align: right }
+.steplabel { display: block; font-weight: 600 }
+.stepitem .stepstatus { display: block; font-size: 12.5px; color: var(--muted) }
+.stepitem.on .stepstatus { color: var(--ink) }
+.stepitem.muted .steplabel, .stepitem.muted .stepn { color: var(--muted); font-weight: 500 }
+.railextra { margin: 12px 0 0 10px; font-size: 14px }
+.railextra a.on { font-weight: 700 }
+.stepof { font-size: 13px; color: var(--muted); margin: 0 0 4px }
+.steptitle { font-size: 26px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.01em }
+.stephead { margin-bottom: 14px }
+.stephead p { margin: 0 }
+.check.blocked { border-color: var(--muted) }
+.stepnav, .factornav { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--line); margin-top: 22px; padding-top: 14px; font-size: 14px }
+.stepnav a:not(.btn), .factornav a:not(.btn) { font-weight: 600; text-decoration: none }
+.stepnav a:not(.btn):hover, .factornav a:not(.btn):hover { text-decoration: underline }
+.fits { position: sticky; top: 12px; display: grid; gap: 12px; align-content: start }
+.fits p { margin: 0 }
+.fitcheck { border-top: 1px solid var(--line); padding-top: 10px }
+.fitchain { display: grid; gap: 6px; font-size: 14px }
+.fitbox { padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: var(--panel) }
+.fitbox.here { border-color: var(--accent); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent) }
+.fitboxlabel { font-weight: 600; color: var(--ink); margin-bottom: 4px }
+.fitsub { padding: 4px 0 4px 8px; border-left: 2px solid var(--line); margin-top: 4px }
+.fitsub.here { border-left-color: var(--accent); color: var(--ink) }
+.fitop { text-align: center; color: var(--muted); font-size: 13px }
+.fitval { color: var(--ink); font-weight: 600 }
+.fithere { color: var(--amber); font-weight: 700 }
+.btn.big { padding: 12px 20px; font-size: 15px }
+.part { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 0 0 16px; min-width: 0 }
+.part > legend, .partlabel { font-weight: 700; padding: 0 6px; font-size: 15px; color: var(--ink) }
+.whypart { display: grid; gap: 6px; border: 0; padding: 0 }
+.whypart .partlabel { padding: 0 }
+.whypart textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); resize: vertical; min-height: 96px }
+.whypart textarea[aria-invalid="true"] { border-color: var(--red); background: var(--red-soft) }
+.whypart .hint { font-size: 12.5px; color: var(--muted) }
+.ticklist { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 10px }
+.tickitem { display: flex; gap: 10px; align-items: flex-start }
+.tickitem input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--accent) }
+.tickitem label { font-size: 14px; cursor: pointer }
+.tickmeta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px }
+.tickmeta .tag { margin-left: 0 }
+.cite { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere }
+.noagent { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px }
+.rangegrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px }
+.fld.big label, .fld.big > span { font-size: 13px }
+.fld.big select { height: 46px }
+.unitfield { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--field); min-width: 0 }
+.unitfield:focus-within { outline: 2px solid var(--accent); outline-offset: 1px }
+.unitfield > span { padding: 0 10px; color: var(--muted); font-size: 14px; white-space: nowrap }
+.unitfield > span:first-child { padding-right: 0 }
+.fld .unitfield input { border: 0; background: transparent; height: 44px; font-size: 17px; outline: none }
+.fld .unitfield input[aria-invalid="true"] { background: var(--red-soft) }
+.primaryrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 16px 0 6px }
+.primaryrow .small { flex: 1 1 260px }
+.linkbtn.danger { color: var(--red) }
+.decidedcard, .comparebox { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 0 0 16px }
+.comparebox { border-color: var(--accent) }
+.bigrange { font-size: 20px; font-weight: 700; margin: 0 0 2px }
+.h3 { font-size: 17px; margin: 18px 0 6px }
+.comparebox .h3 { margin-top: 0 }
+.h4 { font-size: 14px; margin: 12px 0 4px }
+.cmpgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px }
+.cmpcol { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--field) }
+.cmpcol .h4 { margin-top: 0 }
+.comparebox .fld { margin-top: 8px; max-width: 640px }
+.requests { margin-top: 24px; border-top: 2px solid var(--line); padding-top: 6px }
+.scenariosentence { font-size: 18px; font-weight: 600; max-width: 70ch; margin: 4px 0 16px }
+.createrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 10px 0 }
+.createrow p { flex: 1 1 280px; margin: 0 }
+.entry .facts { margin-top: 12px }
+@media (max-width: 1140px) {
+  .guided { grid-template-columns: 220px minmax(0, 1fr) }
+  .fits { grid-column: 2; position: static }
+}
+@media (max-width: 760px) {
+  .guided { grid-template-columns: minmax(0, 1fr); gap: 14px; padding-top: 12px }
+  .fits { grid-column: 1 }
+  .rail { position: static }
+  .railtoggle { display: flex; width: 100%; align-items: center; gap: 6px; flex-wrap: wrap; text-align: left; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--panel); font-weight: 600; cursor: pointer }
+  .railtoggle .chev { margin-left: auto }
+  .railbody { display: none; margin-top: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel) }
+  .rail.open .railbody { display: block }
+  .railbody .raillabel { display: none }
+  .guidedmain { padding: 16px }
+  .steptitle { font-size: 22px }
+}

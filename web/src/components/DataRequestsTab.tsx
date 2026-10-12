@@ -36,7 +36,7 @@ export function DataRequestsTab({ risk, onRisk }: Props) {
   )
 }
 
-function RequestRow({ r, onRisk }: { r: DataRequest; onRisk: (x: RegisterRiskDetail) => void }) {
+export function RequestRow({ r, onRisk }: { r: DataRequest; onRisk: (x: RegisterRiskDetail) => void }) {
   const { factors } = useContent()
   const [editing, setEditing] = useState(r.status === 'open')
   const [text, setText] = useState(r.answer ?? '')

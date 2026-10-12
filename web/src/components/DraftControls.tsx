@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { Draft, RegisterRiskDetail, ReviewAction } from '../types'
 import { api, ApiError, type FieldError } from '../api/client'
 import { dateTime } from '../lib/format'
@@ -55,6 +55,8 @@ interface ActionsProps {
 export function DraftActions({ draft, actions, busy, onAction, onEdit, needsReason, approveLabel }: ActionsProps) {
   const accepted = draft.status === 'approved' || draft.status === 'edited'
   const [rejecting, setRejecting] = useState(false)
+  // Close the reason box once the review lands (the draft comes back changed).
+  useEffect(() => setRejecting(false), [draft.status, draft.reviewedAt])
   if (rejecting) {
     return (
       <ReasonForm

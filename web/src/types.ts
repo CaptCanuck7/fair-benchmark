@@ -83,13 +83,28 @@ export interface Analysis {
 
 // ---------------------------------------------------------------- content
 
-export interface FactorInfo {
+/** The guided page's wording for a factor (UI_REBUILD.md). */
+export interface FactorWords {
+  /** Everyday label, shown before the FAIR term. */
+  plain: string
+  /** The question the analyst answers. */
+  question: string
+  /** "Where this fits": what the factor means in this kind of scenario. */
+  context: string
+  /** "Where this fits": a line to check the range against. */
+  check: string
+}
+
+export interface FactorInfo extends FactorWords {
   path: string
+  /** The FAIR term. */
   label: string
   unit: string
   kind: Kind
   help: string
   data: string
+  /** For tef, poa and vuln: wording for non-malicious threat types. */
+  occurrence?: Partial<FactorWords>
 }
 
 export interface Content {
