@@ -25,7 +25,7 @@ function useRoute(): [string, Navigate] {
   const navigate = useCallback<Navigate>((to, opts) => {
     if (opts?.replace) window.history.replaceState(null, '', to)
     else if (to !== window.location.pathname) window.history.pushState(null, '', to)
-    setPath(to)
+    setPath(new URL(to, window.location.origin).pathname)
     window.scrollTo(0, 0)
   }, [])
   return [path, navigate]

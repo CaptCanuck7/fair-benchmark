@@ -453,3 +453,41 @@ table.ctl th, table.ctl td { text-align: left; vertical-align: top; white-space:
   .guidedmain { padding: 16px }
   .steptitle { font-size: 22px }
 }
+
+/* Summary map (UI_REBUILD.md stage 3) */
+.mapblock { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px 16px; margin: 0 0 16px }
+.mapblock > .h3 { margin: 0 }
+.mapblock > p { margin: 0 0 10px }
+.maprow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px }
+.mapcell { flex: 1 1 200px; min-width: 0; display: grid; gap: 8px }
+.mapop { align-self: center; color: var(--muted); font-size: 14px; padding: 0 2px }
+.mapcols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px }
+.mapcol { display: grid; gap: 8px; align-content: start }
+.mapcol > .h4 { margin: 0 }
+.mapbox { display: grid; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); cursor: pointer; color: var(--ink) }
+.mapbox:hover { border-color: var(--muted) }
+.mapbox.on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent) }
+.mapbox.empty { border-style: dashed; background: transparent }
+.mapboxlabel { font-size: 13px; color: var(--muted); font-weight: 600 }
+.mapval { font-size: 16px; font-weight: 700 }
+.mapval .muted { font-size: 13px; font-weight: 500 }
+.mapbox.empty .mapval { color: var(--muted) }
+.mapwho { font-size: 12.5px; color: var(--muted) }
+.mapwho .tag { margin-left: 6px }
+.mapreason { font-size: 12.5px; color: var(--ink) }
+.justification { display: grid; gap: 6px; align-content: start }
+.justification p, .justification .h3, .justification .h4 { margin: 0 }
+.justification .h4 { margin-top: 8px }
+.justification .bigrange { margin-top: 4px }
+.justside { position: sticky; top: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--panel) }
+.justinline { display: none; border: 1px solid var(--accent); border-radius: 10px; padding: 12px; background: var(--panel) }
+@media (max-width: 1140px) {
+  .justside { display: none }
+  .justinline { display: block }
+}
+@media (max-width: 760px) {
+  .mapcols { grid-template-columns: minmax(0, 1fr) }
+  .maprow { flex-direction: column }
+  .mapcell { flex: none }
+  .mapop { align-self: center }
+}

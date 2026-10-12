@@ -13,7 +13,7 @@ import { TestDataNotice } from '../components/TestDataNotice'
 import { FactorStep } from '../components/guided/FactorStep'
 import { FitsPanel } from '../components/guided/FitsPanel'
 import { RegisterEntry } from '../components/guided/RegisterEntry'
-import { SummaryStep } from '../components/guided/SummaryStep'
+import { Justification, SummaryStep } from '../components/guided/SummaryStep'
 
 interface Props {
   riskId: string
@@ -61,6 +61,8 @@ export function RiskDetail({ riskId, sub, navigate }: Props) {
   const [agent, setAgent] = useState<AgentStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [railOpen, setRailOpen] = useState(false)
+  // The summary map's selected factor, whose justification is open.
+  const [picked, setPicked] = useState<string | null>(null)
   const view = parseSub(sub)
 
   const load = useCallback(() => {
@@ -214,9 +216,16 @@ export function RiskDetail({ riskId, sub, navigate }: Props) {
           )}
         </main>
 
-        {risk && current && (
-          <FitsPanel risk={risk} step={current.id} factor={currentFactor?.factor} nonMal={nonMal} />
-        )}
+        {risk && current && (() => {
+          const pickedFactor = current.id === 'summary' && picked ? risk.estimates?.factors.find((f) => f.factor === picked) : undefined
+          return pickedFactor ? (
+            <div className="justside">
+              <Justification risk={risk} f={pickedFactor} nonMal={nonMal} navigate={navigate} onClose={() => setPicked(null)} />
+            </div>
+          ) : (
+            <FitsPanel risk={risk} step={current.id} factor={currentFactor?.factor} nonMal={nonMal} />
+          )
+        })()}
       </div>
     </>
   )
@@ -300,7 +309,7 @@ export function RiskDetail({ riskId, sub, navigate }: Props) {
           </div>
         )
       case 'summary':
-        return <SummaryStep risk={risk} nonMal={nonMal} navigate={navigate} />
+        return <SummaryStep risk={risk} nonMal={nonMal} navigate={navigate} picked={picked} onPick={setPicked} />
     }
   }
 }

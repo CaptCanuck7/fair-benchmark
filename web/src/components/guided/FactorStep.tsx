@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { AgentStatus, Conf, EstimateFactor, EvidenceItem, RangeValue, RegisterRiskDetail } from '../../types'
 import { api, ApiError } from '../../api/client'
 import { useContent } from '../../content'
@@ -144,6 +144,13 @@ export function FactorStep({ risk, f, agent, nonMal, onRisk, reload, navigate }:
 
   const takeAgents = () =>
     void act(() => api.decideEstimate(risk.riskId, f.factor, 'agent', undefined, note.trim() ? { note: note.trim() } : undefined), 'view')
+
+  // Opened from the summary's "Compare with the agent's range" (#compare).
+  useEffect(() => {
+    if (window.location.hash !== '#compare') return
+    window.history.replaceState(null, '', window.location.pathname)
+    if (f.status === 'estimated') compare()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const forming = mode === 'enter' || mode === 'third'
 

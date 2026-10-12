@@ -1168,6 +1168,32 @@ difference is noted here.
     that needs the agent to run (drafting, the "running" state), and the
     non-malicious wording in the browser, since no risk in the data has a
     non-malicious scenario.
+- **Stage 3, the summary map.** Step 8 shows the approved scenario sentence,
+  "How often it happens" and "What one event costs", and Create analysis
+  with the existing stale check. It calculates nothing.
+  - **Frequency block:** the method's factors in order, with × between them
+    ("compared with" between attacker capability and strength of controls).
+  - **An undecided box** says "Waiting on {team}" when the factor has an open
+    data request, and "Your turn" otherwise (including when it has no
+    evidence), so there is always a next action.
+  - **Whose range:** "Analyst's range" or "Agent's range, taken by the
+    analyst". The first line of the reason is the analyst's rationale, or for
+    a taken agent range the analyst's note if there is one, else the agent's
+    rationale.
+  - **The justification panel** replaces "Where this fits" in the right
+    column. Below 1140 px, where that column moves under the page, it opens
+    directly below the selected box instead. Its "Compare with the agent's
+    range" link opens the factor's screen with the comparison open
+    (`#compare`), which reveals the agent's range if it wasn't yet, recording
+    the saved range as entered first.
+  - **"Export this summary"** is left out, as the file says.
+  - **Hand check:** Playwright at 1400 px light and 380 px dark on TR-19:
+    the map, placeholder and not-estimated boxes, the justification panel
+    (side and inline), "Change this estimate", and Create analysis. Every
+    pushed `src` read back in order (rationale, sources, placeholder line,
+    approval line) and shows in the workspace's rationale fields. On TR-6,
+    whose estimates are out of date, Create analysis was refused and
+    "Create anyway" created it, with the acknowledgement in the log.
 
 ## Later extensions
 
