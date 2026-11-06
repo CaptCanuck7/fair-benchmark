@@ -30,6 +30,18 @@ you to approve. Read [Data handling](#data-handling) first, then:
 
 Without a key, everything else works and the agent is shown as off.
 
+**Demo data** (optional). `agent-data-demo/` holds two extra demo risks
+(TR-19 and TR-20) and mock evidence with invented records for them. Start with
+the demo file to load that evidence instead of `agent-data/`:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+```
+
+Then, on the Risk register page, import `agent-data/tactical_risk_register_test.xlsx`
+and the two `demo_register_TR-*.xlsx` workbooks. Run the tests without the demo
+file: they expect the standard test data.
+
 ## Data handling
 
 **Test data only.** Do not load real register data until your organization

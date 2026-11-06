@@ -1,0 +1,10 @@
+# Demo data. Makes the api load the mock evidence from agent-data-demo/, which is
+# agent-data/ plus invented records for the demo risks.
+# Opt-in: start with
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+# and import agent-data-demo/demo_register_TR-19.xlsx and demo_register_TR-20.xlsx
+# on the Risk register page. Leave it out ("docker compose up -d") for the test data.
+services:
+  api:
+    volumes:
+      - ./agent-data-demo:/agent-data:ro
